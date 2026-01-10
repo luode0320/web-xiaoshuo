@@ -81,7 +81,9 @@ backend/
 - id: 主键，自增
 - novel_id: 小说ID，外键
 - rating: 评分 (1-5)
+- review: 评分说明（对小说的评论）
 - ip_address: 评分者IP地址（防重复评分）
+- like_count: 点赞数
 - created_at: 创建时间
 - updated_at: 更新时间
 
@@ -266,12 +268,26 @@ backend/
 - **请求参数**:
   - novel_id: 小说ID
   - rating: 评分 (1-5)
+  - review: 评分说明（对小说的评论）
 - **响应**: 评分信息
 
 #### 6.2 获取评分
 - **路径**: GET /api/v1/ratings/:novel_id
 - **路径参数**: novel_id - 小说ID
 - **响应**: 评分信息
+
+#### 6.3 获取小说评分列表
+- **路径**: GET /api/v1/novels/:novel_id/ratings
+- **路径参数**: novel_id - 小说ID
+- **查询参数**:
+  - page: 页码 (默认1)
+  - limit: 每页数量 (默认20)
+- **响应**: 分页的评分列表（包含评分、评分说明、点赞数）
+
+#### 6.4 点赞评分
+- **路径**: POST /api/v1/ratings/:id/like
+- **路径参数**: id - 评分ID
+- **响应**: 点赞结果
 
 ## 文件管理
 
