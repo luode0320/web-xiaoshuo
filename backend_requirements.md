@@ -38,6 +38,7 @@ backend/
 - id: 主键，自增
 - title: 小说标题
 - author: 作者
+- protagonist: 主角名称
 - description: 描述
 - file_path: 文件路径
 - file_size: 文件大小
@@ -105,13 +106,14 @@ backend/
   - filename: 原始文件名
   - title: 标题 (可选，如未提供则从文件提取)
   - author: 作者 (可选，如未提供则从文件提取)
+  - protagonist: 主角名称 (可选，如未提供则从文件提取)
   - description: 描述 (可选)
 - **处理流程**:
   1. 计算文件hash值
   2. 验证文件格式和大小
   3. 检查文件hash是否已存在
   4. 保存文件到指定目录
-  5. 提取小说元数据
+  5. 提取小说元数据（包括主角名称）
   6. 计算并存储字数统计
   7. 创建小说记录（状态为审核中）
 - **响应**: 小说信息
@@ -144,7 +146,7 @@ backend/
 #### 1.5 获取小说详情
 - **路径**: GET /api/v1/novels/:id
 - **路径参数**: id - 小说ID
-- **响应**: 小说详细信息（包含字数统计）
+- **响应**: 小说详细信息（包含字数统计、主角名称）
 
 #### 1.6 获取小说内容
 - **路径**: GET /api/v1/novels/:id/content
@@ -167,7 +169,7 @@ backend/
   - q: 搜索关键词
   - page: 页码 (默认1)
   - limit: 每页数量 (默认20)
-  - search_by: 搜索字段 (title, author, content, word_count)
+  - search_by: 搜索字段 (title, author, protagonist, content, word_count)
   - show_pending: 是否显示审核中的小说 (默认false)
 - **响应**: 搜索结果列表
 
@@ -279,6 +281,7 @@ backend/
 - 文件类型验证
 - 安全扫描
 - 字数统计计算
+- 主角名称提取
 - 文件hash验证（防止重复上传）
 - 上传进度跟踪
 - 上传后默认为审核中状态
