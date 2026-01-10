@@ -66,6 +66,17 @@ backend/
 - novel_id: 小说ID，外键
 - category_id: 分类ID，外键
 
+### 4. 关键词表 (keywords)
+- id: 主键，自增
+- keyword: 关键词
+- created_at: 创建时间
+- updated_at: 更新时间
+
+### 5. 小说关键词关联表 (novel_keywords)
+- id: 主键，自增
+- novel_id: 小说ID，外键
+- keyword_id: 关键词ID，外键
+
 ### 4. 评论表 (comments)
 - id: 主键，自增
 - novel_id: 小说ID，外键
@@ -172,12 +183,27 @@ backend/
   - page: 页码 (默认1)
   - limit: 每页数量 (默认20)
   - search_by: 搜索字段 (title, author, protagonist, content, word_count)
+  - category_id: 分类ID (按分类搜索)
+  - keyword: 关键词 (按关键词搜索)
   - show_pending: 是否显示审核中的小说 (默认false)
 - **响应**: 搜索结果列表
 
 #### 1.9 删除小说
 - **路径**: DELETE /api/v1/novels/:id
 - **路径参数**: id - 小说ID
+- **响应**: 操作结果
+
+#### 1.10 设置小说分类和关键词
+- **路径**: POST /api/v1/novels/:id/classify
+- **路径参数**: id - 小说ID
+- **请求参数**:
+  - category_id: 分类ID
+  - keywords: 关键词数组
+- **处理流程**:
+  1. 验证用户是否已读完小说（到达最后章节）
+  2. 检查分类是否存在于分类表中
+  3. 为小说设置分类（更新小说分类关联表）
+  4. 为小说设置关键词（更新小说关键词关联表，如果关键词不存在则先创建）
 - **响应**: 操作结果
 
 ### 2. 分类模块
