@@ -27,10 +27,6 @@ backend/
 - Viper (配置管理)
 - Logrus (日志管理)
 - Godotenv (环境变量管理)
-- 用于处理EPUB格式的第三方库（如golang-epub）
-- 用于文件类型检测的第三方库（如filetype）
-- 用于密码哈希的第三方库（如bcrypt）
-- 用于HTTP请求限制的第三方库（如x/time/rate）
 
 ## 数据库设计
 
@@ -82,7 +78,7 @@ backend/
 - novel_id: 小说ID，外键
 - rating: 评分 (1-5)
 - review: 评分说明（对小说的评论）
-- ip_address: 评分者IP地址（防重复评分）
+- ip_address: 评分者IP地址（防重复评分，使用validator库验证）
 - like_count: 点赞数
 - created_at: 创建时间
 - updated_at: 更新时间
@@ -97,6 +93,8 @@ backend/
 - id: 主键，自增
 - novel_id: 小说ID，外键
 - keyword_id: 关键词ID，外键
+
+数据库操作使用Gorm ORM库实现，数据验证使用validator库。
 
 ## API接口设计
 
@@ -113,10 +111,10 @@ backend/
   - description: 描述 (可选)
 - **处理流程**:
   1. 计算文件hash值
-  2. 验证文件格式和大小
+  2. 验证文件格式和大小（使用filetype库）
   3. 检查文件hash是否已存在
   4. 保存文件到指定目录
-  5. 提取小说元数据（包括主角名称）
+  5. 提取小说元数据（包括主角名称，使用golang-epub库处理EPUB文件）
   6. 计算并存储字数统计
   7. 创建小说记录（状态为审核中）
 - **响应**: 小说信息
@@ -265,8 +263,14 @@ backend/
   - novel_id: 小说ID
   - chapter_id: 章节ID (对小说章节进行评论)
   - parent_id: 父评论ID (可选，用于对评论进行评论)
-  - content: 评论内容
+  - content: 评论内容 (最多500字符)
   - author_name: 评论者姓名
+- **处理流程**:
+  1. 验证小说和章节存在性
+  2. 验证评论内容长度（最多500字符）
+  3. 验证同一用户对同一章节的评论数量（限制为5条）
+  4. 检查IP限制（同一IP对同一章节评论限制）
+  5. 保存评论记录
 - **响应**: 评论信息
 
 #### 4.2 获取评论列表
@@ -323,7 +327,7 @@ backend/
 ### 1. 文件上传
 - 支持txt、epub格式
 - 文件大小限制（最大20MB）
-- 文件类型验证
+- 文件类型验证（使用filetype库）
 - 安全扫描
 - 字数统计计算
 - 主角名称提取
@@ -331,6 +335,7 @@ backend/
 - 上传进度跟踪
 - 上传后默认为审核中状态
 - 上传失败时返回错误信息给用户
+- 文件上传处理（使用mime/multipart库）
 
 ### 2. 文件存储
 - 本地文件系统存储
@@ -357,11 +362,13 @@ backend/
 - IP访问频率限制
 - 敏感操作验证（如删除操作）
 - 内容审核机制
+- 同一会话IP限制评论和评分：每个IP对同一个小说只能评论最多10次，对小说的章节评论最多10次，对评论的点赞限制为同一会话IP只能点赞一次
+- 阅读进度、点赞状态等用户个性化数据存储在用户本地（localStorage/sessionStorage），不强制同步到服务器
 
 ## 数据验证
 
 ### 1. 输入验证
-- 请求参数验证
+- 请求参数验证（使用validator库）
 - 数据格式验证
 - 业务规则验证
 
@@ -412,18 +419,18 @@ backend/
 
 ### 1. 数据安全
 - 防止SQL注入
-- 防止XSS攻击
+- 防止XSS攻击（使用bluemonday库进行内容过滤）
 - 输入内容过滤和验证
 
 ### 2. 文件安全
-- 文件类型验证
+- 文件类型验证（使用filetype库）
 - 文件大小限制
 - 恶意文件检测
 - 上传路径安全
 - 文件hash验证（防止重复上传）
 
 ### 3. 访问控制
-- API访问频率限制
+- API访问频率限制（使用golang.org/x/time/rate库）
 - 敏感操作验证
 - 操作频率限制
 - 审核权限控制
@@ -451,3 +458,18 @@ backend/
 - 健康检查接口
 - 性能监控
 - 错误监控
+
+## 第三方库使用
+
+- Gin: Web框架
+- Gorm: ORM框架
+- Viper: 配置管理
+- Logrus: 日志管理
+- filetype: 文件类型检测
+- golang-epub: EPUB格式处理
+- golang.org/x/time/rate: 速率限制
+- validator: 数据验证
+- bluemonday: XSS防护
+- go-redis: Redis缓存
+- bcrypt: 密码哈希
+- mime/multipart: 文件上传处理
