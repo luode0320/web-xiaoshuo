@@ -69,7 +69,7 @@ backend/
 ### 4. 评论表 (comments)
 - id: 主键，自增
 - novel_id: 小说ID，外键
-- chapter_id: 章节ID
+- chapter_id: 章节ID（对小说章节进行评论）
 - parent_id: 父评论ID，自关联
 - content: 评论内容
 - author_name: 评论者姓名
@@ -204,7 +204,7 @@ backend/
 - **处理流程**:
   1. 根据小说的分类和关键词查找拥有相同分类或者关键字的小说
   2. 按照阅读量排序，返回匹配度最高的最多3本小说
-  3. 排除用户已读过的小说
+  3. 前端通过本地存储排除用户已读过的小说
 - **响应**: 相关小说推荐列表
 
 ### 2. 分类模块
@@ -262,8 +262,8 @@ backend/
 - **路径**: POST /api/v1/comments
 - **请求参数**:
   - novel_id: 小说ID
-  - chapter_id: 章节ID
-  - parent_id: 父评论ID (可选)
+  - chapter_id: 章节ID (对小说章节进行评论)
+  - parent_id: 父评论ID (可选，用于对评论进行评论)
   - content: 评论内容
   - author_name: 评论者姓名
 - **响应**: 评论信息
@@ -272,10 +272,11 @@ backend/
 - **路径**: GET /api/v1/comments
 - **查询参数**:
   - novel_id: 小说ID
-  - chapter_id: 章节ID
-  - parent_id: 父评论ID
+  - chapter_id: 章节ID (对小说章节进行评论)
+  - parent_id: 父评论ID (可选，如果提供则只获取对该评论的回复)
   - page: 页码 (默认1)
-  - limit: 每页数量 (默认20)
+  - limit: 每页数量 (默认5)
+  - sort: 排序方式 (likes-按点赞最多, newest-按最新, 默认likes)
 - **响应**: 分页的评论列表
 
 #### 4.3 点赞评论
@@ -295,7 +296,7 @@ backend/
 - **请求参数**:
   - novel_id: 小说ID
   - rating: 评分 (1-5)
-  - review: 评分说明（对小说的评论）
+  - review: 评分说明（对小说的评论，最多250个字符，非必填）
 - **响应**: 评分信息
 
 #### 5.2 获取评分
