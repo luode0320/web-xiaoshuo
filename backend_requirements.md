@@ -66,17 +66,6 @@ backend/
 - novel_id: 小说ID，外键
 - category_id: 分类ID，外键
 
-### 4. 关键词表 (keywords)
-- id: 主键，自增
-- keyword: 关键词
-- created_at: 创建时间
-- updated_at: 更新时间
-
-### 5. 小说关键词关联表 (novel_keywords)
-- id: 主键，自增
-- novel_id: 小说ID，外键
-- keyword_id: 关键词ID，外键
-
 ### 4. 评论表 (comments)
 - id: 主键，自增
 - novel_id: 小说ID，外键
@@ -98,15 +87,16 @@ backend/
 - created_at: 创建时间
 - updated_at: 更新时间
 
-### 6. 心得表 (reflections)
+### 6. 关键词表 (keywords)
 - id: 主键，自增
-- novel_id: 小说ID，外键
-- title: 心得标题
-- content: 心得内容
-- author_name: 作者姓名
-- like_count: 点赞数
+- keyword: 关键词
 - created_at: 创建时间
 - updated_at: 更新时间
+
+### 7. 小说关键词关联表 (novel_keywords)
+- id: 主键，自增
+- novel_id: 小说ID，外键
+- keyword_id: 关键词ID，外键
 
 ## API接口设计
 
@@ -159,7 +149,17 @@ backend/
 #### 1.5 获取小说详情
 - **路径**: GET /api/v1/novels/:id
 - **路径参数**: id - 小说ID
-- **响应**: 小说详细信息（包含字数统计、主角名称）
+- **响应**: 小说详细信息（包含字数统计、主角名称、分类信息、关键词）
+
+#### 1.11 获取相关小说推荐
+- **路径**: GET /api/v1/novels/:id/recommendations
+- **路径参数**: id - 小说ID
+- **查询参数**:
+  - limit: 推荐数量 (默认3)
+- **处理流程**:
+  1. 根据小说的分类和关键词查找相似小说
+  2. 返回匹配度最高的小说列表
+- **响应**: 相关小说推荐列表
 
 #### 1.6 获取小说内容
 - **路径**: GET /api/v1/novels/:id/content
