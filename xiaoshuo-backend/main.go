@@ -21,7 +21,7 @@ func main() {
 	config.InitRedis()
 
 	// 设置运行模式
-	gin.SetMode(gin.ReleaseMode)
+	gin.SetMode(config.GlobalConfig.Server.Mode)
 
 	// 创建路由实例
 	r := gin.Default()
@@ -30,8 +30,8 @@ func main() {
 	routes.InitRoutes(r)
 
 	// 启动服务器
-	log.Println("服务器启动中，监听端口: 8080")
-	if err := r.Run(":8080"); err != nil {
+	log.Println("服务器启动中，监听端口: " + config.GlobalConfig.Server.Port)
+	if err := r.Run(":" + config.GlobalConfig.Server.Port); err != nil {
 		log.Fatal("服务器启动失败: ", err)
 	}
 }

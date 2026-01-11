@@ -9,8 +9,7 @@
             "type": "go", // 指定调试器类型，这里为 Go 语言。
             "request": "launch", // 表示调试请求类型，"launch" 表示启动程序。
             "mode": "auto", // 调试模式，可以是 "auto"、"debug" 或 "test"。`auto` 会自动选择合适的模式。
-            "args": "-env=local", // 启动程序时的命令行参数。
-            "program": "${workspaceFolder}/backend/" // 要调试的程序路径，`${workspaceFolder}` 表示当前工作区的根目录。
+            "program": "${workspaceFolder}/xiaoshuo-backend/" // 要调试的程序路径，`${workspaceFolder}` 表示当前工作区的根目录。
         }
     ]
 }

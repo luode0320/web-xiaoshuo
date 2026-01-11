@@ -21,7 +21,7 @@
 ## 项目结构
 
 ```
-frontend/
+xiaoshuo-frontend/
 ├── src/
 │   ├── components/       # 通用组件
 │   ├── views/            # 页面组件
@@ -2095,7 +2095,7 @@ frontend/
 ### 1. 项目结构设计
 
 ```
-frontend/
+xiaoshuo-frontend/
 ├── public/                   # 静态资源目录
 │   ├── favicon.ico           # 网站图标
 │   ├── index.html            # 主页面模板

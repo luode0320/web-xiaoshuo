@@ -8,7 +8,7 @@
 ## 项目结构
 
 ```
-backend/
+xiaoshuo-backend/
 ├── main.go           # 主程序入口
 ├── models/           # 数据模型
 ├── controllers/      # 控制器
@@ -2224,7 +2224,7 @@ tasks:
 ### 1. 项目结构设计
 
 ```
-backend/
+xiaoshuo-backend/
 ├── main.go                       # 主程序入口
 ├── go.mod                        # Go模块定义
 ├── go.sum                        # Go模块校验和
