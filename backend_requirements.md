@@ -154,7 +154,24 @@ backend/
   - email: 邮箱（符合邮箱格式）
   - password: 密码
   - nickname: 昵称（可选）
-- 响应: 用户信息和认证token
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "user": {
+        "id": 1,
+        "email": "user@example.com",
+        "nickname": "用户名",
+        "is_active": true,
+        "is_admin": false,
+        "last_login_at": "2023-01-01T10:00:00Z"
+      },
+      "token": "jwt_token_here"
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证邮箱格式（使用github.com/go-playground/validator/v10库）
   2. 检查邮箱是否已存在（使用Gorm查询）
@@ -170,7 +187,24 @@ backend/
 - 请求参数:
   - email: 邮箱
   - password: 密码
-- 响应: 用户信息和认证token
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "user": {
+        "id": 1,
+        "email": "user@example.com",
+        "nickname": "用户名",
+        "is_active": true,
+        "is_admin": false,
+        "last_login_at": "2023-01-01T10:00:00Z"
+      },
+      "token": "jwt_token_here"
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证用户凭据（使用Gorm查询用户）
   2. 密码验证（使用golang.org/x/crypto/bcrypt库）
@@ -181,14 +215,46 @@ backend/
 #### 1.3 获取用户信息
 - 路径: GET /api/v1/users/profile
 - 认证: JWT token
-- 响应: 用户详细信息
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "id": 1,
+      "email": "user@example.com",
+      "nickname": "用户名",
+      "is_active": true,
+      "is_admin": false,
+      "last_login_at": "2023-01-01T10:00:00Z",
+      "created_at": "2023-01-01T10:00:00Z",
+      "updated_at": "2023-01-01T10:00:00Z"
+    },
+    "message": "success"
+  }
+  ```
 
 #### 1.4 更新用户信息
 - 路径: PUT /api/v1/users/profile
 - 认证: JWT token
 - 请求参数:
   - nickname: 昵称（可选）
-- 响应: 更新后的用户信息
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "id": 1,
+      "email": "user@example.com",
+      "nickname": "新昵称",
+      "is_active": true,
+      "is_admin": false,
+      "last_login_at": "2023-01-01T10:00:00Z",
+      "created_at": "2023-01-01T10:00:00Z",
+      "updated_at": "2023-01-01T10:00:00Z"
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证用户认证（使用middleware/jwt库）
   2. 验证参数格式（使用github.com/go-playground/validator/v10库）
@@ -202,7 +268,54 @@ backend/
   - page: 页码 (默认1)
   - limit: 每页数量 (默认20)
   - show_pending: 是否显示审核中的小说 (默认true)
-- 响应: 分页的用户上传小说列表
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "data": [
+        {
+          "id": 1,
+          "title": "小说标题",
+          "author": "作者名",
+          "protagonist": "主角名",
+          "description": "小说简介",
+          "file_path": "/uploads/approved/novel1.epub",
+          "file_size": 1024000,
+          "word_count": 150000,
+          "click_count": 1200,
+          "today_clicks": 50,
+          "week_clicks": 300,
+          "month_clicks": 800,
+          "upload_time": "2023-01-01T10:00:00Z",
+          "last_read_time": "2023-01-01T10:00:00Z",
+          "status": "approved",
+          "file_hash": "hash_value",
+          "upload_user": {
+            "id": 2,
+            "nickname": "上传者昵称"
+          },
+          "categories": [
+            {
+              "id": 1,
+              "name": "玄幻"
+            }
+          ],
+          "keywords": [
+            {
+              "id": 1,
+              "keyword": "热血"
+            }
+          ]
+        }
+      ],
+      "total": 100,
+      "page": 1,
+      "limit": 20
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证用户认证（使用middleware/jwt库）
   2. 从JWT token中获取当前用户ID
@@ -217,7 +330,32 @@ backend/
 - 查询参数:
   - page: 页码 (默认1)
   - limit: 每页数量 (默认20)
-- 响应: 分页的用户评论列表
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "data": [
+        {
+          "id": 1,
+          "novel": {
+            "id": 1,
+            "title": "小说标题"
+          },
+          "chapter_id": 1,
+          "content": "评论内容",
+          "like_count": 5,
+          "created_at": "2023-01-01T10:00:00Z",
+          "updated_at": "2023-01-01T10:00:00Z"
+        }
+      ],
+      "total": 50,
+      "page": 1,
+      "limit": 20
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证用户认证（使用middleware/jwt库）
   2. 从JWT token中获取当前用户ID
@@ -232,7 +370,32 @@ backend/
 - 查询参数:
   - page: 页码 (默认1)
   - limit: 每页数量 (默认20)
-- 响应: 分页的用户评分列表
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "data": [
+        {
+          "id": 1,
+          "novel": {
+            "id": 1,
+            "title": "小说标题"
+          },
+          "rating": 5,
+          "review": "评分说明",
+          "like_count": 3,
+          "created_at": "2023-01-01T10:00:00Z",
+          "updated_at": "2023-01-01T10:00:00Z"
+        }
+      ],
+      "total": 20,
+      "page": 1,
+      "limit": 20
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证用户认证（使用middleware/jwt库）
   2. 从JWT token中获取当前用户ID
@@ -247,7 +410,27 @@ backend/
 - 查询参数:
   - page: 页码 (默认1)
   - limit: 每页数量 (默认10)
-- 响应: 分页的未读消息列表
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "data": [
+        {
+          "id": 1,
+          "title": "消息标题",
+          "content": "消息内容",
+          "type": "notification",
+          "created_at": "2023-01-01T10:00:00Z"
+        }
+      ],
+      "total": 5,
+      "page": 1,
+      "limit": 10
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证用户认证（使用middleware/jwt库）
   2. 从JWT token中获取当前用户ID
@@ -260,28 +443,78 @@ backend/
 - 路径: GET /api/v1/admin/users
 - 认证: JWT token
 - 查询参数: page, limit, status
-- 响应: 分页的用户列表
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "data": [
+        {
+          "id": 1,
+          "email": "user@example.com",
+          "nickname": "用户名",
+          "is_active": true,
+          "is_admin": false,
+          "created_at": "2023-01-01T10:00:00Z",
+          "last_login_at": "2023-01-01T10:00:00Z"
+        }
+      ],
+      "total": 100,
+      "page": 1,
+      "limit": 20
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程: 验证管理员权限，查询用户列表，分页返回
 
 ##### 1.9.2 冻结用户
 - 路径: POST /api/v1/admin/users/:id/freeze
 - 认证: JWT token
 - 路径参数: id - 用户ID
-- 响应: 操作结果
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "message": "用户已冻结"
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程: 验证管理员权限，更新用户状态为冻结，记录操作日志
 
 ##### 1.9.3 解冻用户
 - 路径: POST /api/v1/admin/users/:id/unfreeze
 - 认证: JWT token
 - 路径参数: id - 用户ID
-- 响应: 操作结果
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "message": "用户已解冻"
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程: 验证管理员权限，更新用户状态为激活，记录操作日志
 
 ##### 1.9.4 删除冻结用户的未审核小说
 - 路径: DELETE /api/v1/admin/users/:id/pending-novels
 - 认证: JWT token
 - 路径参数: id - 用户ID
-- 响应: 操作结果
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "deleted_count": 5,
+      "message": "已删除5本未审核小说"
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程: 验证管理员权限，检查用户是否被冻结，
   删除该用户的所有未审核小说，记录操作日志
 
@@ -302,6 +535,27 @@ backend/
   - author: 作者 (可选，如未提供则从文件提取)
   - protagonist: 主角名称 (可选，如未提供则从文件提取)
   - description: 描述 (可选)
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "id": 1,
+      "title": "小说标题",
+      "author": "作者名",
+      "protagonist": "主角名",
+      "description": "小说简介",
+      "file_path": "/uploads/pending/novel1.epub",
+      "file_size": 1024000,
+      "word_count": 150000,
+      "status": "pending",
+      "upload_time": "2023-01-01T10:00:00Z",
+      "created_at": "2023-01-01T10:00:00Z",
+      "updated_at": "2023-01-01T10:00:00Z"
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证用户认证（使用middleware/jwt库）
   2. 检查用户是否被冻结（is_active字段）
@@ -335,7 +589,54 @@ backend/
   - keyword: 搜索关键词
   - category: 分类ID
   - show_pending: 是否显示审核中的小说 (默认true)
-- 响应: 分页的小说列表（包含上传用户信息，如昵称）
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "data": [
+        {
+          "id": 1,
+          "title": "小说标题",
+          "author": "作者名",
+          "protagonist": "主角名",
+          "description": "小说简介",
+          "file_path": "/uploads/approved/novel1.epub",
+          "file_size": 1024000,
+          "word_count": 150000,
+          "click_count": 1200,
+          "today_clicks": 50,
+          "week_clicks": 300,
+          "month_clicks": 800,
+          "upload_time": "2023-01-01T10:00:00Z",
+          "last_read_time": "2023-01-01T10:00:00Z",
+          "status": "approved",
+          "file_hash": "hash_value",
+          "upload_user": {
+            "id": 2,
+            "nickname": "上传者昵称"
+          },
+          "categories": [
+            {
+              "id": 1,
+              "name": "玄幻"
+            }
+          ],
+          "keywords": [
+            {
+              "id": 1,
+              "keyword": "热血"
+            }
+          ]
+        }
+      ],
+      "total": 100,
+      "page": 1,
+      "limit": 20
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 根据查询参数构建查询条件（使用Gorm的动态查询）
   2. 如果设置了show_pending参数为false，则仅查询已通过的小说
@@ -351,7 +652,54 @@ backend/
   - page: 页码 (默认1)
   - limit: 每页数量 (默认20)
   - show_pending: 是否显示审核中的小说 (默认true)
-- 响应: 分页的上传小说列表（包含上传用户信息，如昵称）
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "data": [
+        {
+          "id": 1,
+          "title": "小说标题",
+          "author": "作者名",
+          "protagonist": "主角名",
+          "description": "小说简介",
+          "file_path": "/uploads/approved/novel1.epub",
+          "file_size": 1024000,
+          "word_count": 150000,
+          "click_count": 1200,
+          "today_clicks": 50,
+          "week_clicks": 300,
+          "month_clicks": 800,
+          "upload_time": "2023-01-01T10:00:00Z",
+          "last_read_time": "2023-01-01T10:00:00Z",
+          "status": "approved",
+          "file_hash": "hash_value",
+          "upload_user": {
+            "id": 2,
+            "nickname": "上传者昵称"
+          },
+          "categories": [
+            {
+              "id": 1,
+              "name": "玄幻"
+            }
+          ],
+          "keywords": [
+            {
+              "id": 1,
+              "keyword": "热血"
+            }
+          ]
+        }
+      ],
+      "total": 100,
+      "page": 1,
+      "limit": 20
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证用户认证（使用middleware/jwt库）
   2. 从JWT token中获取当前用户ID
@@ -365,7 +713,27 @@ backend/
 - 查询参数:
   - limit: 数量限制 (默认20)
   - show_pending: 是否显示审核中的小说 (默认false)
-- 响应: 推荐小说列表
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": [
+      {
+        "id": 1,
+        "title": "小说标题",
+        "author": "作者名",
+        "click_count": 1200,
+        "average_rating": 4.5,
+        "word_count": 150000,
+        "upload_user": {
+          "id": 2,
+          "nickname": "上传者昵称"
+        }
+      }
+    ],
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 构建查询条件（排除审核中状态的小说，除非show_pending为true）
   2. 按照推荐规则排序（如按点击量、评分等）
@@ -375,9 +743,69 @@ backend/
 #### 2.5 获取小说详情
 - 路径: GET /api/v1/novels/:id
 - 路径参数: id - 小说ID
-- 响应: 小说详细信息（包含字数统计、主角名称、分类信息、关键词、
-  上传用户信息如昵称）。如果用户已登录，还返回该用户的阅读进度、
-  是否已评分、是否已点赞等个性化信息。
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "id": 1,
+      "title": "小说标题",
+      "author": "作者名",
+      "protagonist": "主角名",
+      "description": "详细的小说简介",
+      "file_path": "/uploads/approved/novel1.epub",
+      "file_size": 1024000,
+      "word_count": 150000,
+      "click_count": 1200,
+      "today_clicks": 50,
+      "week_clicks": 300,
+      "month_clicks": 800,
+      "upload_time": "2023-01-01T10:00:00Z",
+      "last_read_time": "2023-01-01T10:00:00Z",
+      "status": "approved",
+      "file_hash": "hash_value",
+      "upload_user": {
+        "id": 2,
+        "email": "uploader@example.com",
+        "nickname": "上传者昵称"
+      },
+      "categories": [
+        {
+          "id": 1,
+          "name": "玄幻"
+        }
+      ],
+      "keywords": [
+        {
+          "id": 1,
+          "keyword": "热血"
+        }
+      ],
+      "average_rating": 4.5,
+      "rating_count": 120,
+      "comment_count": 50,
+      "user_progress": 25.5,
+      "user_has_rated": false,
+      "user_has_liked": false,
+      "chapter_list": [
+        {
+          "id": 1,
+          "title": "第一章 标题",
+          "word_count": 3000
+        }
+      ],
+      "recommendations": [
+        {
+          "id": 2,
+          "title": "推荐小说标题",
+          "author": "作者名",
+          "click_count": 500
+        }
+      ]
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证小说ID格式（使用github.com/go-playground/validator/v10库）
   2. 根据ID查询小说信息（使用Gorm预加载关联数据）
@@ -399,6 +827,16 @@ backend/
 #### 2.7 记录小说点击量
 - 路径: POST /api/v1/novels/:id/click
 - 路径参数: id - 小说ID
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "message": "点击量已记录"
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证小说ID格式（使用github.com/go-playground/validator/v10库）
   2. 验证小说存在性
@@ -406,7 +844,6 @@ backend/
   4. 定期将缓存数据同步到数据库
   5. 更新今日/本周/本月点击量
   6. 更新最后阅读时间
-- 响应: 操作结果
 
 #### 2.8 搜索小说
 - 路径: GET /api/v1/search/novels
@@ -418,7 +855,47 @@ backend/
   - category_id: 分类ID (按分类搜索)
   - keyword: 关键词 (按关键词搜索)
   - show_pending: 是否显示审核中的小说 (默认true，所有用户都可以看到审核中的小说，但可以选择性过滤)
-- 响应: 搜索结果列表
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "data": [
+        {
+          "id": 1,
+          "title": "搜索结果小说标题",
+          "author": "作者名",
+          "protagonist": "主角名",
+          "description": "小说简介",
+          "word_count": 150000,
+          "click_count": 1200,
+          "upload_user": {
+            "id": 2,
+            "nickname": "上传者昵称"
+          },
+          "categories": [
+            {
+              "id": 1,
+              "name": "玄幻"
+            }
+          ],
+          "keywords": [
+            {
+              "id": 1,
+              "keyword": "热血"
+            }
+          ],
+          "average_rating": 4.5,
+          "rating_count": 120
+        }
+      ],
+      "total": 50,
+      "page": 1,
+      "limit": 20
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 使用第三方库bleve实现全文搜索功能
   2. 根据search_by参数确定搜索字段
@@ -464,11 +941,20 @@ backend/
   5. 设置Accept-Ranges响应头表明服务器支持范围请求
   6. 错误处理：如果请求的范围无效，返回416 Requested Range Not Satisfiable状态码
 
-#### 2.9 删除小说
+#### 2.10 删除小说
 - 路径: DELETE /api/v1/novels/:id
 - 认证: JWT token
 - 路径参数: id - 小说ID
-- 响应: 操作结果
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "message": "小说已删除"
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证用户认证（使用middleware/jwt库）
   2. 验证小说ID格式（使用github.com/go-playground/validator/v10库）
@@ -481,13 +967,23 @@ backend/
   9. 维护已发表评论和评分的统计数据完整性
   10. 返回操作结果
 
-#### 2.14 设置小说分类和关键词
+#### 2.11 设置小说分类和关键词
 - 路径: POST /api/v1/novels/:id/classify
 - 认证: JWT token
 - 路径参数: id - 小说ID
 - 请求参数:
   - category_id: 分类ID
   - keywords: 关键词数组
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "message": "分类和关键词设置成功"
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证用户认证（使用middleware/jwt库）
   2. 验证小说ID格式（使用github.com/go-playground/validator/v10库）
@@ -499,20 +995,38 @@ backend/
   7. 记录分类和关键词设置的用户ID
 - 响应: 操作结果
 
-#### 2.11 获取相关小说推荐
+#### 2.12 获取相关小说推荐
 - 路径: GET /api/v1/novels/:id/recommendations
 - 路径参数: id - 小说ID
 - 查询参数:
   - limit: 推荐数量 (默认3)
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": [
+      {
+        "id": 2,
+        "title": "相关小说标题",
+        "author": "作者名",
+        "click_count": 800,
+        "upload_user": {
+          "id": 3,
+          "nickname": "上传者昵称"
+        }
+      }
+    ],
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证小说ID格式（使用github.com/go-playground/validator/v10库）
   2. 根据指定小说ID获取小说信息
   3. 根据小说的分类和关键词查找拥有相同分类或者关键字的小说
   4. 按照阅读量排序，返回匹配度最高的最多3本小说
   5. 对于无阅读量的小说，默认按ID排序
-- 响应: 相关小说推荐列表
 
-#### 2.12 搜索统计接口
+#### 2.13 搜索统计接口
 - 路径: POST /api/v1/search/statistics
 - 认证: JWT token（可选）
 - 请求参数:
@@ -520,6 +1034,16 @@ backend/
   - result_count: 搜索结果数量
   - search_time: 搜索耗时（毫秒）
   - has_results: 是否有结果（布尔值）
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "message": "搜索统计已记录"
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证请求参数（使用github.com/go-playground/validator/v10库）
   2. 记录搜索行为到数据库（使用Gorm）
@@ -527,23 +1051,51 @@ backend/
   4. 如果无结果，记录无结果搜索词
 - 响应: 操作结果
 
-#### 2.13 获取热门搜索词
+#### 2.14 获取热门搜索词
 - 路径: GET /api/v1/search/hot-words
 - 查询参数:
   - limit: 返回数量 (默认10)
   - time_range: 时间范围 (day/week/month，默认week)
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": [
+      {
+        "keyword": "热门搜索词",
+        "count": 150
+      }
+    ],
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 根据time_range参数确定统计时间范围
   2. 从数据库或Redis缓存获取热门搜索词
   3. 按搜索次数排序
   4. 返回热门搜索词列表
-- 响应: 热门搜索词列表
 
 ### 3. 分类模块
 
 #### 3.1 获取分类列表
 - 路径: GET /api/v1/categories
-- 响应: 分类列表
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": [
+      {
+        "id": 1,
+        "name": "玄幻",
+        "description": "玄幻小说分类",
+        "novel_count": 150,
+        "created_at": "2023-01-01T10:00:00Z",
+        "updated_at": "2023-01-01T10:00:00Z"
+      }
+    ],
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 从数据库查询所有分类（使用Gorm查询）
   2. 返回分类列表
@@ -551,7 +1103,21 @@ backend/
 #### 3.2 获取分类详情
 - 路径: GET /api/v1/categories/:id
 - 路径参数: id - 分类ID
-- 响应: 分类详细信息
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "id": 1,
+      "name": "玄幻",
+      "description": "玄幻小说分类",
+      "novel_count": 150,
+      "created_at": "2023-01-01T10:00:00Z",
+      "updated_at": "2023-01-01T10:00:00Z"
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证分类ID格式（使用github.com/go-playground/validator/v10库）
   2. 根据ID查询分类信息（使用Gorm预加载关联小说数量）
@@ -565,7 +1131,47 @@ backend/
   - limit: 每页数量 (默认20)
   - sort: 排序方式 (newest, popular)
   - show_pending: 是否显示审核中的小说 (默认false)
-- 响应: 分页的小说列表
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "data": [
+        {
+          "id": 1,
+          "title": "小说标题",
+          "author": "作者名",
+          "protagonist": "主角名",
+          "description": "小说简介",
+          "word_count": 150000,
+          "click_count": 1200,
+          "upload_user": {
+            "id": 2,
+            "nickname": "上传者昵称"
+          },
+          "categories": [
+            {
+              "id": 1,
+              "name": "玄幻"
+            }
+          ],
+          "keywords": [
+            {
+              "id": 1,
+              "keyword": "热血"
+            }
+          ],
+          "average_rating": 4.5,
+          "rating_count": 120
+        }
+      ],
+      "total": 100,
+      "page": 1,
+      "limit": 20
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证分类ID格式（使用github.com/go-playground/validator/v10库）
   2. 根据分类ID和查询参数构建查询条件
@@ -583,7 +1189,33 @@ backend/
   - page: 页码 (默认1)
   - limit: 每页数量 (默认20)
   - show_pending: 是否显示审核中的小说 (默认false)
-- 响应: 排行榜列表
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "data": [
+        {
+          "id": 1,
+          "title": "小说标题",
+          "author": "作者名",
+          "click_count": 1200,
+          "today_clicks": 50,
+          "week_clicks": 300,
+          "month_clicks": 800,
+          "upload_user": {
+            "id": 2,
+            "nickname": "上传者昵称"
+          }
+        }
+      ],
+      "total": 100,
+      "page": 1,
+      "limit": 20
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 根据type参数确定查询的点击量字段
   2. 构建查询条件（排除审核中状态的小说，除非show_pending为true）
@@ -599,7 +1231,35 @@ backend/
 - 查询参数:
   - page: 页码 (默认1)
   - limit: 每页数量 (默认20)
-- 响应: 待审核小说列表
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "data": [
+        {
+          "id": 1,
+          "title": "待审核小说标题",
+          "author": "作者名",
+          "protagonist": "主角名",
+          "description": "小说简介",
+          "file_path": "/uploads/pending/novel1.epub",
+          "file_size": 1024000,
+          "word_count": 150000,
+          "upload_time": "2023-01-01T10:00:00Z",
+          "upload_user": {
+            "id": 2,
+            "nickname": "上传者昵称"
+          }
+        }
+      ],
+      "total": 10,
+      "page": 1,
+      "limit": 20
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证用户认证（使用middleware/jwt库）
   2. 验证用户是否为管理员
@@ -613,7 +1273,18 @@ backend/
 - 请求参数: 
   - action: 审核操作 (approve/reject)
   - reason: 审核原因 (可选，用于拒绝时的说明)
-- 响应: 审核结果
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "message": "审核操作成功",
+      "novel_id": 1,
+      "action": "approve"
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证用户认证（使用middleware/jwt库）
   2. 验证用户权限（必须是管理员）
@@ -635,7 +1306,24 @@ backend/
   - novel_ids: 小说ID数组（最多50个）
   - action: 审核操作 (approve/reject)
   - reason: 审核原因 (可选，用于拒绝时的说明)
-- 响应: 批量审核结果（包含成功数量、失败数量、失败详情等）
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "success_count": 10,
+      "failed_count": 2,
+      "message": "批量审核完成",
+      "failed_details": [
+        {
+          "novel_id": 5,
+          "error": "小说状态不正确，无法审核"
+        }
+      ]
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证用户认证（使用middleware/jwt库）
   2. 验证用户权限（必须是管理员）
@@ -655,7 +1343,17 @@ backend/
 #### 5.4 自动审核过期小说
 - 路径: GET /api/v1/novels/auto-expire
 - 认证: JWT token（仅管理员可访问）
-- 响应: 自动处理结果
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "processed_count": 5,
+      "message": "已自动处理5本过期小说"
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证用户认证和权限（必须是管理员）
   2. 查询超过30天未审核的小说（使用Gorm查询）
@@ -674,7 +1372,26 @@ backend/
   - chapter_id: 章节ID
   - parent_id: 父评论ID (可选)
   - content: 评论内容（使用bluemonday库进行XSS过滤，最多500字符）
-- 响应: 评论信息
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "id": 1,
+      "user": {
+        "id": 2,
+        "nickname": "评论者昵称"
+      },
+      "content": "评论内容",
+      "like_count": 0,
+      "created_at": "2023-01-01T10:00:00Z",
+      "parent_id": null,
+      "novel_id": 1,
+      "chapter_id": 1
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证用户认证（使用middleware/jwt库）
   2. 检查用户是否被冻结（is_active字段）
@@ -694,7 +1411,45 @@ backend/
   - page: 页码 (默认1)
   - limit: 每页数量 (默认5)
   - sort: 排序方式 (likes-按点赞最多, newest-按最新, 默认likes)
-- 响应: 分页的评论列表（包含用户信息，如昵称）
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "data": [
+        {
+          "id": 1,
+          "user": {
+            "id": 2,
+            "nickname": "评论者昵称"
+          },
+          "content": "评论内容",
+          "like_count": 5,
+          "created_at": "2023-01-01T10:00:00Z",
+          "user_has_liked": false,
+          "parent_id": null,
+          "replies": [
+            {
+              "id": 2,
+              "user": {
+                "id": 3,
+                "nickname": "回复者昵称"
+              },
+              "content": "回复内容",
+              "like_count": 2,
+              "created_at": "2023-01-01T11:00:00Z",
+              "user_has_liked": false
+            }
+          ]
+        }
+      ],
+      "total": 50,
+      "page": 1,
+      "limit": 5
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 根据查询参数构建查询条件
   2. 如果提供了parent_id，则查询该评论的回复
@@ -707,7 +1462,18 @@ backend/
 - 路径: POST /api/v1/comments/:id/like
 - 认证: JWT token
 - 路径参数: id - 评论ID
-- 响应: 点赞结果
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "message": "点赞成功",
+      "comment_id": 1,
+      "new_like_count": 6
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证用户认证（使用middleware/jwt库）
   2. 检查用户是否被冻结（is_active字段）
@@ -721,7 +1487,16 @@ backend/
 - 路径: DELETE /api/v1/comments/:id
 - 认证: JWT token
 - 路径参数: id - 评论ID
-- 响应: 操作结果
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "message": "评论已删除"
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证用户认证（使用middleware/jwt库）
   2. 验证用户权限（只能删除自己的评论或管理员可删除任何评论）
@@ -740,6 +1515,20 @@ backend/
   - progress: 阅读进度（百分比，0-100）
   - chapter_id: 当前章节ID（可选）
   - position: 在章节中的位置（可选）
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "message": "阅读进度已保存",
+      "progress": 25.5,
+      "chapter_id": 3,
+      "position": 1500,
+      "updated_at": "2023-01-01T10:00:00Z"
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证用户认证（使用middleware/jwt库）
   2. 检查用户是否被冻结（is_active字段）
@@ -747,13 +1536,24 @@ backend/
   4. 保存用户阅读进度到数据库（关联用户ID和小说ID）
   5. 更新小说的最后阅读时间
   6. 返回操作结果
-- 响应: 操作结果
 
 #### 7.2 获取阅读进度
 - 路径: GET /api/v1/novels/:id/progress
 - 认证: JWT token
 - 路径参数: id - 小说ID
-- 响应: 用户阅读进度信息
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "progress": 25.5,
+      "chapter_id": 3,
+      "position": 1500,
+      "updated_at": "2023-01-01T10:00:00Z"
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证用户认证（使用middleware/jwt库）
   2. 从JWT token中获取当前用户ID
@@ -766,7 +1566,33 @@ backend/
 - 查询参数:
   - page: 页码 (默认1)
   - limit: 每页数量 (默认20)
-- 响应: 分页的阅读历史列表（包含小说信息和阅读进度）
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "data": [
+        {
+          "id": 1,
+          "novel": {
+            "id": 1,
+            "title": "小说标题",
+            "author": "作者名",
+            "description": "简介",
+            "word_count": 150000
+          },
+          "progress": 25.5,
+          "last_read_at": "2023-01-01T10:00:00Z",
+          "status": "in_progress"
+        }
+      ],
+      "total": 20,
+      "page": 1,
+      "limit": 20
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证用户认证（使用middleware/jwt库）
   2. 从JWT token中获取当前用户ID
@@ -783,7 +1609,25 @@ backend/
   - novel_id: 小说ID
   - rating: 评分 (1-5)
   - review: 评分说明（对小说的评论，最多250个字符，非必填）
-- 响应: 评分信息
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "id": 1,
+      "user": {
+        "id": 2,
+        "nickname": "评分者昵称"
+      },
+      "rating": 5,
+      "review": "评分说明内容",
+      "like_count": 0,
+      "created_at": "2023-01-01T10:00:00Z",
+      "novel_id": 1
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证用户认证（使用middleware/jwt库）
   2. 检查用户是否被冻结（is_active字段）
@@ -797,7 +1641,26 @@ backend/
 #### 8.2 获取评分
 - 路径: GET /api/v1/ratings/:novel_id
 - 路径参数: novel_id - 小说ID
-- 响应: 评分信息（如果用户已登录，还包括该用户是否已评分、评分值等信息）
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "average_rating": 4.5,
+      "rating_count": 120,
+      "rating_distribution": {
+        "5": 80,
+        "4": 30,
+        "3": 8,
+        "2": 1,
+        "1": 1
+      },
+      "user_rating": 5,
+      "user_has_rated": true
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证小说ID格式（使用github.com/go-playground/validator/v10库）
   2. 查询小说的评分统计信息（平均分、评分数量等）
@@ -810,7 +1673,40 @@ backend/
 - 查询参数:
   - page: 页码 (默认1)
   - limit: 每页数量 (默认20)
-- 响应: 分页的评分列表（包含评分、评分说明、点赞数、用户信息，如昵称）
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "data": [
+        {
+          "id": 1,
+          "user": {
+            "id": 2,
+            "nickname": "评分者昵称"
+          },
+          "rating": 5,
+          "review": "评分说明内容",
+          "like_count": 3,
+          "created_at": "2023-01-01T10:00:00Z",
+          "user_has_liked": false
+        }
+      ],
+      "total": 20,
+      "page": 1,
+      "limit": 20,
+      "average_rating": 4.5,
+      "rating_distribution": {
+        "5": 8,
+        "4": 6,
+        "3": 4,
+        "2": 1,
+        "1": 1
+      }
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证小说ID格式（使用github.com/go-playground/validator/v10库）
   2. 根据小说ID查询评分列表
@@ -821,7 +1717,18 @@ backend/
 - 路径: POST /api/v1/ratings/:id/like
 - 认证: JWT token
 - 路径参数: id - 评分ID
-- 响应: 点赞结果
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "message": "点赞成功",
+      "rating_id": 1,
+      "new_like_count": 4
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证用户认证（使用middleware/jwt库）
   2. 检查用户是否被冻结（is_active字段）
@@ -835,7 +1742,16 @@ backend/
 - 路径: DELETE /api/v1/ratings/:id
 - 认证: JWT token
 - 路径参数: id - 评分ID
-- 响应: 操作结果
+- 响应:
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "message": "评分已删除"
+    },
+    "message": "success"
+  }
+  ```
 - 处理流程:
   1. 验证用户认证（使用middleware/jwt库）
   2. 验证用户权限（只能删除自己的评分或管理员可删除任何评分）

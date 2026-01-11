@@ -387,6 +387,16 @@ frontend/
       - 友好的错误提示（使用第三方库vue-toastification显示错误信息）
       - 错误上报机制（使用第三方库sentry捕获并上报错误）
       - 网络异常处理（离线模式支持和重试机制）
+    - 状态管理：
+      - 加载状态（显示加载中的视觉反馈）
+      - 空状态（当没有数据时显示友好提示）
+      - 错误状态（当发生错误时提供重试或返回选项）
+      - 离线状态（网络不可用时的界面提示和功能限制）
+    - 交互细节：
+      - 防抖处理（对频繁操作进行防抖处理，如搜索）
+      - 节流处理（对滚动等事件进行节流处理）
+      - 点击穿透防护（防止移动端点击穿透问题）
+      - 状态同步（确保UI状态与数据状态保持一致）
 
 #### 6.3 无障碍访问
 - 语义化HTML
@@ -399,10 +409,31 @@ frontend/
 #### 7.1 XSS防护
 - 用户输入内容过滤
 
-
 #### 7.2 认证安全
 - Token安全存储
 - 自动过期处理
+
+#### 7.3 错误处理和边界情况
+- 网络异常处理：
+  - 离线模式支持
+  - 请求重试机制
+  - 断网状态提示
+  - 自动重连功能
+- 数据边界处理：
+  - 空数据状态展示
+  - 加载失败状态处理
+  - 数据格式验证
+  - 字符串长度限制
+- 用户操作边界：
+  - 频率限制提示
+  - 权限不足处理
+  - 操作冲突处理
+  - 重复操作防护
+- UI边界情况：
+  - 极端屏幕尺寸适配
+  - 字体大小变化适应
+  - 网络延迟适应
+  - 内存不足处理
 
 ### 8. 构建和部署
 
@@ -504,14 +535,31 @@ frontend/
 ### 1. 请求规范
 - 使用Axios进行HTTP请求
 - 统一的请求头设置
+  - Content-Type: application/json
+  - Authorization: Bearer {token} (认证请求)
 - Token自动添加
+- 请求超时设置：10秒
+- 基础URL配置：通过环境变量配置API基础URL
 
 ### 2. 响应处理
 - 统一的响应格式处理
-- 错误码处理
+  - 成功响应：{ code: 200, data: {}, message: "success" }
+  - 错误响应：{ code: 错误码, message: "错误信息" }
+- 错误码定义：
+  - 200: 成功
+  - 400: 请求参数错误
+  - 401: 未授权
+  - 403: 禁止访问
+  - 404: 资源不存在
+  - 500: 服务器错误
 - 加载状态管理
+- 分页数据结构：{ data: [], total: 0, page: 1, limit: 20 }
 
-### 3. 错误处理机制
+### 3. 拦截器
+- 请求拦截器（添加认证头、请求参数处理等）
+- 响应拦截器（错误处理、数据转换、全局错误提示）
+
+### 4. 错误处理机制
 - 统一错误响应格式处理
 - 用户友好的错误提示（使用第三方库vue-toastification显示错误信息）
 - 网络异常处理（离线模式支持和重试机制）
@@ -521,28 +569,412 @@ frontend/
 - 降级策略（当API不可用时提供缓存数据或默认内容）
 - 断网处理（提供离线提示和重连机制）
 
-### 3. 拦截器
-- 请求拦截器（添加认证头等）
-- 响应拦截器（错误处理、数据转换）
+### 5. API响应数据结构（用于前端展示）
 
-### 4. API响应数据结构
+#### 5.1 用户相关接口返回数据
+- 用户注册/登录响应：
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "user": {
+        "id": 1,
+        "email": "user@example.com",
+        "nickname": "用户名",
+        "is_active": true,
+        "is_admin": false,
+        "last_login_at": "2023-01-01T10:00:00Z"
+      },
+      "token": "jwt_token_here"
+    },
+    "message": "success"
+  }
+  ```
+
+- 用户信息响应：
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "id": 1,
+      "email": "user@example.com",
+      "nickname": "用户名",
+      "is_active": true,
+      "is_admin": false,
+      "last_login_at": "2023-01-01T10:00:00Z",
+      "created_at": "2023-01-01T10:00:00Z",
+      "updated_at": "2023-01-01T10:00:00Z"
+    },
+    "message": "success"
+  }
+  ```
+
+#### 5.2 小说列表接口返回数据
+- 小说列表响应：
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "data": [
+        {
+          "id": 1,
+          "title": "小说标题",
+          "author": "作者名",
+          "protagonist": "主角名",
+          "description": "小说简介",
+          "file_path": "/uploads/approved/novel1.epub",
+          "file_size": 1024000,
+          "word_count": 150000,
+          "click_count": 1200,
+          "today_clicks": 50,
+          "week_clicks": 300,
+          "month_clicks": 800,
+          "upload_time": "2023-01-01T10:00:00Z",
+          "last_read_time": "2023-01-01T10:00:00Z",
+          "status": "approved",
+          "file_hash": "hash_value",
+          "upload_user": {
+            "id": 2,
+            "nickname": "上传者昵称"
+          },
+          "categories": [
+            {
+              "id": 1,
+              "name": "玄幻"
+            }
+          ],
+          "keywords": [
+            {
+              "id": 1,
+              "keyword": "热血"
+            }
+          ]
+        }
+      ],
+      "total": 100,
+      "page": 1,
+      "limit": 20
+    },
+    "message": "success"
+  }
+  ```
+
+#### 5.3 小说详情接口返回数据
+- 小说详情响应：
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "id": 1,
+      "title": "小说标题",
+      "author": "作者名",
+      "protagonist": "主角名",
+      "description": "详细的小说简介",
+      "file_path": "/uploads/approved/novel1.epub",
+      "file_size": 1024000,
+      "word_count": 150000,
+      "click_count": 1200,
+      "today_clicks": 50,
+      "week_clicks": 300,
+      "month_clicks": 800,
+      "upload_time": "2023-01-01T10:00:00Z",
+      "last_read_time": "2023-01-01T10:00:00Z",
+      "status": "approved",
+      "file_hash": "hash_value",
+      "upload_user": {
+        "id": 2,
+        "email": "uploader@example.com",
+        "nickname": "上传者昵称"
+      },
+      "categories": [
+        {
+          "id": 1,
+          "name": "玄幻"
+        }
+      ],
+      "keywords": [
+        {
+          "id": 1,
+          "keyword": "热血"
+        }
+      ],
+      "average_rating": 4.5,
+      "rating_count": 120,
+      "comment_count": 50,
+      "user_progress": 25.5,
+      "user_has_rated": false,
+      "user_has_liked": false,
+      "chapter_list": [
+        {
+          "id": 1,
+          "title": "第一章 标题",
+          "word_count": 3000
+        }
+      ],
+      "recommendations": [
+        {
+          "id": 2,
+          "title": "推荐小说标题",
+          "author": "作者名",
+          "click_count": 500
+        }
+      ]
+    },
+    "message": "success"
+  }
+  ```
+
+#### 5.4 评论列表接口返回数据
+- 评论列表响应：
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "data": [
+        {
+          "id": 1,
+          "user": {
+            "id": 2,
+            "nickname": "评论者昵称"
+          },
+          "content": "评论内容",
+          "like_count": 5,
+          "created_at": "2023-01-01T10:00:00Z",
+          "user_has_liked": false,
+          "parent_id": null,
+          "replies": [
+            {
+              "id": 2,
+              "user": {
+                "id": 3,
+                "nickname": "回复者昵称"
+              },
+              "content": "回复内容",
+              "like_count": 2,
+              "created_at": "2023-01-01T11:00:00Z",
+              "user_has_liked": false
+            }
+          ]
+        }
+      ],
+      "total": 50,
+      "page": 1,
+      "limit": 5
+    },
+    "message": "success"
+  }
+  ```
+
+#### 5.5 评分列表接口返回数据
+- 评分列表响应：
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "data": [
+        {
+          "id": 1,
+          "user": {
+            "id": 2,
+            "nickname": "评分者昵称"
+          },
+          "rating": 5,
+          "review": "评分说明内容",
+          "like_count": 3,
+          "created_at": "2023-01-01T10:00:00Z",
+          "user_has_liked": false
+        }
+      ],
+      "total": 20,
+      "page": 1,
+      "limit": 20,
+      "average_rating": 4.5,
+      "rating_distribution": {
+        "5": 8,
+        "4": 6,
+        "3": 4,
+        "2": 1,
+        "1": 1
+      }
+    },
+    "message": "success"
+  }
+  ```
+
+#### 5.6 分类列表接口返回数据
+- 分类列表响应：
+  ```json
+  {
+    "code": 200,
+    "data": [
+      {
+        "id": 1,
+        "name": "玄幻",
+        "description": "玄幻小说分类",
+        "novel_count": 150,
+        "created_at": "2023-01-01T10:00:00Z",
+        "updated_at": "2023-01-01T10:00:00Z"
+      }
+    ],
+    "message": "success"
+  }
+  ```
+
+#### 5.7 排行榜接口返回数据
+- 排行榜响应：
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "data": [
+        {
+          "id": 1,
+          "title": "小说标题",
+          "author": "作者名",
+          "click_count": 1200,
+          "today_clicks": 50,
+          "week_clicks": 300,
+          "month_clicks": 800,
+          "upload_user": {
+            "id": 2,
+            "nickname": "上传者昵称"
+          }
+        }
+      ],
+      "total": 100,
+      "page": 1,
+      "limit": 20
+    },
+    "message": "success"
+  }
+  ```
+
+#### 5.8 搜索接口返回数据
+- 搜索响应：
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "data": [
+        {
+          "id": 1,
+          "title": "搜索结果小说标题",
+          "author": "作者名",
+          "protagonist": "主角名",
+          "description": "小说简介",
+          "word_count": 150000,
+          "click_count": 1200,
+          "upload_user": {
+            "id": 2,
+            "nickname": "上传者昵称"
+          },
+          "categories": [
+            {
+              "id": 1,
+              "name": "玄幻"
+            }
+          ],
+          "keywords": [
+            {
+              "id": 1,
+              "keyword": "热血"
+            }
+          ],
+          "average_rating": 4.5,
+          "rating_count": 120
+        }
+      ],
+      "total": 50,
+      "page": 1,
+      "limit": 20
+    },
+    "message": "success"
+  }
+  ```
+
+#### 5.10 推荐接口返回数据
+- 推荐列表响应：
+  ```json
+  {
+    "code": 200,
+    "data": [
+      {
+        "id": 1,
+        "title": "推荐小说标题",
+        "author": "作者名",
+        "click_count": 1200,
+        "average_rating": 4.5,
+        "upload_user": {
+          "id": 2,
+          "nickname": "上传者昵称"
+        }
+      }
+    ],
+    "message": "success"
+  }
+  ```
+
+#### 5.11 阅读进度接口返回数据
+- 阅读进度响应：
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "progress": 25.5,
+      "chapter_id": 3,
+      "position": 1500,
+      "updated_at": "2023-01-01T10:00:00Z"
+    },
+    "message": "success"
+  }
+  ```
+
+#### 5.12 阅读历史接口返回数据
+- 阅读历史响应：
+  ```json
+  {
+    "code": 200,
+    "data": {
+      "data": [
+        {
+          "id": 1,
+          "novel": {
+            "id": 1,
+            "title": "小说标题",
+            "author": "作者名",
+            "description": "简介",
+            "word_count": 150000
+          },
+          "progress": 25.5,
+          "last_read_at": "2023-01-01T10:00:00Z",
+          "status": "in_progress"
+        }
+      ],
+      "total": 20,
+      "page": 1,
+      "limit": 20
+    },
+    "message": "success"
+  }
+  ```
+
+### 6. API响应数据结构
 - 小说详情响应应包含字数统计字段
 - 阅读页面需要支持翻页操作的API调用
 - 上传接口支持文件和文件名一起上传
 - 推荐接口：支持获取推荐小说列表，包括基于内容、热门、新书、个性化推荐
 - 搜索接口：支持多条件组合搜索和高级搜索功能
 
-### 5. 第三方库集成
+### 7. 第三方库集成
 - 集成EPUB处理库（如epub.js）来处理epub格式
 - 集成虚拟滚动库（如vue-virtual-scroll-list）优化长文本渲染
 - 集成无限滚动库（如vue-infinite-loading）实现滚动加载更多功能
 - 集成本地存储库（如vuex-persist）管理用户个性化设置
 - 集成文件上传库（如vue-upload-component）处理文件上传
-
 - 集成分页库处理无限滚动和分页请求
 - 集成防抖和节流库优化性能（如lodash的debounce/throttle）
 
-### 6. 特殊功能API
+### 8. 特殊功能API
 - 记录小说点击量：在进入小说第一章（即开始阅读）时调用后端接口记录点击量
 - 排行榜接口：支持按时间范围查询排行榜数据
 - 搜索接口：支持按名称、作者、主角名称、小说字数等条件搜索
@@ -579,6 +1011,18 @@ frontend/
 - 审核通知接口：当小说审核状态变更时通知上传用户
 - 搜索统计接口：记录用户搜索行为，支持热门搜索词统计
 - 获取热门搜索词接口：支持获取热门搜索词列表，用于前端展示
+
+### 9. 数据缓存策略
+- API响应数据缓存（使用axios-cache-adapter或类似库）
+- 小说内容缓存（针对流式加载的内容块）
+- 推荐结果缓存（减少重复请求）
+- 搜索结果缓存（短期缓存热门搜索词结果）
+
+### 10. 请求优化
+- API请求合并（批量操作）
+- 接口请求去重（防止重复请求相同资源）
+- 预加载机制（对用户可能访问的资源进行预加载）
+- 延迟加载（对非关键资源采用延迟加载策略）
 
 ## 状态管理设计
 
@@ -650,6 +1094,8 @@ frontend/
   - `loading`: 全局加载状态
   - `notifications`: 通知消息列表
   - `modal`: 当前打开的弹窗
+  - `screenSize`: 当前屏幕尺寸（用于响应式设计）
+  - `networkStatus`: 网络连接状态
 - 操作：
   - `toggleTheme()`: 切换主题
   - `toggleSidebar()`: 切换侧边栏
@@ -659,6 +1105,12 @@ frontend/
   - `removeNotification(id)`: 移除通知
   - `openModal(component, props)`: 打开弹窗
   - `closeModal()`: 关闭弹窗
+  - `updateScreenSize()`: 更新屏幕尺寸状态
+  - `updateNetworkStatus(status)`: 更新网络状态
+- Getter：
+  - `isMobile`: 是否为移动端
+  - `isTablet`: 是否为平板端
+  - `isDesktop`: 是否为桌面端
 
 #### 2.5 分类模块 (categoryStore)
 - 状态：
