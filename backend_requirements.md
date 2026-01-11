@@ -2218,3 +2218,277 @@ tasks:
 - golang-runewidth: 字数统计
 - swaggo/swag: API文档生成
 - swaggo/gin-swagger: Gin框架Swagger集成
+
+## 代码组织建议
+
+### 1. 项目结构设计
+
+```
+backend/
+├── main.go                       # 主程序入口
+├── go.mod                        # Go模块定义
+├── go.sum                        # Go模块校验和
+├── config/                       # 配置管理
+│   ├── config.go                 # 配置结构体定义
+│   ├── database.go               # 数据库配置
+│   ├── redis.go                  # Redis配置
+│   ├── jwt.go                    # JWT配置
+│   ├── storage.go                # 存储配置
+│   └── app.go                    # 应用配置
+├── models/                       # 数据模型层
+│   ├── user.go                   # 用户模型
+│   ├── novel.go                  # 小说模型
+│   ├── comment.go                # 评论模型
+│   ├── rating.go                 # 评分模型
+│   ├── category.go               # 分类模型
+│   ├── keyword.go                # 关键词模型
+│   ├── admin_log.go              # 管理日志模型
+│   ├── system_message.go         # 系统消息模型
+│   ├── comment_like.go           # 评论点赞模型
+│   ├── rating_like.go            # 评分点赞模型
+│   ├── novel_category.go         # 小说分类关联模型
+│   ├── novel_keyword.go          # 小说关键词关联模型
+│   ├── base.go                   # 基础模型结构
+│   └── init.go                   # 模型初始化
+├── services/                     # 业务逻辑层
+│   ├── user_service.go           # 用户服务
+│   ├── novel_service.go          # 小说服务
+│   ├── comment_service.go        # 评论服务
+│   ├── rating_service.go         # 评分服务
+│   ├── category_service.go       # 分类服务
+│   ├── search_service.go         # 搜索服务
+│   ├── file_service.go           # 文件服务
+│   ├── notification_service.go   # 通知服务
+│   ├── admin_service.go          # 管理员服务
+│   ├── ranking_service.go        # 排行榜服务
+│   ├── reading_service.go        # 阅读服务
+│   ├── cache_service.go          # 缓存服务
+│   ├── task_service.go           # 任务服务
+│   └── audit_service.go          # 审计服务
+├── controllers/                  # 控制器层
+│   ├── user_controller.go        # 用户控制器
+│   ├── novel_controller.go       # 小说控制器
+│   ├── comment_controller.go     # 评论控制器
+│   ├── rating_controller.go      # 评分控制器
+│   ├── category_controller.go    # 分类控制器
+│   ├── search_controller.go      # 搜索控制器
+│   ├── admin_controller.go       # 管理员控制器
+│   ├── ranking_controller.go     # 排行榜控制器
+│   ├── progress_controller.go    # 阅读进度控制器
+│   └── base_controller.go        # 基础控制器
+├── routes/                       # 路由定义
+│   ├── user.go                   # 用户路由
+│   ├── novel.go                  # 小说路由
+│   ├── comment.go                # 评论路由
+│   ├── rating.go                 # 评分路由
+│   ├── category.go               # 分类路由
+│   ├── admin.go                  # 管理员路由
+│   ├── search.go                 # 搜索路由
+│   ├── ranking.go                # 排行榜路由
+│   ├── progress.go               # 阅读进度路由
+│   └── index.go                  # 路由汇总
+├── middleware/                   # 中间件
+│   ├── auth.go                   # 认证中间件
+│   ├── admin.go                  # 管理员权限中间件
+│   ├── cors.go                   # CORS中间件
+│   ├── logger.go                 # 日志中间件
+│   ├── recovery.go               # 错误恢复中间件
+│   ├── rate_limit.go             # 限流中间件
+│   ├── validation.go             # 验证中间件
+│   └── permission.go             # 权限中间件
+├── utils/                        # 工具函数
+│   ├── validator.go              # 验证工具
+│   ├── file.go                   # 文件处理工具
+│   ├── epub.go                   # EPUB处理工具
+│   ├── security.go               # 安全工具
+│   ├── cache.go                  # 缓存工具
+│   ├── paginator.go              # 分页工具
+│   ├── jwt.go                    # JWT工具
+│   ├── password.go               # 密码处理工具
+│   ├── hasher.go                 # 哈希工具
+│   ├── http.go                   # HTTP工具
+│   ├── time.go                   # 时间工具
+│   ├── number.go                 # 数字工具
+│   ├── text.go                   # 文本处理工具
+│   ├── email.go                  # 邮件工具
+│   └── response.go               # 响应格式工具
+├── handlers/                     # 事件处理器
+│   ├── novel_uploaded.go         # 小说上传事件处理器
+│   ├── rating_created.go         # 评分创建事件处理器
+│   ├── comment_created.go        # 评论创建事件处理器
+│   └── audit_log.go              # 审计日志事件处理器
+├── migrations/                   # 数据库迁移
+│   ├── 001_create_users.go       # 用户表迁移
+│   ├── 002_create_novels.go      # 小说表迁移
+│   ├── 003_create_comments.go    # 评论表迁移
+│   ├── 004_create_ratings.go     # 评分表迁移
+│   ├── 005_create_categories.go  # 分类表迁移
+│   ├── 006_create_keywords.go    # 关键词表迁移
+│   ├── 007_create_admin_logs.go  # 管理员日志表迁移
+│   └── migrate.go                # 迁移执行器
+├── docs/                         # API文档
+│   ├── swagger.yaml              # Swagger文档
+│   ├── README.md                 # API文档说明
+│   └── examples/                 # API调用示例
+├── scripts/                      # 脚本
+│   ├── deploy.sh                 # 部署脚本
+│   ├── backup.sh                 # 备份脚本
+│   ├── restore.sh                # 恢复脚本
+│   ├── init_db.sh                # 初始化数据库脚本
+│   └── generate.go               # 代码生成脚本
+└── internal/                     # 内部包
+    ├── app/                      # 应用核心
+    │   ├── app.go                # 应用启动器
+    │   ├── server.go             # 服务器配置
+    │   └── runner.go             # 应用运行器
+    ├── constants/                # 常量定义
+    │   ├── http.go               # HTTP状态码常量
+    │   ├── errors.go             # 错误码常量
+    │   ├── permissions.go        # 权限常量
+    │   └── config.go             # 配置常量
+    └── errors/                   # 自定义错误
+        ├── errors.go             # 错误定义
+        └── handlers.go           # 错误处理器
+
+### 2. 代码组织原则
+
+#### 2.1 使用第三方库，不重复造轮子
+- **Web框架**：使用Gin框架处理HTTP请求，提供路由、中间件等功能
+- **ORM框架**：使用Gorm进行数据库操作，提供模型定义、查询构建等功能
+- **配置管理**：使用Viper管理配置，支持多种配置格式和环境变量
+- **日志管理**：使用Zap进行日志记录，提供高性能日志功能
+- **文件类型检测**：使用filetype库检测上传文件类型，确保文件安全
+- **EPUB处理**：使用golang-epub库处理EPUB格式文件
+- **速率限制**：使用golang.org/x/time/rate实现API访问频率限制
+- **数据验证**：使用github.com/go-playground/validator/v10进行数据验证
+- **XSS防护**：使用bluemonday库过滤用户输入内容
+- **Redis缓存**：使用go-redis进行缓存操作
+- **密码哈希**：使用golang.org/x/crypto/bcrypt进行密码加密
+- **JWT认证**：使用github.com/golang-jwt/jwt/v4实现JWT认证
+- **文件上传**：使用mime/multipart处理文件上传
+- **定时任务**：使用gocron管理定时任务
+- **全文搜索**：使用bleve实现全文搜索功能
+- **正则表达式**：使用go-regexp处理文本匹配
+- **字数统计**：使用golang-runewidth计算文本宽度和字数
+
+#### 2.2 功能模块分离
+- **按业务功能划分模块**：
+  - 用户模块（认证、个人资料管理）
+  - 小说模块（上传、搜索、详情、内容）
+  - 评论模块（评论、回复、点赞）
+  - 评分模块（评分、评分管理）
+  - 分类模块（分类管理、分类查询）
+  - 搜索模块（全文搜索、关键词搜索）
+  - 管理模块（审核、用户管理）
+  - 阅读模块（进度管理、统计）
+
+- **每个功能模块独立开发**：
+  - 不同功能模块的代码放在不同的目录中
+  - 每个模块有独立的模型、服务、控制器
+  - 每个模块有独立的路由定义
+  - 每个模块有独立的中间件（如权限控制）
+  - 避免功能模块间的代码混杂，便于后续维护
+
+#### 2.3 组件和工具类封装
+- **服务层封装**：
+  - 数据操作服务：封装对数据库的增删改查操作
+  - 业务逻辑服务：封装复杂的业务逻辑处理
+  - 外部服务调用：封装对第三方服务的调用
+  - 缓存操作服务：封装Redis等缓存操作
+
+- **工具类封装**：
+  - 通用工具函数：验证、格式化、辅助函数
+  - 文件处理工具：文件上传、格式转换、大小计算
+  - 安全工具：输入过滤、XSS防护、密码处理
+  - 响应格式工具：统一API响应格式
+  - 时间处理工具：日期格式化、时区处理
+
+- **中间件封装**：
+  - 认证中间件：处理JWT验证
+  - 权限中间件：处理管理员权限验证
+  - 限流中间件：处理API访问频率限制
+  - 日志中间件：记录请求日志
+  - 错误处理中间件：统一错误处理
+
+### 3. 分层架构设计
+
+#### 3.1 模型层 (Models)
+- 定义数据结构和数据库表映射
+- 包含数据验证规则
+- 定义模型间的关系（一对多、多对多等）
+- 实现模型级别的方法（如密码加密、哈希计算等）
+
+#### 3.2 服务层 (Services)
+- 实现核心业务逻辑
+- 处理数据的获取、验证和转换
+- 协调多个模型间的操作
+- 实现业务规则和约束
+- 与缓存、外部API等交互
+
+#### 3.3 控制器层 (Controllers)
+- 处理HTTP请求和响应
+- 验证请求参数
+- 调用服务层处理业务逻辑
+- 返回统一格式的响应
+- 处理请求映射和路由参数
+
+#### 3.4 中间件层 (Middleware)
+- 处理横切关注点（如认证、日志、错误处理）
+- 提供可重用的功能
+- 解耦业务逻辑和基础设施逻辑
+- 实现请求预处理和后处理
+
+### 4. 服务设计规范
+
+#### 4.1 服务接口设计
+- 定义清晰的服务接口
+- 使用接口实现依赖注入
+- 服务方法命名规范：使用动词+名词的形式
+- 统一错误处理：所有服务方法返回标准错误格式
+
+#### 4.2 服务实现原则
+- 单一职责：每个服务只负责一个业务领域
+- 依赖管理：服务间依赖通过接口注入
+- 状态管理：服务应保持无状态，状态通过数据库或缓存管理
+- 事务管理：复杂的业务操作使用数据库事务保证一致性
+
+### 5. 数据访问规范
+
+#### 5.1 模型定义规范
+- 使用Gorm标签定义数据库字段
+- 实现数据验证规则
+- 定义模型间关系（BelongsTo, HasMany, Many2Many等）
+- 使用统一的软删除和时间戳字段
+
+#### 5.2 查询操作规范
+- 使用Gorm的查询构建器
+- 实现分页查询功能
+- 使用预加载减少N+1查询问题
+- 合理使用索引优化查询性能
+
+### 6. 错误处理规范
+
+#### 6.1 自定义错误类型
+- 定义业务相关的错误类型
+- 实现标准的错误接口
+- 提供错误码和错误消息
+- 支持错误链追踪
+
+#### 6.2 错误处理策略
+- 统一错误处理中间件
+- 不同类型的错误返回相应的HTTP状态码
+- 敏感错误信息不暴露给客户端
+- 错误日志记录和监控
+
+### 7. 配置管理规范
+
+#### 7.1 配置文件组织
+- 环境相关的配置使用环境变量
+- 敏感配置（如数据库密码）通过环境变量提供
+- 配置结构体使用Viper进行绑定
+- 支持多环境配置（开发、测试、生产）
+
+#### 7.2 配置验证
+- 启动时验证配置完整性
+- 配置变更时的热重载
+- 配置默认值设置

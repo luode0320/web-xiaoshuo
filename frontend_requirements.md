@@ -2090,123 +2090,249 @@ frontend/
   - 过渡动画：页面切换时的过渡效果
   - 加载指示：页面加载时的指示器
 
-## 代码组织和开发原则
+## 代码组织建议
 
-### 1. 组件化开发
-- 使用第三方库不重复造轮子：
-  - UI组件：使用Element Plus或Naive UI等成熟组件库
-  - 阅读器：使用epub.js处理EPUB格式
-  - 虚拟滚动：使用vue-virtual-scroll-list优化长列表
-  - 表单验证：使用vee-validate
-  - 状态管理：使用Pinia
-  - 路由管理：使用Vue Router
-  - HTTP请求：使用Axios
-  - 日期处理：使用dayjs或moment.js
-  - 构建工具：使用Vite
+### 1. 项目结构设计
 
-- 功能模块分离：
-  - 按业务功能划分组件目录：
-    ```
-    frontend/
-    ├── public/               # 静态资源
-    ├── src/
-    │   ├── assets/           # 静态资源
-    │   │   ├── images/       # 图片资源
-    │   │   ├── icons/        # 图标资源
-    │   │   └── styles/       # 全局样式
-    │   ├── components/       # 可复用组件
-    │   │   ├── common/       # 通用基础组件
-    │   │   │   ├── Button.vue
-    │   │   │   ├── Input.vue
-    │   │   │   ├── Modal.vue
-    │   │   │   └── Loading.vue
-    │   │   ├── reading/      # 阅读相关组件
-    │   │   │   ├── Reader.vue
-    │   │   │   ├── Catalog.vue
-    │   │   │   ├── SettingsPanel.vue
-    │   │   │   └── ProgressBar.vue
-    │   │   ├── novel/        # 小说相关组件
-    │   │   │   ├── NovelCard.vue
-    │   │   │   ├── NovelList.vue
-    │   │   │   └── NovelDetail.vue
-    │   │   ├── user/         # 用户相关组件
-    │   │   │   ├── UserProfile.vue
-    │   │   │   ├── Login.vue
-    │   │   │   └── Register.vue
-    │   │   └── social/       # 社交相关组件
-    │   │       ├── CommentList.vue
-    │   │       ├── CommentItem.vue
-    │   │       └── Rating.vue
-    │   ├── views/            # 页面组件
-    │   │   ├── Home.vue      # 首页
-    │   │   ├── Category.vue  # 分类页
-    │   │   ├── Ranking.vue   # 排行榜页
-    │   │   ├── Upload.vue    # 上传页
-    │   │   ├── NovelDetail.vue # 小说详情页
-    │   │   ├── Reading.vue   # 阅读页
-    │   │   ├── UserCenter.vue # 用户中心
-    │   │   └── Admin.vue     # 管理员页面
-    │   ├── composables/      # 可复用逻辑
-    │   │   ├── useAuth.js    # 认证逻辑
-    │   │   ├── useReading.js # 阅读逻辑
-    │   │   └── useNovel.js   # 小说逻辑
-    │   ├── stores/           # 状态管理 (Pinia)
-    │   │   ├── user.js       # 用户状态
-    │   │   ├── novel.js      # 小说状态
-    │   │   ├── reading.js    # 阅读状态
-    │   │   └── ui.js         # UI状态
-    │   ├── router/           # 路由配置
-    │   │   └── index.js
-    │   ├── services/         # API服务
-    │   │   ├── api.js        # API基础配置
-    │   │   ├── novel.js      # 小说相关API
-    │   │   ├── user.js       # 用户相关API
-    │   │   └── reading.js    # 阅读相关API
-    │   ├── utils/            # 工具函数
-    │   │   ├── validators.js # 验证工具
-    │   │   ├── formatters.js # 格式化工具
-    │   │   └── helpers.js    # 辅助工具
-    │   ├── constants/        # 常量定义
-    │   │   ├── api.js        # API常量
-    │   │   ├── routes.js     # 路由常量
-    │   │   └── themes.js     # 主题常量
-    │   ├── types/            # TypeScript类型定义
-    │   │   ├── user.ts       # 用户类型
-    │   │   ├── novel.ts      # 小说类型
-    │   │   └── api.ts        # API类型
-    │   └── styles/           # 样式文件
-    │       ├── variables.css # CSS变量
-    │       ├── mixins.css    # CSS混入
-    │       └── global.css    # 全局样式
-    ├── package.json
-    └── vite.config.js
-    ```
-  - 每个组件职责单一，只关注自己的功能
-  - 组件之间通过props和事件通信
-  - 复杂业务逻辑抽离到Composables
-  - 组件文件结构规范：
-    - 组件名使用PascalCase命名法
-    - 每个组件文件包含template、script、style三个部分
-    - 组件内部逻辑按setup、props、emits、data、computed、methods顺序组织
+```
+frontend/
+├── public/                   # 静态资源目录
+│   ├── favicon.ico           # 网站图标
+│   ├── index.html            # 主页面模板
+│   └── robots.txt            # 爬虫协议
+├── src/                      # 源代码目录
+│   ├── assets/               # 静态资源（图片、字体、样式等）
+│   │   ├── images/           # 图片资源
+│   │   │   ├── icons/        # 图标资源
+│   │   │   ├── covers/       # 小说封面
+│   │   │   └── backgrounds/  # 背景图片
+│   │   ├── fonts/            # 字体文件
+│   │   └── styles/           # 全局样式
+│   │       ├── variables.css # CSS变量定义
+│   │       ├── mixins.css    # CSS混入定义
+│   │       ├── base.css      # 基础样式
+│   │       └── reset.css     # 样式重置
+│   ├── components/           # 可复用UI组件
+│   │   ├── common/           # 通用基础组件
+│   │   │   ├── Button.vue    # 按钮组件
+│   │   │   ├── Input.vue     # 输入框组件
+│   │   │   ├── Modal.vue     # 弹窗组件
+│   │   │   ├── Loading.vue   # 加载组件
+│   │   │   ├── Icon.vue      # 图标组件
+│   │   │   ├── Card.vue      # 卡片组件
+│   │   │   └── Divider.vue   # 分割线组件
+│   │   ├── reading/          # 阅读相关组件
+│   │   │   ├── Reader.vue    # 阅读器核心组件
+│   │   │   ├── Catalog.vue   # 目录组件
+│   │   │   ├── SettingsPanel.vue # 设置面板组件
+│   │   │   ├── ProgressBar.vue   # 进度条组件
+│   │   │   ├── Navigation.vue    # 阅读导航组件
+│   │   │   └── ThemeSwitcher.vue # 主题切换组件
+│   │   ├── novel/            # 小说相关组件
+│   │   │   ├── NovelCard.vue     # 小说卡片组件
+│   │   │   ├── NovelList.vue     # 小说列表组件
+│   │   │   ├── NovelDetail.vue   # 小说详情组件
+│   │   │   ├── NovelSearch.vue   # 小说搜索组件
+│   │   │   └── NovelFilter.vue   # 小说筛选组件
+│   │   ├── user/             # 用户相关组件
+│   │   │   ├── UserProfile.vue   # 用户资料组件
+│   │   │   ├── LoginForm.vue     # 登录表单组件
+│   │   │   ├── RegisterForm.vue  # 注册表单组件
+│   │   │   ├── UserMenu.vue      # 用户菜单组件
+│   │   │   └── Avatar.vue        # 头像组件
+│   │   ├── social/           # 社交相关组件
+│   │   │   ├── CommentList.vue   # 评论列表组件
+│   │   │   ├── CommentItem.vue   # 评论项目组件
+│   │   │   ├── Rating.vue        # 评分组件
+│   │   │   ├── RatingList.vue    # 评分列表组件
+│   │   │   └── LikeButton.vue    # 点赞按钮组件
+│   │   └── layout/           # 布局组件
+│   │       ├── Header.vue    # 顶部导航栏
+│   │       ├── Footer.vue    # 底部信息
+│   │       ├── Sidebar.vue   # 侧边栏
+│   │       ├── MainLayout.vue # 主布局
+│   │       └── MobileLayout.vue # 移动端布局
+│   ├── views/                # 页面组件
+│   │   ├── Home.vue          # 首页
+│   │   ├── Category.vue      # 分类页
+│   │   ├── Ranking.vue       # 排行榜页
+│   │   ├── Upload.vue        # 上传页
+│   │   ├── NovelDetail.vue   # 小说详情页
+│   │   ├── Reading.vue       # 阅读页
+│   │   ├── UserCenter.vue    # 用户中心
+│   │   ├── Admin/            # 管理员相关页面
+│   │   │   ├── Review.vue    # 审核页面
+│   │   │   ├── Dashboard.vue # 管理面板
+│   │   │   └── UserManage.vue # 用户管理
+│   │   ├── Search.vue        # 搜索页面
+│   │   ├── About.vue         # 关于我们页面
+│   │   ├── Login.vue         # 登录页面
+│   │   └── Register.vue      # 注册页面
+│   ├── composables/          # 可复用逻辑（Composables）
+│   │   ├── useAuth.js        # 认证相关逻辑
+│   │   ├── useReading.js     # 阅读相关逻辑
+│   │   ├── useNovel.js       # 小说相关逻辑
+│   │   ├── useComment.js     # 评论相关逻辑
+│   │   ├── useRating.js      # 评分相关逻辑
+│   │   ├── useSearch.js      # 搜索相关逻辑
+│   │   ├── useStorage.js     # 本地存储逻辑
+│   │   └── useNetwork.js     # 网络状态逻辑
+│   ├── stores/               # 状态管理 (Pinia)
+│   │   ├── user.js           # 用户状态
+│   │   ├── novel.js          # 小说状态
+│   │   ├── reading.js        # 阅读状态
+│   │   ├── ui.js             # UI状态
+│   │   ├── comment.js        # 评论状态
+│   │   ├── rating.js         # 评分状态
+│   │   ├── category.js       # 分类状态
+│   │   └── search.js         # 搜索状态
+│   ├── router/               # 路由配置
+│   │   └── index.js          # 路由定义
+│   ├── services/             # API服务和业务逻辑
+│   │   ├── api.js            # API基础配置
+│   │   ├── auth.js           # 认证API
+│   │   ├── novel.js          # 小说相关API
+│   │   ├── user.js           # 用户相关API
+│   │   ├── reading.js        # 阅读相关API
+│   │   ├── comment.js        # 评论相关API
+│   │   ├── rating.js         # 评分相关API
+│   │   └── admin.js          # 管理员相关API
+│   ├── utils/                # 工具函数
+│   │   ├── validators.js     # 验证工具
+│   │   ├── formatters.js     # 格式化工具
+│   │   ├── helpers.js        # 辅助工具
+│   │   ├── storage.js        # 存储工具
+│   │   ├── file.js           # 文件处理工具
+│   │   ├── epub.js           # EPUB处理工具
+│   │   ├── security.js       # 安全相关工具
+│   │   └── cache.js          # 缓存工具
+│   ├── constants/            # 常量定义
+│   │   ├── api.js            # API相关常量
+│   │   ├── routes.js         # 路由常量
+│   │   ├── themes.js         # 主题常量
+│   │   ├── messages.js       # 消息常量
+│   │   └── permissions.js    # 权限常量
+│   ├── types/                # TypeScript类型定义
+│   │   ├── user.ts           # 用户类型
+│   │   ├── novel.ts          # 小说类型
+│   │   ├── comment.ts        # 评论类型
+│   │   ├── rating.ts         # 评分类型
+│   │   ├── api.ts            # API类型
+│   │   └── common.ts         # 通用类型
+│   ├── styles/               # 全局样式
+│   │   ├── themes/           # 主题样式
+│   │   │   ├── light.css     # 浅色主题
+│   │   │   └── dark.css      # 深色主题
+│   │   ├── responsive.css    # 响应式样式
+│   │   └── animations.css    # 动画样式
+│   └── plugins/              # 插件
+│       ├── axios.js          # Axios插件配置
+│       ├── element-plus.js   # Element Plus插件配置
+│       └── directives.js     # 自定义指令
+├── tests/                    # 测试文件
+│   ├── unit/                 # 单元测试
+│   ├── e2e/                  # 端到端测试
+│   └── fixtures/             # 测试数据
+├── docs/                     # 文档
+│   ├── components.md         # 组件文档
+│   ├── api.md                # API文档
+│   └── development.md        # 开发文档
+├── .vscode/                  # VSCode配置
+├── package.json              # 项目依赖和脚本
+├── vite.config.js            # Vite构建配置
+├── tsconfig.json             # TypeScript配置
+├── .eslintrc.js              # ESLint配置
+├── .prettierrc               # Prettier配置
+└── .gitignore                # Git忽略文件
+```
 
-- 组件和工具类封装：
-  - 可复用组件：提取通用UI组件
-  - 工具函数：utils目录下放置通用工具函数
-  - API封装：统一管理API请求
-  - 常量定义：constants目录下定义常量
-  - 类型定义：types目录下定义TypeScript类型
-  - 逻辑封装：composables目录下封装可复用逻辑
+### 2. 代码组织原则
 
-### 2. 状态管理规范
+#### 2.1 使用第三方库，不重复造轮子
+- **UI组件库**：使用Element Plus或Naive UI等成熟组件库，避免从头开发基础UI组件
+- **阅读器功能**：使用epub.js处理EPUB格式，使用成熟的阅读器库
+- **虚拟滚动**：使用vue-virtual-scroll-list优化长列表性能
+- **表单验证**：使用vee-validate进行表单验证
+- **状态管理**：使用Pinia进行状态管理
+- **路由管理**：使用Vue Router进行路由管理
+- **HTTP请求**：使用Axios进行API请求
+- **日期处理**：使用dayjs或moment.js处理日期
+- **构建工具**：使用Vite进行快速构建
+- **搜索功能**：使用fuse.js实现模糊搜索
+- **评论树**：使用vue3-tree-chart实现评论树形结构
+- **骨架屏**：使用vue-content-loading实现加载骨架屏
+- **懒加载**：使用vue-lazyload实现图片懒加载
+- **通知系统**：使用vue-toastification实现通知系统
+
+#### 2.2 功能模块分离
+- **按业务功能划分模块**：
+  - 用户模块（认证、个人资料管理）
+  - 小说模块（上传、搜索、详情、列表）
+  - 阅读模块（阅读器、进度、设置）
+  - 社交模块（评论、评分、点赞）
+  - 管理模块（审核、用户管理）
+
+- **每个功能模块独立开发**：
+  - 不同功能模块的代码放在不同的目录中
+  - 每个模块有独立的API服务文件
+  - 每个模块有独立的状态管理store
+  - 每个模块有独立的逻辑处理composable
+  - 避免功能模块间的代码混杂，便于后续维护
+
+#### 2.3 组件和工具类封装
+- **组件封装原则**：
+  - 基础组件：可复用的UI元素（按钮、输入框、卡片等）
+  - 业务组件：特定业务逻辑的组件（小说卡片、阅读器等）
+  - 容器组件：管理数据和状态的组件
+  - 展示组件：仅负责UI展示的组件
+
+- **工具类封装**：
+  - 通用工具函数：验证、格式化、辅助函数
+  - 业务工具函数：特定业务逻辑的工具
+  - 存储工具：本地存储、缓存管理
+  - 文件处理：文件上传、格式处理
+  - 安全工具：输入过滤、XSS防护
+
+- **可复用逻辑封装**：
+  - 使用Composables封装可复用的业务逻辑
+  - 将认证、数据获取、状态管理等逻辑抽象为可复用函数
+  - 通过Composables实现跨组件的逻辑共享
+
+### 3. 组件开发规范
+
+#### 3.1 组件结构规范
+- 组件名使用PascalCase命名法（如UserProfile、NovelCard）
+- 每个组件文件包含template、script、style三个部分
+- script标签使用Composition API格式
+- 组件内部逻辑按以下顺序组织：
+  1. import语句
+  2. props定义
+  3. emits定义
+  4. setup函数内部按：响应式数据 -> 计算属性 -> 方法 -> 返回值
+
+#### 3.2 组件通信规范
+- 父子组件通信：使用props向下传递数据，emits向上传递事件
+- 非父子组件通信：使用Pinia状态管理或事件总线
+- 组件间数据流：遵循单向数据流原则，保持数据流清晰可追踪
+
+#### 3.3 组件职责原则
+- 每个组件职责单一，只关注自己的功能
+- 复杂组件拆分为多个子组件
+- 组件之间通过明确的接口通信，避免紧耦合
+
+### 4. 状态管理规范
 - 使用Pinia进行状态管理
 - 按功能模块划分store：
-  - userStore：用户相关状态
-  - novelStore：小说相关状态
-  - readingStore：阅读相关状态
-  - uiStore：UI相关状态
-  - commentStore：评论相关状态
-- 状态分层：全局状态、页面状态、组件状态
-- 状态持久化：使用pinia-plugin-persistedstate
+  - userStore：用户相关状态（认证信息、用户资料等）
+  - novelStore：小说相关状态（小说列表、详情等）
+  - readingStore：阅读相关状态（阅读进度、设置等）
+  - uiStore：UI相关状态（主题、加载状态等）
+  - commentStore：评论相关状态（评论列表、操作等）
+  - ratingStore：评分相关状态（评分列表、操作等）
+  - categoryStore：分类相关状态（分类列表、选中状态等）
+  - searchStore：搜索相关状态（搜索历史、结果等）
+- 状态分层：全局状态、页面状态、组件状态，按需使用
+- 状态持久化：使用pinia-plugin-persistedstate对重要状态进行持久化
 
 ### 3. API交互规范
 - 统一API接口管理
