@@ -66,7 +66,7 @@ backend/
 - id: 主键，自增
 - admin_user_id: 执行操作的管理员ID
 - action: 操作类型 (approve_novel-审核通过小说, reject_novel-审核拒绝小说, 
-  modify_novel-退回修改小说, batch_approve_novel-批量审核小说, 
+  batch_approve_novel-批量审核小说, 
   freeze_user-冻结用户, unfreeze_user-解冻用户等)
 - target_type: 目标类型 (novel-小说, user-用户, comment-评论, rating-评分)
 - target_id: 目标ID
@@ -284,6 +284,11 @@ backend/
 - 响应: 操作结果
 - 处理流程: 验证管理员权限，检查用户是否被冻结，
   删除该用户的所有未审核小说，记录操作日志
+
+##### 1.9.5 管理员权限说明
+- 通过is_admin字段标识管理员账户
+- 管理员权限包括：审核小说（通过/拒绝）、管理用户（冻结/解冻、查看用户列表）
+- 删除内容（一键删除未审核小说、删除违规评论/评分）
 
 ### 2. 小说模块
 
@@ -603,8 +608,8 @@ backend/
 - 认证: JWT token
 - 路径参数: id - 小说ID
 - 请求参数: 
-  - action: 审核操作 (approve/reject/modify)
-  - reason: 审核原因 (可选，用于拒绝或退回修改时的说明)
+  - action: 审核操作 (approve/reject)
+  - reason: 审核原因 (可选，用于拒绝时的说明)
 - 响应: 审核结果
 - 处理流程:
   1. 验证用户认证（使用middleware/jwt库）
@@ -614,7 +619,7 @@ backend/
   5. 记录审核操作到日志表（关联审核用户ID，
      使用第三方库zap记录admin_logs）
   6. 更新小说状态和审核时间
-  7. 如果是拒绝或退回修改操作，向上传用户发送系统消息通知
+  7. 如果是拒绝操作，向上传用户发送系统消息通知
 - 错误响应:
   - 403: 用户权限不足
   - 404: 小说不存在
@@ -625,8 +630,8 @@ backend/
 - 认证: JWT token
 - 请求参数: 
   - novel_ids: 小说ID数组（最多50个）
-  - action: 审核操作 (approve/reject/modify)
-  - reason: 审核原因 (可选，用于拒绝或退回修改时的说明)
+  - action: 审核操作 (approve/reject)
+  - reason: 审核原因 (可选，用于拒绝时的说明)
 - 响应: 批量审核结果（包含成功数量、失败数量、失败详情等）
 - 处理流程:
   1. 验证用户认证（使用middleware/jwt库）
@@ -637,7 +642,7 @@ backend/
   6. 记录审核操作到日志表（关联审核用户ID，
      使用第三方库zap记录admin_logs）
   7. 更新小说状态和审核时间
-  8. 如果是拒绝或退回修改操作，向相应上传用户发送系统消息通知
+  8. 如果是拒绝操作，向相应上传用户发送系统消息通知
   9. 返回批量审核结果统计
 - 错误响应:
   - 403: 用户权限不足
