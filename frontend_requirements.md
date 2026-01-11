@@ -52,9 +52,26 @@ frontend/
 - **昵称管理**：用户可在个人中心修改昵称，默认昵称为登录邮箱
   - 使用第三方库vee-validate实现表单验证
 
-- **管理员模块**：管理员可查看用户列表、冻结/解冻用户、
-  删除冻结用户的未审核小说（需要管理员权限）
+- **管理员模块**：
+  - **审核功能入口**：管理员在个人中心页面会看到"审核管理"入口，点击进入审核页面
+  - **审核页面功能**：
+    - 查看待审核小说列表，支持批量选择
+    - 点击小说标题查看详情和阅读预览
+    - 支持单个审核操作（通过/拒绝/退回修改）
+    - 支持批量审核操作（批量通过/拒绝/退回修改）
+    - 显示待审核小说数量统计
+  - **用户管理功能**：可查看用户列表、冻结/解冻用户、删除冻结用户的未审核小说
   - 使用is_admin字段标识管理员账户
+
+- **关于我们页面**：
+  - 在个人中心页面添加"关于我们"入口
+  - 页面内容：
+    - 项目介绍和愿景
+    - 开发团队信息
+    - 联系方式
+    - 外部链接：推特(Twitter)、Telegram群组等社交媒体链接
+    - 使用条款和隐私政策链接
+    - 版本信息和更新日志
 
 - **冻结用户处理**：被冻结用户登录后，界面会显示账户被冻结提示，
   上传、评论、评分、点赞等功能将被禁用，但仍可浏览和阅读已有内容。
@@ -452,8 +469,18 @@ frontend/
 - 评分管理组件（管理用户提交的评分，包括编辑、删除功能）
 - 管理员用户管理组件（管理员查看和管理用户，包括冻结/解冻功能）
 - 管理员内容管理组件（管理员管理用户内容，包括一键删除未审核小说功能）
-- 管理员审核组件（管理员审核小说，包括批量审核功能）
+- 管理员审核组件：
+  - 审核列表组件：显示待审核小说列表，支持批量选择
+  - 审核详情组件：显示小说详情和预览功能
+  - 审核操作组件：单个审核操作（通过/拒绝/退回修改）
+  - 批量审核组件：批量操作工具栏和确认对话框
+  - 审核统计组件：显示待审核数量统计
 - 系统消息组件（展示系统消息，包括审核结果、账户状态变更等通知）
+- 关于我们组件：
+  - 项目介绍展示组件
+  - 社交媒体链接组件（推特、Telegram等）
+  - 法律信息组件（使用条款、隐私政策）
+  - 版本信息组件（版本号、更新日志）
 
 ### 3. 布局组件
 - 头部导航
@@ -520,18 +547,246 @@ frontend/
 
 ## 状态管理设计
 
-### 1. 模块划分
-- 用户模块（认证状态、用户信息）
-- 小说模块（列表、详情）
-- 阅读模块（进度、阅读模式、阅读历史）
-- UI模块（主题、设置）
-- 分类模块（从后端获取的分类信息）
-- 排行榜模块（排行榜数据、时间范围选择）
+### 1. 状态管理架构
+- **使用Pinia作为状态管理库**
+- **模块化设计**：按功能模块划分store
+- **响应式状态**：使用Vue 3的响应式系统
+- **类型安全**：使用TypeScript确保类型安全
 
-### 2. 数据流
-- 组件触发动作
-- Store处理逻辑
-- 数据同步到组件
+### 2. Store模块划分
+
+#### 2.1 用户模块 (userStore)
+- **状态**：
+  - `userInfo`: 用户信息（id, email, nickname, is_admin, is_active等）
+  - `token`: JWT认证token
+  - `isAuthenticated`: 认证状态
+  - `loginError`: 登录错误信息
+  - `registerError`: 注册错误信息
+- **操作**：
+  - `login(email, password)`: 用户登录
+  - `logout()`: 用户登出
+  - `register(email, password, nickname)`: 用户注册
+  - `updateProfile(nickname)`: 更新用户信息
+  - `checkAuth()`: 检查认证状态
+- **Getter**：
+  - `isAdmin`: 是否为管理员
+  - `isActive`: 用户是否活跃（未被冻结）
+  - `userNickname`: 获取用户昵称（优先使用昵称，否则使用邮箱）
+
+#### 2.2 小说模块 (novelStore)
+- **状态**：
+  - `novelList`: 小说列表数据
+  - `currentNovel`: 当前查看的小说详情
+  - `pagination`: 分页信息（当前页、总页数、每页数量）
+  - `loading`: 加载状态
+  - `error`: 错误信息
+- **操作**：
+  - `fetchNovels(params)`: 获取小说列表
+  - `fetchNovelById(id)`: 根据ID获取小说详情
+  - `searchNovels(keyword, filters)`: 搜索小说
+  - `uploadNovel(file, metadata)`: 上传小说
+  - `deleteNovel(id)`: 删除小说
+- **Getter**：
+  - `filteredNovels`: 过滤后的小说列表
+  - `novelCount`: 小说总数
+  - `hasMore`: 是否还有更多数据可加载
+
+#### 2.3 阅读模块 (readingStore)
+- **状态**：
+  - `readingProgress`: 阅读进度映射（novelId -> progress）
+  - `readingHistory`: 阅读历史记录
+  - `readingSettings`: 阅读设置（字体、主题、间距等）
+  - `currentReading`: 当前正在阅读的小说信息
+- **操作**：
+  - `saveProgress(novelId, progress, chapterId)`: 保存阅读进度
+  - `getProgress(novelId)`: 获取阅读进度
+  - `updateSettings(settings)`: 更新阅读设置
+  - `addToHistory(novel)`: 添加到阅读历史
+  - `clearHistory()`: 清空阅读历史
+- **Getter**：
+  - `recentHistory`: 最近阅读记录
+  - `readingStats`: 阅读统计信息
+  - `currentSettings`: 当前阅读设置
+
+#### 2.4 UI模块 (uiStore)
+- **状态**：
+  - `theme`: 当前主题（light/dark）
+  - `sidebarCollapsed`: 侧边栏是否折叠
+  - `loading`: 全局加载状态
+  - `notifications`: 通知消息列表
+  - `modal`: 当前打开的弹窗
+- **操作**：
+  - `toggleTheme()`: 切换主题
+  - `toggleSidebar()`: 切换侧边栏
+  - `showLoading()`: 显示加载状态
+  - `hideLoading()`: 隐藏加载状态
+  - `addNotification(message, type)`: 添加通知
+  - `removeNotification(id)`: 移除通知
+  - `openModal(component, props)`: 打开弹窗
+  - `closeModal()`: 关闭弹窗
+
+#### 2.5 分类模块 (categoryStore)
+- **状态**：
+  - `categories`: 分类列表
+  - `currentCategory`: 当前选中的分类
+  - `categoryNovels`: 当前分类下的小说列表
+- **操作**：
+  - `fetchCategories()`: 获取分类列表
+  - `selectCategory(id)`: 选择分类
+  - `fetchNovelsByCategory(id, params)`: 获取分类下的小说
+- **Getter**：
+  - `categoryOptions`: 分类选项（用于下拉选择）
+  - `categoryCount`: 分类数量
+
+#### 2.6 排行榜模块 (rankingStore)
+- **状态**：
+  - `rankings`: 排行榜数据
+  - `rankingType`: 当前排行榜类型（total/today/week/month）
+  - `rankingTimeRange`: 时间范围选择
+- **操作**：
+  - `fetchRankings(type, params)`: 获取排行榜数据
+  - `changeRankingType(type)`: 切换排行榜类型
+  - `updateTimeRange(range)`: 更新时间范围
+- **Getter**：
+  - `currentRankings`: 当前排行榜数据
+  - `rankingTitle`: 排行榜标题
+
+#### 2.7 评论模块 (commentStore)
+- **状态**：
+  - `comments`: 评论列表
+  - `currentComment`: 当前编辑的评论
+  - `commentPagination`: 评论分页信息
+- **操作**：
+  - `fetchComments(novelId, chapterId, params)`: 获取评论列表
+  - `addComment(comment)`: 添加评论
+  - `updateComment(id, content)`: 更新评论
+  - `deleteComment(id)`: 删除评论
+  - `likeComment(id)`: 点赞评论
+- **Getter**：
+  - `sortedComments`: 排序后的评论列表
+  - `commentCount`: 评论总数
+
+#### 2.8 评分模块 (ratingStore)
+- **状态**：
+  - `ratings`: 评分列表
+  - `userRating`: 用户对当前小说的评分
+  - `averageRating`: 平均评分
+- **操作**：
+  - `fetchRatings(novelId, params)`: 获取评分列表
+  - `addRating(rating)`: 添加评分
+  - `updateRating(id, rating)`: 更新评分
+  - `deleteRating(id)`: 删除评分
+  - `likeRating(id)`: 点赞评分
+- **Getter**：
+  - `ratingStats`: 评分统计信息
+  - `ratingDistribution`: 评分分布
+
+#### 2.9 审核模块 (reviewStore)
+- **状态**：
+  - `pendingNovels`: 待审核小说列表
+  - `selectedNovels`: 已选中的小说ID集合（用于批量操作）
+  - `currentReviewNovel`: 当前正在审核的小说详情
+  - `reviewStats`: 审核统计信息（待审核数量、今日审核数量等）
+  - `reviewLoading`: 审核相关加载状态
+  - `reviewError`: 审核错误信息
+- **操作**：
+  - `fetchPendingNovels(params)`: 获取待审核小说列表
+  - `selectNovel(id)`: 选择/取消选择小说（用于批量操作）
+  - `selectAllNovels()`: 选择所有小说
+  - `clearSelection()`: 清空选择
+  - `fetchNovelForReview(id)`: 获取小说详情用于审核
+  - `approveNovel(id, reason)`: 审核通过单个小说
+  - `rejectNovel(id, reason)`: 审核拒绝单个小说
+  - `returnNovel(id, feedback)`: 退回修改单个小说
+  - `batchApproveNovels(ids, reason)`: 批量审核通过
+  - `batchRejectNovels(ids, reason)`: 批量审核拒绝
+  - `batchReturnNovels(ids, feedback)`: 批量退回修改
+  - `fetchReviewStats()`: 获取审核统计信息
+- **Getter**：
+  - `selectedCount`: 已选中的小说数量
+  - `hasSelection`: 是否有选中的小说
+  - `filteredPendingNovels`: 过滤后的待审核小说列表
+  - `reviewProgress`: 审核进度统计
+
+### 3. 数据流设计
+
+#### 3.1 单向数据流
+```
+组件触发Action → Store处理逻辑 → 更新State → 组件重新渲染
+```
+
+#### 3.2 异步操作处理
+- 使用async/await处理异步API调用
+- 统一错误处理机制
+- 加载状态管理
+- 请求取消机制
+
+#### 3.3 状态更新策略
+- **乐观更新**：对于用户操作（如点赞、评论），先更新本地状态，再发送请求
+- **悲观更新**：对于重要操作（如支付、删除），先发送请求，成功后再更新状态
+- **批量更新**：对于频繁操作（如阅读进度），使用防抖批量更新
+
+### 4. 状态持久化
+
+#### 4.1 本地存储策略
+- **使用pinia-plugin-persistedstate插件**
+- **持久化数据**：
+  - 用户认证信息（token）
+  - 阅读进度和设置
+  - UI主题偏好
+  - 搜索历史
+- **存储方式**：
+  - `localStorage`：长期存储（用户设置、阅读进度）
+  - `sessionStorage`：会话存储（临时数据）
+  - `IndexedDB`：大量数据存储（阅读历史、缓存数据）
+
+#### 4.2 数据同步机制
+- **服务器同步**：重要数据（阅读进度）定期同步到服务器
+- **冲突解决**：使用时间戳解决数据冲突（以最新数据为准）
+- **离线支持**：本地缓存支持离线阅读
+- **同步状态**：显示数据同步状态和进度
+
+### 5. 状态共享和通信
+
+#### 5.1 组件间通信
+- **Props/Events**：父子组件通信
+- **Provide/Inject**：跨层级组件通信
+- **Event Bus**：全局事件通信（使用mitt库）
+- **Store**：复杂状态共享
+
+#### 5.2 Store间通信
+- **组合Store**：一个Store可以导入和使用其他Store
+- **共享状态**：通过rootState访问其他模块的状态
+- **动作协调**：跨模块的动作协调
+
+### 6. 性能优化
+
+#### 6.1 状态分割
+- 按功能模块分割状态，减少不必要的重新渲染
+- 使用计算属性缓存计算结果
+- 使用watchEffect处理副作用
+
+#### 6.2 内存管理
+- 及时清理不再使用的状态
+- 使用弱引用存储大型数据
+- 实现垃圾回收机制
+
+#### 6.3 状态快照
+- 支持状态快照和恢复
+- 开发工具集成（Vue DevTools）
+- 状态调试和监控
+
+### 7. 错误处理
+
+#### 7.1 状态错误处理
+- 统一错误状态管理
+- 错误边界组件
+- 错误恢复机制
+
+#### 7.2 网络错误处理
+- 请求重试机制
+- 离线状态检测
+- 数据同步恢复
 
 ## 路由设计
 
