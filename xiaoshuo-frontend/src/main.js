@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import { createRouter, createWebHistory } from 'vue-router'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
+import persistedstate from 'pinia-plugin-persistedstate'
 import App from './App.vue'
 import routes from './router'
 import './assets/css/index.css'
@@ -15,6 +16,7 @@ const router = createRouter({
 })
 
 const pinia = createPinia()
+pinia.use(persistedstate)
 
 app.use(router)
 app.use(pinia)

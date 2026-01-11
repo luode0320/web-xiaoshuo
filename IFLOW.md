@@ -30,7 +30,7 @@
 ### 前端技术栈
 - **框架**: Vue.js 3 (3.4.0+)
 - **路由**: Vue Router 4.2.5
-- **状态管理**: Pinia 2.1.7 (带持久化插件 @pinia/plugin-persistedstate)
+- **状态管理**: Pinia 2.1.7 (带持久化插件 pinia-plugin-persistedstate)
 - **UI库**: Element Plus 2.4.2
 - **构建工具**: Vite 4.5.0
 - **HTTP客户端**: Axios
@@ -38,8 +38,8 @@
 - **虚拟滚动**: vue-virtual-scroll-list
 - **模糊搜索**: fuse.js
 - **表单验证**: vee-validate + validator
-- **加载动画**: vue-content-loading
-- **图片懒加载**: vue-lazyload
+- **加载动画**: vue-content-loader
+- **图片懒加载**: vue3-lazy
 - **通知系统**: vue-toastification
 - **进度条**: nprogress
 - **加密库**: crypto-js, js-sha256
