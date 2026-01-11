@@ -1,0 +1,16 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "local开发环境启动", // 调试配置名称，在调试配置菜单中显示。
+            "type": "go", // 指定调试器类型，这里为 Go 语言。
+            "request": "launch", // 表示调试请求类型，"launch" 表示启动程序。
+            "mode": "auto", // 调试模式，可以是 "auto"、"debug" 或 "test"。`auto` 会自动选择合适的模式。
+            "args": "-env=local", // 启动程序时的命令行参数。
+            "program": "${workspaceFolder}/backend/" // 要调试的程序路径，`${workspaceFolder}` 表示当前工作区的根目录。
+        }
+    ]
+}
