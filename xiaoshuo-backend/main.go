@@ -2,9 +2,9 @@ package main
 
 import (
 	"log"
-	"net/http"
 
 	"xiaoshuo-backend/config"
+	"xiaoshuo-backend/models"
 	"xiaoshuo-backend/routes"
 
 	"github.com/gin-gonic/gin"
@@ -16,6 +16,9 @@ func main() {
 
 	// 初始化数据库
 	config.InitDB()
+
+	// 初始化模型数据库连接
+	models.InitializeDB()
 
 	// 初始化Redis
 	config.InitRedis()

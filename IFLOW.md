@@ -22,7 +22,7 @@
 - **文件类型检测**: filetype库
 - **EPUB处理**: golang-epub库
 - **速率限制**: golang.org/x/time/rate
-- **数据验证**: github.com/go-playground/validator/v10
+- **数据验证**: github.com/go-playground/validator/v10 (v10.27.0)
 - **XSS防护**: bluemonday库
 - **定时任务**: gocron库
 - **全文搜索**: bleve库
@@ -30,7 +30,7 @@
 ### 前端技术栈
 - **框架**: Vue.js 3 (3.4.0+)
 - **路由**: Vue Router 4.2.5
-- **状态管理**: Pinia 2.1.7 (带持久化插件)
+- **状态管理**: Pinia 2.1.7 (带持久化插件 @pinia/plugin-persistedstate)
 - **UI库**: Element Plus 2.4.2
 - **构建工具**: Vite 4.5.0
 - **HTTP客户端**: Axios
@@ -42,7 +42,8 @@
 - **图片懒加载**: vue-lazyload
 - **通知系统**: vue-toastification
 - **进度条**: nprogress
-- **加密库**: crypto-js
+- **加密库**: crypto-js, js-sha256
+- **树形图**: vue3-tree-chart
 
 ## 项目结构
 
@@ -94,8 +95,8 @@ web-xiaoshuo/
 │   │   └── views/            # 页面视图
 │   │       └── Home.vue      # 首页视图
 ├── 启动文档.md               # 项目启动说明
-├── xiaoshuo-backend_requirements.md   # 后端需求文档
-├── xiaoshuo-frontend_requirements.md  # 前端需求文档
+├── backend_requirements.md   # 后端需求文档
+├── frontend_requirements.md  # 前端需求文档
 ├── functional_design.md      # 功能设计文档
 ├── development_plan.md       # 开发计划文档
 └── IFLOW.md                 # 项目上下文文档
@@ -302,6 +303,171 @@ func (Novel) TableName() string {
 }
 ```
 
+### Category 模型 (xiaoshuo-backend/models/category.go)
+```go
+// Category 分类模型
+type Category struct {
+	gorm.Model
+	Name        string  `gorm:"uniqueIndex;not null" json:"name" validate:"required,min=1,max=50"`
+	Description string  `json:"description" validate:"max=200"`
+	Novels      []Novel `gorm:"many2many:novel_categories;" json:"novels,omitempty"`
+}
+
+// TableName 指定表名
+func (Category) TableName() string {
+	return "categories"
+}
+```
+
+### Comment 模型 (xiaoshuo-backend/models/comment.go)
+```go
+// Comment 评论模型
+type Comment struct {
+	gorm.Model
+	UserID    uint        `json:"user_id" validate:"required"`
+	User      User        `json:"user" validate:"required"`
+	NovelID   uint        `json:"novel_id" validate:"required"`
+	Novel     Novel       `json:"novel" validate:"required"`
+	ChapterID uint        `json:"chapter_id"`
+	ParentID  *uint       `json:"parent_id"` // 支持一级回复
+	Parent    *Comment    `json:"parent,omitempty"`
+	Content   string      `json:"content" validate:"required,min=1,max=500"`
+	LikeCount int         `gorm:"default:0" json:"like_count"`
+	Replies   []Comment   `json:"replies,omitempty"`
+}
+
+// TableName 指定表名
+func (Comment) TableName() string {
+	return "comments"
+}
+```
+
+### Rating 模型 (xiaoshuo-backend/models/rating.go)
+```go
+// Rating 评分模型
+type Rating struct {
+	gorm.Model
+	UserID    uint   `json:"user_id" validate:"required"`
+	User      User   `json:"user" validate:"required"`
+	NovelID   uint   `json:"novel_id" validate:"required"`
+	Novel     Novel  `json:"novel" validate:"required"`
+	Rating    int    `json:"rating" validate:"required,min=1,max=5"` // 评分1-5
+	Review    string `json:"review" validate:"max=250"`              // 评分说明
+	LikeCount int    `gorm:"default:0" json:"like_count"`
+}
+
+// TableName 指定表名
+func (Rating) TableName() string {
+	return "ratings"
+}
+```
+
+### Keyword 模型 (xiaoshuo-backend/models/keyword.go)
+```go
+// Keyword 关键词模型
+type Keyword struct {
+	gorm.Model
+	Keyword string  `gorm:"uniqueIndex;not null" json:"keyword" validate:"required,min=1,max=50"`
+	Novels  []Novel `gorm:"many2many:novel_keywords;" json:"novels,omitempty"`
+}
+
+// TableName 指定表名
+func (Keyword) TableName() string {
+	return "keywords"
+}
+```
+
+### AdminLog 模型 (xiaoshuo-backend/models/admin_log.go)
+```go
+// AdminLog 管理员操作日志模型
+type AdminLog struct {
+	gorm.Model
+	AdminUserID uint   `json:"admin_user_id" validate:"required"`
+	AdminUser   User   `json:"admin_user" validate:"required"`
+	Action      string `json:"action" validate:"required,oneof=approve_novel reject_novel batch_approve_novel freeze_user unfreeze_user delete_pending_novels"` // 操作类型
+	TargetType  string `json:"target_type" validate:"required,oneof=novel user comment rating"`                                                                 // 目标类型
+	TargetID    uint   `json:"target_id" validate:"required"`                                                                                                // 目标ID
+	Details     string `json:"details"`                                                                                                                      // 操作详情(json格式)
+	Result      string `json:"result" validate:"required,oneof=success failed"`                                                                              // 操作结果
+	IPAddress   string `json:"ip_address"`                                                                                                                   // 操作IP地址
+}
+
+// TableName 指定表名
+func (AdminLog) TableName() string {
+	return "admin_logs"
+}
+
+// SetDetails 设置操作详情
+func (al *AdminLog) SetDetails(details map[string]interface{}) error {
+	data, err := json.Marshal(details)
+	if err != nil {
+		return err
+	}
+	al.Details = string(data)
+	return nil
+}
+
+// GetDetails 获取操作详情
+func (al *AdminLog) GetDetails() (map[string]interface{}, error) {
+	var details map[string]interface{}
+	err := json.Unmarshal([]byte(al.Details), &details)
+	return details, err
+}
+```
+
+### SystemMessage 模型 (xiaoshuo-backend/models/system_message.go)
+```go
+// SystemMessage 系统消息模型
+type SystemMessage struct {
+	gorm.Model
+	UserID uint   `json:"user_id" validate:"required"`
+	User   User   `json:"user" validate:"required"`
+	Title  string `json:"title" validate:"required,min=1,max=200"`
+	Content string `json:"content" validate:"required,min=1,max=1000"`
+	Type   string `json:"type" validate:"required,oneof=notification warning info"` // 消息类型
+	IsRead bool   `gorm:"default:false" json:"is_read"`                             // 是否已读
+}
+
+// TableName 指定表名
+func (SystemMessage) TableName() string {
+	return "system_messages"
+}
+```
+
+### CommentLike 模型 (xiaoshuo-backend/models/comment_like.go)
+```go
+// CommentLike 评论点赞模型
+type CommentLike struct {
+	gorm.Model
+	UserID    uint    `json:"user_id" validate:"required"`
+	CommentID uint    `json:"comment_id" validate:"required"`
+	User      User    `json:"user" validate:"required"`
+	Comment   Comment `json:"comment" validate:"required"`
+}
+
+// TableName 指定表名
+func (CommentLike) TableName() string {
+	return "comment_likes"
+}
+```
+
+### RatingLike 模型 (xiaoshuo-backend/models/rating_like.go)
+```go
+// RatingLike 评分点赞模型
+type RatingLike struct {
+	gorm.Model
+	UserID   uint   `json:"user_id" validate:"required"`
+	RatingID uint   `json:"rating_id" validate:"required"`
+	User     User   `json:"user" validate:"required"`
+	Rating   Rating `json:"rating" validate:"required"`
+}
+
+// TableName 指定表名
+func (RatingLike) TableName() string {
+	return "rating_likes"
+}
+```
+
 ## 前端页面路由
 
 - `/` - 首页（推荐小说展示）
@@ -450,9 +616,11 @@ func (Novel) TableName() string {
 
 ## 重要更新
 
-- **端口变更**: 后端服务端口已从8080更新为8888
+- **端口变更**: 后端服务端口已从8080更新为8888，main.go文件已更新以使用配置文件中的端口设置
 - **全面模型**: 项目包含了完整的数据库模型，包括用户、小说、评论、评分、分类、关键词、管理日志等
 - **审核系统**: 实现了完整的小说审核流程，包括待审核、通过、拒绝状态
 - **推荐系统**: 实现了基于内容、热门、新书、个性化等多种推荐算法
 - **安全增强**: 实现了用户权限分级、内容安全过滤、操作频率限制等功能
 - **性能优化**: 实现了缓存策略、数据库索引优化、API响应优化等功能
+- **前端增强**: 添加了更多依赖库如js-sha256、vue-virtual-scroll-list、fuse.js等以支持更丰富的功能
+- **路由完善**: 前端路由已配置完整的页面结构，包括需要认证的页面保护
