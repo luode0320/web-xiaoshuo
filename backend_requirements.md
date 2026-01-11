@@ -439,15 +439,25 @@ backend/
   1. 验证小说ID格式（使用github.com/go-playground/validator/v10库）
   2. 根据ID查询小说记录
   3. 检查小说状态是否为已通过（approved）
-  4. 根据start和end参数读取小说文件的指定范围内容
-  5. 支持HTTP Range Requests，实现分段传输
-  6. 返回指定范围的小说内容
-  7. 更新小说的最后访问时间
+  4. 解析HTTP Range请求头，如果存在则优先使用Range头指定的范围
+  5. 根据start和end参数或Range头读取小说文件的指定范围内容
+  6. 设置Content-Range响应头，格式为"bytes [start]-[end]/[total_size]"
+  7. 设置Content-Length响应头
+  8. 设置Accept-Ranges响应头为"bytes"以表明支持范围请求
+  9. 返回指定范围的小说内容
+  10. 更新小说的最后访问时间
 - 功能特点:
   1. 支持流式加载小说内容，用户不需要下载小说全文本文件才可以阅读，而是传一些数据就可以阅读小说，实现更快的加载
   2. 后端实现分段传输小说内容，支持范围请求（Range Requests）
   3. 优化小说内容的分块传输和缓存
   4. 减少初始加载时间，提升用户体验
+- HTTP Range Requests支持:
+  1. 解析Range请求头，格式如"Range: bytes=0-1023"
+  2. 支持多范围请求，如"Range: bytes=0-50, 100-150"
+  3. 返回206 Partial Content状态码
+  4. 设置Content-Range响应头指示实际返回的内容范围
+  5. 设置Accept-Ranges响应头表明服务器支持范围请求
+  6. 错误处理：如果请求的范围无效，返回416 Requested Range Not Satisfiable状态码
 
 #### 2.9 删除小说
 - 路径: DELETE /api/v1/novels/:id
@@ -1257,6 +1267,11 @@ tasks:
 - 标准错误响应格式
 - 详细的错误信息说明
 - 错误日志记录
+- 错误重试机制（对临时性错误进行重试）
+- 服务降级策略（当依赖服务不可用时提供降级方案）
+- API限流和熔断机制（防止系统过载）
+- 断路器模式实现（当某个服务持续失败时快速失败）
+- 异常恢复机制（自动恢复临时性故障）
 
 ## 第三方库使用
 
