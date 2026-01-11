@@ -26,7 +26,7 @@ backend/
 - Gorm (ORM框架)
 - MySQL (数据库)
 - Viper (配置管理)
-- Logrus (日志管理)
+- Zap (日志管理)
 - Godotenv (环境变量管理)
 
 ## 数据库设计
@@ -157,12 +157,13 @@ backend/
 - **响应**: 用户信息和认证token
 - **处理流程**:
   1. 验证邮箱格式（使用github.com/go-playground/validator/v10库）
-  2. 检查邮箱是否已存在
+  2. 检查邮箱是否已存在（使用Gorm查询）
   3. 检查昵称是否重复（非强制唯一，但会提示用户）
   4. 如果未提供昵称，则使用邮箱作为默认昵称
   5. 密码加密存储（使用golang.org/x/crypto/bcrypt库）
   6. 创建用户记录（默认is_active=true, is_admin=false）
   7. 生成JWT token（使用github.com/golang-jwt/jwt/v4库）
+  8. 返回用户信息和token
 
 #### 1.2 用户登录
 - **路径**: POST /api/v1/users/login
@@ -171,10 +172,11 @@ backend/
   - password: 密码
 - **响应**: 用户信息和认证token
 - **处理流程**:
-  1. 验证用户凭据
+  1. 验证用户凭据（使用Gorm查询用户）
   2. 密码验证（使用golang.org/x/crypto/bcrypt库）
   3. 生成JWT token（使用github.com/golang-jwt/jwt/v4库）
   4. 更新最后登录时间
+  5. 返回用户信息和token
 
 #### 1.3 获取用户信息
 - **路径**: GET /api/v1/users/profile
@@ -190,7 +192,7 @@ backend/
 - **处理流程**:
   1. 验证用户认证（使用middleware/jwt库）
   2. 验证参数格式（使用github.com/go-playground/validator/v10库）
-  3. 更新用户昵称
+  3. 更新用户昵称（使用Gorm更新）
   4. 返回更新后的用户信息
 
 #### 1.5 获取用户上传的小说列表
@@ -205,7 +207,7 @@ backend/
   1. 验证用户认证（使用middleware/jwt库）
   2. 从JWT token中获取当前用户ID
   3. 根据查询参数构建查询条件（使用Gorm的分页功能）
-  4. 查询用户上传的小说列表
+  4. 查询用户上传的小说列表（使用Gorm预加载关联数据）
   5. 统计小说总数
   6. 返回分页结果
 
@@ -304,7 +306,7 @@ backend/
   4. 验证文件格式（使用filetype库），如不支持则返回错误："仅支持txt和epub格式"
   5. 验证文件大小（最大20MB），如超限则返回错误："文件大小不能超过20MB"
   6. 计算文件hash值（使用crypto/sha256库）
-  7. 检查文件hash是否已存在，如存在则返回错误："该文件已存在"
+  7. 检查文件hash是否已存在（使用Gorm查询），如存在则返回错误："该文件已存在"
   8. 保存文件到指定目录（使用os库创建目录和保存文件）
   9. 提取小说元数据（使用golang-epub库处理EPUB文件，
      使用go-regexp库处理TXT文件的章节识别）
@@ -313,12 +315,12 @@ backend/
 
   - 章节管理：
     - 章节识别：
-      - EPUB格式：使用第三方库如go-epub自动提取章节标题和结构
-      - TXT格式：使用第三方库如go-regexp识别章节标记，包括：
+      - EPUB格式：使用第三方库go-epub自动提取章节标题和结构
+      - TXT格式：使用第三方库go-regexp识别章节标记，包括：
         - 中文数字：/^第[一二三四五六七八九十百千万零]+[章节回].*$/
         - 阿拉伯数字：/^第\d+[章节回].*$/
         - 其他格式：/^序[言章]?$|^[前引]言$|^终[章后]$|^后记$/
-    - 章节字数统计（使用第三方库如golang-runewidth）
+    - 章节字数统计（使用第三方库golang-runewidth）
 
 #### 2.2 获取小说列表
 - **路径**: GET /api/v1/novels
@@ -349,7 +351,7 @@ backend/
   1. 验证用户认证（使用middleware/jwt库）
   2. 从JWT token中获取当前用户ID
   3. 根据查询参数构建查询条件
-  4. 查询该用户上传的小说列表
+  4. 查询该用户上传的小说列表（使用Gorm预加载关联数据）
   5. 使用Gorm进行分页查询
   6. 返回分页结果
 
@@ -413,7 +415,7 @@ backend/
   - show_pending: 是否显示审核中的小说 (默认false)
 - **响应**: 搜索结果列表
 - **处理流程**:
-  1. 使用第三方库如bleve实现全文搜索功能
+  1. 使用第三方库bleve实现全文搜索功能
   2. 根据search_by参数确定搜索字段
   3. 如果提供了category_id，则在该分类内搜索
   4. 如果提供了keyword，则按关键词搜索
@@ -546,7 +548,7 @@ backend/
   3. 验证小说当前状态（必须为pending）
   4. 执行审核操作（更新小说状态）
   5. 记录审核操作到日志表（关联审核用户ID，
-     使用第三方库如zap记录admin_logs）
+     使用第三方库zap记录admin_logs）
   6. 更新小说状态和审核时间
   7. 如果是拒绝或退回修改操作，向上传用户发送系统消息通知
 - **错误响应**:
@@ -569,7 +571,7 @@ backend/
   4. 验证所有小说当前状态（必须为pending）
   5. 使用Gorm事务对每个小说执行审核操作
   6. 记录审核操作到日志表（关联审核用户ID，
-     使用第三方库如zap记录admin_logs）
+     使用第三方库zap记录admin_logs）
   7. 更新小说状态和审核时间
   8. 如果是拒绝或退回修改操作，向相应上传用户发送系统消息通知
   9. 返回批量审核结果统计
@@ -796,9 +798,9 @@ backend/
       - 审核中文件：存放在 pending 目录
       - 已通过文件：存放在 approved 目录  
       - 已拒绝文件：存放在 rejected 目录
-    - 访问控制：使用第三方库如net/http实现文件访问控制，
+    - 访问控制：使用第三方库net/http实现文件访问控制，
       所有小说文件访问需经过后端API验证，防止直接访问文件路径
-    - 使用第三方库如os和path/filepath管理文件路径
+    - 使用第三方库os和path/filepath管理文件路径
 
 ### 3. 静态文件服务
 - 小说文件访问
@@ -916,7 +918,7 @@ backend/
 - Gin: Web框架
 - Gorm: ORM框架
 - Viper: 配置管理
-- Logrus或Zap: 日志管理
+- Zap: 日志管理
 - filetype: 文件类型检测
 - golang-epub: EPUB格式处理
 - golang.org/x/time/rate: 速率限制
