@@ -1,0 +1,21 @@
+server:
+  port: "8080"
+  mode: "debug"
+  base_path: "/api/v1"
+
+database:
+  host: "192.168.3.3"
+  port: "3306"
+  user: "root"
+  password: "Ld588588"
+  dbname: "xiaoshuo"
+  charset: "utf8mb4"
+
+redis:
+  addr: "192.168.3.3:6379"
+  password: ""
+  db: 0
+
+jwt:
+  secret: "xiaoshuo_secret_key"
+  expires: 3600
