@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestGenerateToken 测试JWT token生成
-func TestGenerateToken(t *testing.T) {
+// TestGenerateTokenOnly 测试JWT token生成
+func TestGenerateTokenOnly(t *testing.T) {
 	// 测试生成token
 	userId := uint(1)
 	isAdmin := false
@@ -30,8 +30,8 @@ func TestGenerateToken(t *testing.T) {
 	assert.Equal(t, isAdmin, claims.IsAdmin)
 }
 
-// TestParseToken 测试JWT token解析
-func TestParseToken(t *testing.T) {
+// TestParseTokenOnly 测试JWT token解析
+func TestParseTokenOnly(t *testing.T) {
 	// 测试有效token
 	userId := uint(2)
 	isAdmin := true
@@ -54,8 +54,8 @@ func TestParseToken(t *testing.T) {
 	assert.Nil(t, claims)
 }
 
-// TestUserPasswordHashing 测试用户密码哈希功能
-func TestUserPasswordHashing(t *testing.T) {
+// TestUserPasswordHashingOnly 测试用户密码哈希功能
+func TestUserPasswordHashingOnly(t *testing.T) {
 	user := &models.User{}
 	password := "test_password_123"
 	
