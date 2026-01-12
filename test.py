@@ -142,13 +142,54 @@ class NovelSystemTester:
         print(f"获取阅读历史结果: {response}")
         return response.get('code') == 200
 
+    def test_upload_novel(self):
+        """测试上传小说功能(包括EPUB)"""
+        print("\n=== 测试上传小说功能 ===")
+        # 首先需要创建一个测试用的EPUB文件
+        test_epub_path = "test.epub"
+        try:
+            # 创建一个简单的EPUB文件用于测试
+            with open(test_epub_path, 'wb') as f:
+                # 写入一个最小化的EPUB文件头（实际应用中需要使用合适的EPUB库）
+                f.write(b"PK\x03\x04")  # ZIP文件头，EPUB是ZIP格式
+                f.write(b"EPUB Test File")
+            
+            # 使用multipart/form-data上传
+            url = f"{self.base_url}/api/v1/novels/upload"
+            headers = {"Authorization": f"Bearer {self.user_token}"} if self.user_token else {}
+            
+            with open(test_epub_path, 'rb') as f:
+                files = {'file': (test_epub_path, f, 'application/epub+zip')}
+                data = {
+                    'title': '测试EPUB小说',
+                    'author': '测试作者',
+                    'description': '这是一本用于测试EPUB功能的小说'
+                }
+                
+                response = requests.post(url, files=files, data=data, headers=headers)
+                print(f"上传EPUB结果: {response.status_code}")
+                try:
+                    result = response.json()
+                    print(f"上传EPUB响应: {result}")
+                    return result.get('code') == 200
+                except:
+                    print(f"上传EPUB响应非JSON: {response.text}")
+                    return False
+        except Exception as e:
+            print(f"上传EPUB测试异常: {str(e)}")
+            return False
+        finally:
+            # 清理测试文件
+            if os.path.exists(test_epub_path):
+                os.remove(test_epub_path)
+
     def run_all_tests(self):
         """运行所有测试"""
         print("开始运行小说阅读系统全流程测试...")
         
         # 检查服务是否运行
         try:
-            response = requests.get(f"{self.base_url}/api/v1/health", timeout=5)
+            response = requests.get(f"{self.base_url}/api/v1/novels", timeout=5)
             print("服务正在运行")
         except requests.exceptions.ConnectionError:
             print(f"服务未运行于 {self.base_url}，请先启动后端服务")
@@ -158,7 +199,7 @@ class NovelSystemTester:
         # 基础功能测试
         tests = [
             self.test_homepage,
-            self.test_user_registration,  # 如果注册失败，尝试登录已存在的用户
+            self.test_user_registration,
             self.test_user_login,
             self.test_get_profile,
             self.test_update_profile,
@@ -167,6 +208,12 @@ class NovelSystemTester:
             self.test_get_categories,
             self.test_get_rankings,
         ]
+        
+        # 条件性测试 - 只有在用户登录成功的情况下才测试需要认证的功能
+        if self.user_token:
+            tests.extend([
+                self.test_get_reading_history
+            ])
         
         results = {}
         for test_func in tests:
@@ -178,20 +225,14 @@ class NovelSystemTester:
                 print(f"{test_func.__name__}: 异常 - {str(e)}")
                 results[test_func.__name__] = False
         
-        # 只有在用户登录成功的情况下才测试需要认证的功能
-        if self.user_token:
-            auth_tests = [
-                self.test_get_reading_history,
-            ]
-            
-            for test_func in auth_tests:
-                try:
-                    result = test_func()
-                    results[test_func.__name__] = result
-                    print(f"{test_func.__name__}: {'通过' if result else '失败'}")
-                except Exception as e:
-                    print(f"{test_func.__name__}: 异常 - {str(e)}")
-                    results[test_func.__name__] = False
+        # EPUB上传测试
+        try:
+            epub_result = self.test_upload_novel()
+            results['test_upload_novel'] = epub_result
+            print(f"test_upload_novel: {'通过' if epub_result else '失败'}")
+        except Exception as e:
+            print(f"test_upload_novel: 异常 - {str(e)}")
+            results['test_upload_novel'] = False
         
         # 汇总结果
         passed = sum(1 for result in results.values() if result)
@@ -210,7 +251,7 @@ def main():
     if len(sys.argv) > 1 and sys.argv[1] == "--check-only":
         # 仅检查服务是否运行
         try:
-            response = requests.get("http://localhost:8888/api/v1/health", timeout=5)
+            response = requests.get("http://localhost:8888/api/v1/novels", timeout=5)
             print("服务正在运行")
             sys.exit(0)
         except requests.exceptions.ConnectionError:
