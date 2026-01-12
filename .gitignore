@@ -1,0 +1,36 @@
+# 二进制文件
+*.exe
+*.dll
+*.so
+*.dylib
+
+# 构建输出
+test-server
+server
+
+# IDE
+.vscode/
+.idea/
+
+# 操作系统
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+desktop.ini
+
+# 日志
+*.log
+
+# 搜索索引
+xiaoshuo-backend/search_index/
+
+# 上传文件
+uploads/
+
+# 临时文件
+temp_*.txt
+*.tmp
+
+# 环境变量
+.env
