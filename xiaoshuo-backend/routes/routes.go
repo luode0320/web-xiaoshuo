@@ -49,6 +49,10 @@ func InitRoutes(r *gin.Engine) {
 		// 排行榜相关路由
 		apiV1.GET("/rankings", controllers.GetRankings)
 		
+		// 推荐系统相关路由
+		apiV1.GET("/recommendations", controllers.GetRecommendations)
+		apiV1.GET("/recommendations/personalized", middleware.AuthMiddleware(), controllers.GetPersonalizedRecommendations)
+		
 		// 搜索相关路由
 		apiV1.GET("/search/novels", controllers.SearchNovels)
 		
