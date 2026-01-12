@@ -18,13 +18,13 @@
       "response": {
         "code": 200,
         "data": {
-          "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJpc19hZG1pbiI6ZmFsc2UsImlzcyI6InhpYW9zaHVvLWJhY2tlbmQiLCJleHAiOjE3NjgyMzA4NjQsImlhdCI6MTc2ODIyNzI2NH0.1DWRZc3wWkRIZdOMvIP2upbbcek92GYSSxx4XTRRsVk",
+          "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJpc19hZG1pbiI6ZmFsc2UsImlzcyI6InhpYW9zaHVvLWJhY2tlbmQiLCJleHAiOjE3NjgyMzEyMDAsImlhdCI6MTc2ODIyNzYwMH0.1R3HZaEs0o8xvX6YmtcDHzw_Ns4Jxi2Bm_7pW6ERDZE",
           "user": {
             "email": "test@example.com",
             "id": 1,
             "is_active": true,
             "is_admin": false,
-            "last_login_at": "2026-01-12T21:59:21.101+08:00",
+            "last_login_at": "2026-01-12T22:14:24.103+08:00",
             "nickname": "更新后的测试用户"
           }
         },
@@ -43,9 +43,9 @@
           "id": 1,
           "is_active": true,
           "is_admin": false,
-          "last_login_at": "2026-01-12T21:59:21.101+08:00",
+          "last_login_at": "2026-01-12T22:14:24.103+08:00",
           "nickname": "更新后的测试用户",
-          "updated_at": "2026-01-12T22:14:24.093+08:00"
+          "updated_at": "2026-01-12T22:20:00.036+08:00"
         },
         "message": "success"
       },
@@ -62,9 +62,9 @@
           "id": 1,
           "is_active": true,
           "is_admin": false,
-          "last_login_at": "2026-01-12T21:59:21.101+08:00",
+          "last_login_at": "2026-01-12T22:14:24.103+08:00",
           "nickname": "更新后的测试用户",
-          "updated_at": "2026-01-12T22:14:24.103+08:00"
+          "updated_at": "2026-01-12T22:20:00.049+08:00"
         },
         "message": "success"
       },
@@ -180,7 +180,7 @@
       "name": "test_cache_performance",
       "status": "PASS",
       "response": {
-        "elapsed_time": 0.014001846313476562
+        "elapsed_time": 0.016002178192138672
       },
       "error": null
     }
