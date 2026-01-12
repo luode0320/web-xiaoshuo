@@ -1,0 +1,12 @@
+{
+  "test_homepage": true,
+  "test_user_registration": true,
+  "test_user_login": true,
+  "test_get_profile": true,
+  "test_update_profile": true,
+  "test_get_novels": true,
+  "test_search_novels": true,
+  "test_get_categories": true,
+  "test_get_rankings": true,
+  "test_get_reading_history": false
+}

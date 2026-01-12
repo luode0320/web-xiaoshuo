@@ -13,7 +13,7 @@ type SystemMessage struct {
 	IsPublished bool   `gorm:"default:false" json:"is_published"` // 是否发布
 	PublishedAt *gorm.DeletedAt `json:"published_at"` // 发布时间
 	CreatedBy   uint   `json:"created_by"` // 创建者ID
-	CreatedByUser User `json:"created_by_user"`
+	CreatedByUser User `json:"created_by_user" gorm:"foreignKey:CreatedBy"` // 添加外键关系
 }
 
 // TableName 指定表名

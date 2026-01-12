@@ -21,7 +21,7 @@ type Novel struct {
 	UploadTime    *gorm.DeletedAt `json:"upload_time"`
 	LastReadTime  *gorm.DeletedAt `json:"last_read_time"`
 	Status        string    `gorm:"default:'pending'" json:"status"` // pending, approved, rejected
-	FileHash      string    `gorm:"uniqueIndex" json:"file_hash"`
+	FileHash      string    `gorm:"uniqueIndex;size:255" json:"file_hash"`
 	UploadUserID  uint      `json:"upload_user_id"`
 	UploadUser    User      `json:"upload_user"`
 	Categories    []Category `gorm:"many2many:novel_categories;" json:"categories"`
