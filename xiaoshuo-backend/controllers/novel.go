@@ -3,7 +3,6 @@ package controllers
 import (
 	"net/http"
 	"strconv"
-	"strings"
 	"xiaoshuo-backend/models"
 	"xiaoshuo-backend/utils"
 
@@ -35,8 +34,8 @@ func UploadNovel(c *gin.Context) {
 	}
 
 	// 检查文件类型
-	fileType := strings.ToLower(file.Filename)
-	if !strings.HasSuffix(fileType, ".txt") && !strings.HasSuffix(fileType, ".epub") {
+	fileType := file.Filename
+	if !hasSuffixIgnoreCase(fileType, ".txt") && !hasSuffixIgnoreCase(fileType, ".epub") {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "不支持的文件格式，仅支持.txt和.epub"})
 		return
 	}
@@ -83,7 +82,7 @@ func UploadNovel(c *gin.Context) {
 	})
 }
 
-// GetNovels 获取小说列表
+// GetNovels 获取小说列表（使用缓存）
 func GetNovels(c *gin.Context) {
 	var novels []models.Novel
 	var count int64
@@ -93,30 +92,54 @@ func GetNovels(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	title := c.Query("title")
 	author := c.Query("author")
-	categoryID, _ := strconv.Atoi(c.Query("category_id"))
+	categoryIDStr := c.Query("category_id")
+	
+	var categoryID uint
+	if categoryIDStr != "" {
+		if id, err := strconv.ParseUint(categoryIDStr, 10, 32); err == nil {
+			categoryID = uint(id)
+		}
+	}
 
-	// 构建查询
-	query := models.DB.Where("status = ?", "approved") // 只显示已审核的小说
-
+	// 构建查询参数映射
+	query := make(map[string]interface{})
 	if title != "" {
-		query = query.Where("title LIKE ?", "%"+title+"%")
+		query["title"] = title
 	}
 	if author != "" {
-		query = query.Where("author LIKE ?", "%"+author+"%")
+		query["author"] = author
 	}
-	if categoryID > 0 {
-		query = query.Joins("JOIN novel_categories ON novels.id = novel_categories.novel_id").
-			Where("novel_categories.category_id = ?", categoryID)
+	if categoryID != 0 {
+		query["category_id"] = categoryID
 	}
 
-	// 获取总数
-	query.Model(&models.Novel{}).Count(&count)
+	// 使用缓存服务获取小说列表
+	var err error
+	novels, count, err = utils.GlobalCacheService.GetNovelListWithCache(page, limit, query)
+	if err != nil {
+		// 如果缓存获取失败，回退到数据库查询
+		dbQuery := models.DB.Where("status = ?", "approved")
+		
+		if title != "" {
+			dbQuery = dbQuery.Where("title LIKE ?", "%"+title+"%")
+		}
+		if author != "" {
+			dbQuery = dbQuery.Where("author LIKE ?", "%"+author+"%")
+		}
+		if categoryID != 0 {
+			dbQuery = dbQuery.Joins("JOIN novel_categories ON novels.id = novel_categories.novel_id").
+				Where("novel_categories.category_id = ?", categoryID)
+		}
 
-	// 分页查询
-	offset := (page - 1) * limit
-	if err := query.Offset(offset).Limit(limit).Preload("UploadUser").Preload("Categories").Find(&novels).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取小说列表失败", "data": err.Error()})
-		return
+		// 获取总数
+		dbQuery.Model(&models.Novel{}).Count(&count)
+
+		// 分页查询
+		offset := (page - 1) * limit
+		if err := dbQuery.Offset(offset).Limit(limit).Preload("UploadUser").Preload("Categories").Find(&novels).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取小说列表失败", "data": err.Error()})
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -133,7 +156,7 @@ func GetNovels(c *gin.Context) {
 	})
 }
 
-// GetNovel 获取小说详情
+// GetNovel 获取小说详情（使用缓存）
 func GetNovel(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -141,23 +164,32 @@ func GetNovel(c *gin.Context) {
 		return
 	}
 
-	var novel models.Novel
-	if err := models.DB.Preload("UploadUser").Preload("Categories").Preload("Keywords").First(&novel, id).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "小说不存在"})
+	// 使用缓存服务获取小说详情
+	novel, err := utils.GlobalCacheService.GetNovelInfoWithCache(uint(id))
+	if err != nil {
+		// 如果缓存获取失败，回退到数据库查询
+		var dbNovel models.Novel
+		if err := models.DB.Preload("UploadUser").Preload("Categories").Preload("Keywords").First(&dbNovel, id).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "小说不存在"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取小说详情失败", "data": err.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取小说详情失败", "data": err.Error()})
-		return
+		novel = &dbNovel
 	}
 
 	// 更新点击量
-	models.DB.Model(&novel).UpdateColumns(map[string]interface{}{
+	models.DB.Model(novel).UpdateColumns(map[string]interface{}{
 		"click_count":    gorm.Expr("click_count + ?", 1),
 		"today_clicks":   gorm.Expr("today_clicks + ?", 1),
 		"week_clicks":    gorm.Expr("week_clicks + ?", 1),
 		"month_clicks":   gorm.Expr("month_clicks + ?", 1),
 	})
+
+	// 使缓存失效以更新点击量
+	go utils.GlobalCacheService.InvalidateNovelCache(uint(id))
 
 	c.JSON(http.StatusOK, gin.H{
 		"code": 200,
@@ -209,6 +241,9 @@ func DeleteNovel(c *gin.Context) {
 		return
 	}
 
+	// 使相关缓存失效
+	utils.GlobalCacheService.InvalidateNovelCache(uint(id))
+
 	c.JSON(http.StatusOK, gin.H{
 		"code": 200,
 		"message": "success",
@@ -218,7 +253,7 @@ func DeleteNovel(c *gin.Context) {
 	})
 }
 
-// GetNovelContent 获取小说内容
+// GetNovelContent 获取小说内容（使用缓存）
 func GetNovelContent(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -242,11 +277,15 @@ func GetNovelContent(c *gin.Context) {
 		return
 	}
 
-	// 读取文件内容
-	content, err := utils.ReadFileContent(novel.Filepath)
+	// 使用缓存获取小说内容
+	content, err := utils.GlobalCacheService.GetNovelContentWithCache(uint(id))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "读取小说内容失败", "data": err.Error()})
-		return
+		// 如果缓存获取失败，回退到直接读取文件
+		content, err = utils.ReadFileContent(novel.Filepath)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "读取小说内容失败", "data": err.Error()})
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -287,6 +326,9 @@ func RecordNovelClick(c *gin.Context) {
 		return
 	}
 
+	// 使缓存失效以更新点击量
+	utils.GlobalCacheService.InvalidateNovelCache(uint(id))
+
 	c.JSON(http.StatusOK, gin.H{
 		"code": 200,
 		"message": "success",
@@ -294,4 +336,12 @@ func RecordNovelClick(c *gin.Context) {
 			"message": "点击量已记录",
 		},
 	})
+}
+
+// hasSuffixIgnoreCase 检查字符串是否以指定后缀结尾（忽略大小写）
+func hasSuffixIgnoreCase(s, suffix string) bool {
+	if len(s) < len(suffix) {
+		return false
+	}
+	return s[len(s)-len(suffix):] == suffix
 }

@@ -1,6 +1,6 @@
 {
-  "total_tests": 11,
-  "passed_tests": 10,
+  "total_tests": 12,
+  "passed_tests": 11,
   "failed_tests": 1,
   "test_details": [
     {
@@ -18,13 +18,13 @@
       "response": {
         "code": 200,
         "data": {
-          "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJpc19hZG1pbiI6ZmFsc2UsImlzcyI6InhpYW9zaHVvLWJhY2tlbmQiLCJleHAiOjE3NjgyMjk2MTEsImlhdCI6MTc2ODIyNjAxMX0.CZndjlv8mZ5SC6I2BhGfB8Yek00XT28Mx7ijoj5Z4H8",
+          "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJpc19hZG1pbiI6ZmFsc2UsImlzcyI6InhpYW9zaHVvLWJhY2tlbmQiLCJleHAiOjE3NjgyMzA4NjQsImlhdCI6MTc2ODIyNzI2NH0.1DWRZc3wWkRIZdOMvIP2upbbcek92GYSSxx4XTRRsVk",
           "user": {
             "email": "test@example.com",
             "id": 1,
             "is_active": true,
             "is_admin": false,
-            "last_login_at": "2026-01-12T21:41:41.215+08:00",
+            "last_login_at": "2026-01-12T21:59:21.101+08:00",
             "nickname": "更新后的测试用户"
           }
         },
@@ -43,9 +43,9 @@
           "id": 1,
           "is_active": true,
           "is_admin": false,
-          "last_login_at": "2026-01-12T21:41:41.215+08:00",
+          "last_login_at": "2026-01-12T21:59:21.101+08:00",
           "nickname": "更新后的测试用户",
-          "updated_at": "2026-01-12T21:53:31.382+08:00"
+          "updated_at": "2026-01-12T22:14:24.093+08:00"
         },
         "message": "success"
       },
@@ -62,9 +62,9 @@
           "id": 1,
           "is_active": true,
           "is_admin": false,
-          "last_login_at": "2026-01-12T21:41:41.215+08:00",
+          "last_login_at": "2026-01-12T21:59:21.101+08:00",
           "nickname": "更新后的测试用户",
-          "updated_at": "2026-01-12T21:53:31.396+08:00"
+          "updated_at": "2026-01-12T22:14:24.103+08:00"
         },
         "message": "success"
       },
@@ -173,6 +173,14 @@
           }
         },
         "message": "success"
+      },
+      "error": null
+    },
+    {
+      "name": "test_cache_performance",
+      "status": "PASS",
+      "response": {
+        "elapsed_time": 0.014001846313476562
       },
       "error": null
     }

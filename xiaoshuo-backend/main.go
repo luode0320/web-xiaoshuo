@@ -24,6 +24,13 @@ func main() {
 	// 初始化Redis
 	config.InitRedis()
 
+	// 初始化缓存
+	if err := utils.InitCache(); err != nil {
+		log.Printf("初始化缓存失败: %v", err)
+	} else {
+		log.Println("缓存初始化成功")
+	}
+
 	// 初始化全文搜索索引
 	if err := utils.InitSearchIndex("search_index"); err != nil {
 		log.Printf("初始化搜索索引失败: %v", err)

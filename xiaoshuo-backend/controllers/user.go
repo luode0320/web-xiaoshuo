@@ -125,6 +125,9 @@ func UserLogin(c *gin.Context) {
 		return
 	}
 
+	// 使用户缓存失效以更新登录时间
+	go utils.GlobalCacheService.InvalidateUserCache(user.ID)
+
 	c.JSON(http.StatusOK, gin.H{
 		"code": 200,
 		"message": "success",
@@ -142,7 +145,7 @@ func UserLogin(c *gin.Context) {
 	})
 }
 
-// GetProfile 获取用户信息
+// GetProfile 获取用户信息（使用缓存）
 func GetProfile(c *gin.Context) {
 	// 从中间件获取用户信息
 	user, exists := c.Get("user")
@@ -153,18 +156,25 @@ func GetProfile(c *gin.Context) {
 
 	userModel := user.(models.User)
 
+	// 使用缓存服务获取用户详情（这里可以使用缓存，但因为用户信息通过中间件已经获取，所以主要是为了演示）
+	cachedUser, err := utils.GlobalCacheService.GetUserInfoWithCache(userModel.ID)
+	if err != nil {
+		// 如果缓存获取失败，使用中间件提供的用户信息
+		cachedUser = &userModel
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"code": 200,
 		"message": "success",
 		"data": gin.H{
-			"id":            userModel.ID,
-			"email":         userModel.Email,
-			"nickname":      userModel.Nickname,
-			"is_active":     userModel.IsActive,
-			"is_admin":      userModel.IsAdmin,
-			"last_login_at": userModel.LastLoginAt,
-			"created_at":    userModel.CreatedAt,
-			"updated_at":    userModel.UpdatedAt,
+			"id":            cachedUser.ID,
+			"email":         cachedUser.Email,
+			"nickname":      cachedUser.Nickname,
+			"is_active":     cachedUser.IsActive,
+			"is_admin":      cachedUser.IsAdmin,
+			"last_login_at": cachedUser.LastLoginAt,
+			"created_at":    cachedUser.CreatedAt,
+			"updated_at":    cachedUser.UpdatedAt,
 		},
 	})
 }
@@ -197,6 +207,9 @@ func UpdateProfile(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新用户信息失败"})
 		return
 	}
+
+	// 使用户缓存失效
+	utils.GlobalCacheService.InvalidateUserCache(userModel.ID)
 
 	c.JSON(http.StatusOK, gin.H{
 		"code": 200,

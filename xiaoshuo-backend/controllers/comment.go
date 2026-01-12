@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// CreateComment 发布评论
+// CreateComment 创建评论
 func CreateComment(c *gin.Context) {
 	// 从JWT token获取用户信息
 	token, exists := c.Get("token")
@@ -27,9 +27,9 @@ func CreateComment(c *gin.Context) {
 	}
 
 	var input struct {
-		Content  string `json:"content" binding:"required,min=1,max=1000"`
-		NovelID  uint   `json:"novel_id" binding:"required"`
-		ParentID *uint  `json:"parent_id"`
+		NovelID   uint   `json:"novel_id" binding:"required"`
+		Content   string `json:"content" binding:"required,max=1000"`
+		ParentID  *uint  `json:"parent_id"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -48,7 +48,7 @@ func CreateComment(c *gin.Context) {
 		return
 	}
 
-	// 检查父评论是否存在（如果是回复）
+	// 检查父评论是否存在（如果提供了）
 	if input.ParentID != nil {
 		var parentComment models.Comment
 		if err := models.DB.First(&parentComment, *input.ParentID).Error; err != nil {
@@ -56,26 +56,29 @@ func CreateComment(c *gin.Context) {
 				c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "父评论不存在"})
 				return
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取父评论信息失败", "data": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取父评论失败", "data": err.Error()})
 			return
 		}
 	}
 
 	// 创建评论
 	comment := models.Comment{
-		Content:  input.Content,
-		UserID:   claims.UserID,
-		NovelID:  input.NovelID,
-		ParentID: input.ParentID,
+		Content:   input.Content,
+		UserID:    claims.UserID,
+		NovelID:   input.NovelID,
+		ParentID:  input.ParentID,
 	}
 
 	if err := models.DB.Create(&comment).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "发布评论失败", "data": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "评论创建失败", "data": err.Error()})
 		return
 	}
 
-	// 预加载用户信息
-	models.DB.Model(&comment).Preload("User")
+	// 颍预加载关联数据
+	if err := models.DB.Preload("User").Preload("Novel").First(&comment, comment.ID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取评论详情失败", "data": err.Error()})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"code": 200,
@@ -94,29 +97,37 @@ func GetComments(c *gin.Context) {
 	// 获取查询参数
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
-	novelID, _ := strconv.Atoi(c.Query("novel_id"))
-	userID, _ := strconv.Atoi(c.Query("user_id"))
+	novelID, _ := strconv.ParseUint(c.Query("novel_id"), 10, 64)
+	parentIDStr := c.Query("parent_id")
+	
+	var parentID *uint
+	if parentIDStr != "" {
+		if id, err := strconv.ParseUint(parentIDStr, 10, 32); err == nil {
+			pid := uint(id)
+			parentID = &pid
+		}
+	}
 
 	// 构建查询
-	query := models.DB.Where("is_approved = ?", true) // 只显示已审核的评论
+	query := models.DB.Preload("User").Preload("Novel")
 
 	if novelID > 0 {
 		query = query.Where("novel_id = ?", novelID)
 	}
-	if userID > 0 {
-		query = query.Where("user_id = ?", userID)
+	
+	if parentID != nil {
+		query = query.Where("parent_id = ?", parentID)
+	} else {
+		// 只获取顶级评论（没有父评论的）
+		query = query.Where("parent_id IS NULL")
 	}
 
 	// 获取总数
 	query.Model(&models.Comment{}).Count(&count)
 
-	// 分页查询并预加载关联信息
+	// 分页查询
 	offset := (page - 1) * limit
-	if err := query.Offset(offset).Limit(limit).
-		Preload("User").
-		Preload("Parent.User").
-		Order("created_at DESC").
-		Find(&comments).Error; err != nil {
+	if err := query.Offset(offset).Limit(limit).Order("created_at DESC").Find(&comments).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取评论列表失败", "data": err.Error()})
 		return
 	}
@@ -157,7 +168,7 @@ func DeleteComment(c *gin.Context) {
 	}
 
 	var comment models.Comment
-	if err := models.DB.Preload("Novel").First(&comment, id).Error; err != nil {
+	if err := models.DB.First(&comment, id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "评论不存在"})
 			return
@@ -166,7 +177,7 @@ func DeleteComment(c *gin.Context) {
 		return
 	}
 
-	// 检查权限：评论作者或管理员可以删除
+	// 检查权限：评论创建者或管理员可以删除
 	if comment.UserID != claims.UserID && !claims.IsAdmin {
 		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "没有权限删除此评论"})
 		return
