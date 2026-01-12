@@ -201,7 +201,7 @@ def test_get_recommendations():
     """测试获取推荐小说"""
     try:
         response = requests.get(f"{BASE_URL}/recommendations")
-        status = "PASS" if response.status_code in [200, 404] else "FAIL"  # 404表示功能尚未实现
+        status = "PASS" if response.status_code == 200 else "FAIL"
         try:
             response_json = response.json()
         except:
@@ -209,6 +209,19 @@ def test_get_recommendations():
         add_test_result("test_get_recommendations", status, response_json)
     except Exception as e:
         add_test_result("test_get_recommendations", "FAIL", error=str(e))
+
+def test_full_text_search():
+    """测试全文搜索功能"""
+    try:
+        response = requests.get(f"{BASE_URL}/search/fulltext?q=测试")
+        status = "PASS" if response.status_code in [200, 404] else "FAIL"  # 404表示功能尚未实现
+        try:
+            response_json = response.json()
+        except:
+            response_json = {"error": "Response is not JSON", "text": response.text}
+        add_test_result("test_full_text_search", status, response_json)
+    except Exception as e:
+        add_test_result("test_full_text_search", "FAIL", error=str(e))
 
 def run_all_tests():
     """运行所有测试"""
@@ -231,8 +244,9 @@ def run_all_tests():
     if token:
         test_upload_novel(token)
     
-    # 新增的推荐系统测试
+    # 新增的推荐系统和全文搜索测试
     test_get_recommendations()
+    test_full_text_search()
     
     print("=" * 50)
     print("测试完成")

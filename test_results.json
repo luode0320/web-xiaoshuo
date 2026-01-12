@@ -1,6 +1,6 @@
 {
-  "total_tests": 10,
-  "passed_tests": 9,
+  "total_tests": 11,
+  "passed_tests": 10,
   "failed_tests": 1,
   "test_details": [
     {
@@ -18,13 +18,13 @@
       "response": {
         "code": 200,
         "data": {
-          "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJpc19hZG1pbiI6ZmFsc2UsImlzcyI6InhpYW9zaHVvLWJhY2tlbmQiLCJleHAiOjE3NjgyMjg2OTYsImlhdCI6MTc2ODIyNTA5Nn0.VkAN3FnEPavWZ3Mnlrh_5fnaFHO6UQycF8jdfuNT8yQ",
+          "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJpc19hZG1pbiI6ZmFsc2UsImlzcyI6InhpYW9zaHVvLWJhY2tlbmQiLCJleHAiOjE3NjgyMjk2MTEsImlhdCI6MTc2ODIyNjAxMX0.CZndjlv8mZ5SC6I2BhGfB8Yek00XT28Mx7ijoj5Z4H8",
           "user": {
             "email": "test@example.com",
             "id": 1,
             "is_active": true,
             "is_admin": false,
-            "last_login_at": "2026-01-12T21:29:58.501+08:00",
+            "last_login_at": "2026-01-12T21:41:41.215+08:00",
             "nickname": "更新后的测试用户"
           }
         },
@@ -43,9 +43,9 @@
           "id": 1,
           "is_active": true,
           "is_admin": false,
-          "last_login_at": "2026-01-12T21:29:58.501+08:00",
+          "last_login_at": "2026-01-12T21:41:41.215+08:00",
           "nickname": "更新后的测试用户",
-          "updated_at": "2026-01-12T21:38:16.192+08:00"
+          "updated_at": "2026-01-12T21:53:31.382+08:00"
         },
         "message": "success"
       },
@@ -62,9 +62,9 @@
           "id": 1,
           "is_active": true,
           "is_admin": false,
-          "last_login_at": "2026-01-12T21:29:58.501+08:00",
+          "last_login_at": "2026-01-12T21:41:41.215+08:00",
           "nickname": "更新后的测试用户",
-          "updated_at": "2026-01-12T21:38:16.204+08:00"
+          "updated_at": "2026-01-12T21:53:31.396+08:00"
         },
         "message": "success"
       },
@@ -151,6 +151,25 @@
             "page": 1,
             "total": 0,
             "type": ""
+          }
+        },
+        "message": "success"
+      },
+      "error": null
+    },
+    {
+      "name": "test_full_text_search",
+      "status": "PASS",
+      "response": {
+        "code": 200,
+        "data": {
+          "novels": null,
+          "pagination": {
+            "limit": 10,
+            "page": 1,
+            "query": "测试",
+            "total": 0,
+            "type": "metadata"
           }
         },
         "message": "success"

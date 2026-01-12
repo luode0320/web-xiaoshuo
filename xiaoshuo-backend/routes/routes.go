@@ -55,6 +55,15 @@ func InitRoutes(r *gin.Engine) {
 		
 		// 搜索相关路由
 		apiV1.GET("/search/novels", controllers.SearchNovels)
+		apiV1.GET("/search/fulltext", controllers.FullTextSearchNovels)
+		
+		// 搜索索引管理路由（仅管理员）
+		adminSearch := apiV1.Group("/")
+		adminSearch.Use(middleware.AdminAuthMiddleware())
+		{
+			adminSearch.POST("/search/index/:id", controllers.IndexNovelForSearch)
+			adminSearch.POST("/search/rebuild-index", controllers.RebuildSearchIndex)
+		}
 		
 		// 阅读进度相关路由
 		apiV1.POST("/novels/:id/progress", middleware.AuthMiddleware(), controllers.SaveReadingProgress)

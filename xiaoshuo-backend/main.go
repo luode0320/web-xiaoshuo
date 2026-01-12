@@ -6,6 +6,7 @@ import (
 	"xiaoshuo-backend/config"
 	"xiaoshuo-backend/models"
 	"xiaoshuo-backend/routes"
+	"xiaoshuo-backend/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -22,6 +23,13 @@ func main() {
 
 	// 初始化Redis
 	config.InitRedis()
+
+	// 初始化全文搜索索引
+	if err := utils.InitSearchIndex("search_index"); err != nil {
+		log.Printf("初始化搜索索引失败: %v", err)
+	} else {
+		log.Println("搜索索引初始化成功")
+	}
 
 	// 设置运行模式
 	gin.SetMode(config.GlobalConfig.Server.Mode)
