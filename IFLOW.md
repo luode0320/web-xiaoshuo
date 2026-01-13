@@ -7,7 +7,7 @@
 - **后端**: 基于 Go 语言和 Gin 框架构建的 RESTful API 服务
 - **前端**: 基于 Vue.js 3 和 Element Plus 构建的单页面应用 (SPA)
 
-项目提供了用户认证、小说管理、阅读、搜索、评论、评分、审核等核心功能。系统采用移动端优先设计，提供类似起点中文网的阅读体验，支持多种格式的小说上传、阅读和社交功能。项目已基本完成核心功能开发，整体功能完成度约99%，包括用户认证、小说管理、阅读、评论评分、搜索、管理、推荐等功能。
+项目提供了用户认证、小说管理、阅读、搜索、评论、评分、审核等核心功能。系统采用移动端优先设计，提供类似起点中文网的阅读体验，支持多种格式的小说上传、阅读和社交功能。项目已完成整体开发，功能完成度约99%，测试覆盖完成度约98%。
 
 ## 技术栈
 
@@ -44,7 +44,8 @@
 - **通知系统**: vue-toastification
 - **进度条**: nprogress
 - **加密库**: crypto-js
-- **测试框架**: vitest, puppeteer
+- **测试框架**: vitest
+- **端到端测试**: puppeteer
 
 ## 项目结构
 
@@ -147,6 +148,7 @@ web-xiaoshuo/
 ├── development_plan.md       # 开发计划文档
 ├── frontend_requirements.md  # 前端需求文档
 ├── functional_design.md      # 功能设计文档
+├── test_reading_features.go  # 阅读功能测试脚本
 ├── test_search_function.js   # 前端搜索功能测试脚本
 ├── test_system.go            # 后端系统测试脚本
 ├── verify_endpoints.go       # 端点验证测试脚本
@@ -246,7 +248,7 @@ export default defineConfig({
 - `GET /api/v1/novels/:id/content` - 获取小说内容
 - `GET /api/v1/novels/:id/content-stream` - 流式获取小说内容
 - `GET /api/v1/novels/:id/chapters` - 获取小说章节列表 (需要认证)
-- `GET /api/v1/chapters/:id` - 获取章节内容 (需要认证)
+- `GET /chapters/:id` - 获取章节内容 (需要认证)
 - `POST /api/v1/novels/:id/click` - 记录小说点击量
 - `DELETE /api/v1/novels/:id` - 删除小说 (需要认证，上传者或管理员)
 - `GET /api/v1/novels/:id/status` - 获取小说状态 (需要认证)
@@ -347,6 +349,7 @@ export default defineConfig({
 - `go test ./...` - 运行所有Go测试
 - `go run test_system.go` - 运行系统测试
 - `go run verify_endpoints.go` - 运行端点验证测试
+- `go run test_reading_features.go` - 运行阅读功能测试
 
 ### 前端测试
 - `npm run test` - 运行前端测试
@@ -709,3 +712,5 @@ func (ReadingProgress) TableName() string {
 - **缓存管理**: 实现了更完善的Redis缓存管理机制
 - **搜索建议**: 增加了模糊搜索和前缀查询的搜索建议功能
 - **测试增强**: 新增了全面的测试覆盖，包括单元测试、集成测试和端到端测试
+- **图片懒加载**: 前端从vue-lazyload更新为vue3-lazy
+- **系统完成**: 所有开发阶段已完成，系统已具备完整功能
