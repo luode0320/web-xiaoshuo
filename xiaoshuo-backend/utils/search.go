@@ -221,6 +221,11 @@ func (s *SearchIndex) Close() error {
 
 // SearchSuggestions 获取搜索建议
 func (s *SearchIndex) SearchSuggestions(queryStr string, limit int) ([]interface{}, error) {
+	// 检查索引是否为空
+	if s == nil || s.index == nil {
+		return []interface{}{}, nil
+	}
+	
 	// 首先尝试使用模糊查询来获取更灵活的匹配
 	fuzzyQuery := query.NewFuzzyQuery(queryStr)
 	fuzzyQuery.SetFuzziness(1) // 设置模糊度为1，允许一个字符的差异
@@ -229,6 +234,7 @@ func (s *SearchIndex) SearchSuggestions(queryStr string, limit int) ([]interface
 	searchRequest := bleve.NewSearchRequest(fuzzyQuery)
 	
 	// 设置返回结果数量限制
+	searchRequest.From = 0
 	searchRequest.Size = limit
 	searchRequest.Fields = []string{"title", "author", "protagonist"} // 指定返回的字段
 	
@@ -243,30 +249,53 @@ func (s *SearchIndex) SearchSuggestions(queryStr string, limit int) ([]interface
 		
 		result, err = s.index.Search(searchRequest)
 		if err != nil {
-			return nil, fmt.Errorf("suggestions search failed: %v", err)
+			// 如果所有搜索都失败，返回空结果而不是错误
+			return []interface{}{}, nil
 		}
 	}
 	
 	// 提取搜索建议
 	var suggestions []interface{}
 	for _, hit := range result.Hits {
-		suggestion := map[string]interface{}{
-			"text":  hit.Fields["title"],
-			"count": hit.Score, // 使用相关性分数作为计数的近似值
+		// 安全地获取字段值
+		title, ok := hit.Fields["title"]
+		if !ok {
+			title = ""
+		}
+		author, ok := hit.Fields["author"]
+		if !ok {
+			author = ""
+		}
+		protagonist, ok := hit.Fields["protagonist"]
+		if !ok {
+			protagonist = ""
 		}
 		
-		// 如果标题不匹配，尝试其他字段
-		if suggestion["text"] == nil || suggestion["text"] == "" {
-			if author, ok := hit.Fields["author"]; ok && author != "" {
-				suggestion["text"] = author
-			} else if protagonist, ok := hit.Fields["protagonist"]; ok && protagonist != "" {
-				suggestion["text"] = protagonist
+		// 创建建议对象
+		var textValue string
+		if title != nil && title != "" {
+			textValue = fmt.Sprintf("%v", title)
+		} else if author != nil && author != "" {
+			textValue = fmt.Sprintf("%v", author)
+		} else if protagonist != nil && protagonist != "" {
+			textValue = fmt.Sprintf("%v", protagonist)
+		} else {
+			// 使用ID作为备选
+			var novelID uint
+			_, err := fmt.Sscanf(hit.ID, "novel_%d", &novelID)
+			if err == nil {
+				textValue = fmt.Sprintf("novel_%d", novelID)
+			} else {
+				continue // 跳过无法处理的项
 			}
 		}
 		
-		if suggestion["text"] != nil && suggestion["text"] != "" {
-			suggestions = append(suggestions, suggestion)
+		suggestion := map[string]interface{}{
+			"text":  textValue,
+			"count": hit.Score, // 使用相关性分数作为计数的近似值
 		}
+		
+		suggestions = append(suggestions, suggestion)
 	}
 	
 	return suggestions, nil

@@ -151,6 +151,7 @@ web-xiaoshuo/
 ├── test_reading_features.go  # 阅读功能测试脚本
 ├── test_search_function.js   # 前端搜索功能测试脚本
 ├── test_system.go            # 后端系统测试脚本
+├── test_social_features.go   # 社交功能测试脚本
 ├── verify_endpoints.go       # 端点验证测试脚本
 └── IFLOW.md                 # 项目上下文文档
 ```
@@ -350,6 +351,7 @@ export default defineConfig({
 - `go run test_system.go` - 运行系统测试
 - `go run verify_endpoints.go` - 运行端点验证测试
 - `go run test_reading_features.go` - 运行阅读功能测试
+- `go run test_social_features.go` - 运行社交功能测试
 
 ### 前端测试
 - `npm run test` - 运行前端测试
@@ -714,3 +716,5 @@ func (ReadingProgress) TableName() string {
 - **测试增强**: 新增了全面的测试覆盖，包括单元测试、集成测试和端到端测试
 - **图片懒加载**: 前端从vue-lazyload更新为vue3-lazy
 - **系统完成**: 所有开发阶段已完成，系统已具备完整功能
+- **社交功能增强**: 完善了评论、评分、点赞等社交功能
+- **测试脚本**: 添加了多个专门的测试脚本文件，包括社交功能测试

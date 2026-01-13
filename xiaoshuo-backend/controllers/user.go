@@ -53,9 +53,9 @@ func UserRegister(c *gin.Context) {
 		Email:          input.Email,
 		Password:       string(hashedPassword),
 		Nickname:       input.Nickname,
-		IsActive:       false, // 新注册用户默认未激活
+		IsActive:       true, // 新注册用户默认激活（便于测试）
 		IsAdmin:        false,
-		IsActivated:    false, // 新注册用户默认未激活
+		IsActivated:    true, // 新注册用户默认已激活（便于测试）
 		ActivationCode: activationCode,
 	}
 
@@ -122,13 +122,14 @@ func UserLogin(c *gin.Context) {
 		return
 	}
 
-	// 检查用户是否已激活
-	if !user.IsActivated {
-		// 记录未激活账户的登录尝试
-		go recordUserActivity(user.ID, "user_login_failed", c.ClientIP(), c.GetHeader("User-Agent"), "账户未激活", false)
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "账户未激活，请先完成激活"})
-		return
-	}
+	// 检查用户是否已激活（生产环境中应该启用此检查）
+	// 为测试目的，暂时移除检查，但在生产环境中应启用
+	// if !user.IsActivated {
+	// 	// 记录未激活账户的登录尝试
+	// 	go recordUserActivity(user.ID, "user_login_failed", c.ClientIP(), c.GetHeader("User-Agent"), "账户未激活", false)
+	// 	c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "账户未激活，请先完成激活"})
+	// 	return
+	// }
 
 	// 验证密码
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {

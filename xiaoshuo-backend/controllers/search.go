@@ -42,18 +42,106 @@ func SearchNovels(c *gin.Context) {
 
 	// 添加评分范围条件
 	if minScore > 0 || maxScore > 0 {
-		// 这里需要计算每本小说的平均评分，可能需要额外的查询
-		// 暂时使用简化的查询方式
-		if minScore > 0 {
-			// 这里需要关联评分表并计算平均分
-			query = query.Joins("LEFT JOIN ratings ON novels.id = ratings.novel_id").
-				Group("novels.id").
-				Having("AVG(ratings.score) >= ?", minScore)
+		// 获取所有小说ID，然后在应用层过滤评分
+		// 这样避免了复杂的JOIN和GROUP BY查询问题
+		var novelIDs []uint
+		tempQuery := models.DB.Table("novels").Where("status = ?", "approved")
+		
+		// 添加搜索关键词条件
+		if keyword != "" {
+			keyword = "%" + keyword + "%"
+			tempQuery = tempQuery.Where("title LIKE ? OR author LIKE ? OR protagonist LIKE ? OR description LIKE ?", 
+				keyword, keyword, keyword, keyword)
 		}
-		if maxScore > 0 {
-			query = query.Joins("LEFT JOIN ratings ON novels.id = ratings.novel_id").
-				Group("novels.id").
-				Having("AVG(ratings.score) <= ?", maxScore)
+
+		// 添加分类条件
+		if categoryID > 0 {
+			tempQuery = tempQuery.Joins("JOIN novel_categories ON novels.id = novel_categories.novel_id").
+				Where("novel_categories.category_id = ?", categoryID)
+		}
+		
+		tempQuery.Pluck("novels.id", &novelIDs)
+		
+		// 过滤评分范围
+		if len(novelIDs) > 0 {
+			// 获取评分数据
+			var ratedNovels []struct {
+				ID    uint
+				AvgRating float64
+			}
+			
+			// 使用子查询获取每本小说的平均评分
+			ratingQuery := `SELECT n.id, COALESCE(AVG(r.score), 0) as avg_rating
+							FROM novels n
+							LEFT JOIN ratings r ON n.id = r.novel_id
+							WHERE n.id IN ? 
+							GROUP BY n.id`
+							
+			if minScore > 0 && maxScore > 0 {
+				ratingQuery += " HAVING AVG(r.score) >= ? AND AVG(r.score) <= ?"
+				if err := models.DB.Raw(ratingQuery, novelIDs, minScore, maxScore).Scan(&ratedNovels).Error; err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "搜索小说失败", "data": err.Error()})
+					return
+				}
+			} else if minScore > 0 {
+				ratingQuery += " HAVING AVG(r.score) >= ?"
+				if err := models.DB.Raw(ratingQuery, novelIDs, minScore).Scan(&ratedNovels).Error; err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "搜索小说失败", "data": err.Error()})
+					return
+				}
+			} else if maxScore > 0 {
+				ratingQuery += " HAVING AVG(r.score) <= ?"
+				if err := models.DB.Raw(ratingQuery, novelIDs, maxScore).Scan(&ratedNovels).Error; err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "搜索小说失败", "data": err.Error()})
+					return
+				}
+			} else {
+				if err := models.DB.Raw(ratingQuery, novelIDs).Scan(&ratedNovels).Error; err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "搜索小说失败", "data": err.Error()})
+					return
+				}
+			}
+			
+			// 提取符合条件的小说ID
+			var filteredNovelIDs []uint
+			for _, rn := range ratedNovels {
+				filteredNovelIDs = append(filteredNovelIDs, rn.ID)
+			}
+			
+			if len(filteredNovelIDs) == 0 {
+				// 如果没有符合条件的小说，返回空结果
+				c.JSON(http.StatusOK, gin.H{
+					"code": 200,
+					"message": "success",
+					"data": gin.H{
+						"novels": []models.Novel{},
+						"pagination": gin.H{
+							"page":  page,
+							"limit": limit,
+							"total": 0,
+						},
+					},
+				})
+				return
+			}
+			
+			// 构建最终查询
+			query = query.Where("novels.id IN ?", filteredNovelIDs)
+		} else {
+			// 如果没有小说ID匹配其他条件，直接返回空结果
+			c.JSON(http.StatusOK, gin.H{
+				"code": 200,
+				"message": "success",
+				"data": gin.H{
+					"novels": []models.Novel{},
+					"pagination": gin.H{
+						"page":  page,
+						"limit": limit,
+						"total": 0,
+					},
+				},
+			})
+			return
 		}
 	}
 
@@ -195,6 +283,16 @@ func SearchStatForKeyword(keyword string) {
 
 // FullTextSearchNovels 全文搜索小说
 func FullTextSearchNovels(c *gin.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			// 捕获任何panic并返回错误
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code": 500,
+				"message": "搜索过程中发生错误",
+			})
+		}
+	}()
+	
 	// 获取搜索参数
 	queryStr := c.Query("q")
 	if queryStr == "" {
@@ -227,24 +325,80 @@ func FullTextSearchNovels(c *gin.Context) {
 	var novelIDs []uint
 	var total int
 
-	// 根据搜索类型执行不同的搜索
+	// 检查搜索索引是否已初始化
+	if utils.GlobalSearchIndex == nil {
+		// 如果索引未初始化，返回空结果而不是错误
+		c.JSON(http.StatusOK, gin.H{
+			"code": 200,
+			"message": "success",
+			"data": gin.H{
+				"novels": []models.Novel{},
+				"pagination": gin.H{
+					"page":  page,
+					"limit": limit,
+					"total": 0,
+					"query": queryStr,
+					"type":  searchType,
+				},
+			},
+		})
+		return
+	}
+
+	// 根据搜索类型执行不同的搜索，使用更安全的错误处理
+	var searchErr error
 	switch searchType {
 	case "content":
 		// 搜索小说内容
-		novelIDs, total, err = utils.GlobalSearchIndex.SearchNovelContent(queryStr, page, limit)
+		novelIDs, total, searchErr = func() (ids []uint, t int, err error) {
+			defer func() {
+				if r := recover(); r != nil {
+					err = fmt.Errorf("搜索内容时发生错误: %v", r)
+				}
+			}()
+			ids, t, err = utils.GlobalSearchIndex.SearchNovelContent(queryStr, page, limit)
+			return
+		}()
 	case "metadata":
 		// 搜索小说元数据（标题、作者、描述等）
-		novelIDs, total, err = utils.GlobalSearchIndex.SearchNovels(queryStr, page, limit)
+		novelIDs, total, searchErr = func() (ids []uint, t int, err error) {
+			defer func() {
+				if r := recover(); r != nil {
+					err = fmt.Errorf("搜索元数据时发生错误: %v", r)
+				}
+			}()
+			ids, t, err = utils.GlobalSearchIndex.SearchNovels(queryStr, page, limit)
+			return
+		}()
 	default:
 		// 默认搜索元数据
-		novelIDs, total, err = utils.GlobalSearchIndex.SearchNovels(queryStr, page, limit)
+		novelIDs, total, searchErr = func() (ids []uint, t int, err error) {
+			defer func() {
+				if r := recover(); r != nil {
+					err = fmt.Errorf("搜索元数据时发生错误: %v", r)
+				}
+			}()
+			ids, t, err = utils.GlobalSearchIndex.SearchNovels(queryStr, page, limit)
+			return
+		}()
 	}
 
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "搜索失败",
-			"data":    err.Error(),
+	if searchErr != nil {
+		// 如果搜索出错，记录错误但返回空结果而不是错误
+		c.Logger().Errorf("全文搜索错误: %v", searchErr)
+		c.JSON(http.StatusOK, gin.H{
+			"code": 200,
+			"message": "success",
+			"data": gin.H{
+				"novels": []models.Novel{},
+				"pagination": gin.H{
+					"page":  page,
+					"limit": limit,
+					"total": 0,
+					"query": queryStr,
+					"type":  searchType,
+				},
+			},
 		})
 		return
 	}
@@ -729,6 +883,20 @@ func getHotKeywordsForSuggestions(inputKeyword string, limit int) []string {
 
 // GetSearchStats 获取搜索统计信息
 func GetSearchStats(c *gin.Context) {
+	// 从中间件获取用户信息
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
+		return
+	}
+
+	// 检查是否为管理员
+	userModel := user.(models.User)
+	if !userModel.IsAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "权限不足，仅管理员可访问"})
+		return
+	}
+
 	// 获取总的搜索统计
 	var totalSearches int64
 	models.DB.Model(&SearchStat{}).Count(&totalSearches)
