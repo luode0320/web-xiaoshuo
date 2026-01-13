@@ -25,7 +25,7 @@
 - **数据验证**: github.com/go-playground/validator/v10
 - **XSS防护**: bluemonday库
 - **定时任务**: gocron库
-- **全文搜索**: bleve库
+- **全文搜索**: bleve库 v2.5.7
 - **HTML解析**: antchfx/htmlquery库
 
 ### 前端技术栈
@@ -44,7 +44,7 @@
 - **通知系统**: vue-toastification
 - **进度条**: nprogress
 - **加密库**: crypto-js
-- **测试框架**: vitest
+- **测试框架**: vitest, puppeteer
 
 ## 项目结构
 
@@ -147,6 +147,9 @@ web-xiaoshuo/
 ├── development_plan.md       # 开发计划文档
 ├── frontend_requirements.md  # 前端需求文档
 ├── functional_design.md      # 功能设计文档
+├── test_search_function.js   # 前端搜索功能测试脚本
+├── test_system.go            # 后端系统测试脚本
+├── verify_endpoints.go       # 端点验证测试脚本
 └── IFLOW.md                 # 项目上下文文档
 ```
 
@@ -196,7 +199,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:8888',  // Note: Updated from 8080 to 8888
+        target: 'http://localhost:8888',
         changeOrigin: true,
         secure: false,
       },
@@ -339,6 +342,15 @@ export default defineConfig({
 - `npm run test` - 运行测试
 - `npm run test:run` - 运行测试（一次性）
 - `npm run test:ui` - 运行测试UI界面
+
+### 后端测试
+- `go test ./...` - 运行所有Go测试
+- `go run test_system.go` - 运行系统测试
+- `go run verify_endpoints.go` - 运行端点验证测试
+
+### 前端测试
+- `npm run test` - 运行前端测试
+- `node test_search_function.js` - 运行搜索功能测试 (使用Puppeteer)
 
 ### 生产环境部署
 - **前端构建**: `npm run build`，构建后的文件位于 `xiaoshuo-frontend/dist/`
@@ -521,7 +533,7 @@ func (ReadingProgress) TableName() string {
 - **基础搜索**: 按标题、作者、主角、字数等搜索
 - **高级搜索**: 支持多条件组合搜索、分类筛选、评分范围筛选
 - **全文搜索**: 基于bleve的高性能全文搜索功能
-- **搜索建议**: 输入时显示搜索建议
+- **搜索建议**: 输入时显示搜索建议，支持模糊和前缀查询
 - **搜索历史**: 保存用户搜索历史
 - **热门搜索**: 显示热门搜索关键词
 - **搜索统计**: 提供搜索统计和分析功能
@@ -564,6 +576,12 @@ func (ReadingProgress) TableName() string {
    - JWT token安全配置
    - 文件类型验证和大小限制
 
+5. **测试实践**:
+   - 单元测试覆盖核心业务逻辑
+   - 使用Go测试框架进行API端点测试
+   - 使用Puppeteer进行前端功能测试
+   - 持续集成测试确保代码质量
+
 ### 前端开发约定
 1. **框架使用**:
    - 使用Vue 3 Composition API
@@ -589,6 +607,27 @@ func (ReadingProgress) TableName() string {
    - 统一错误处理机制
    - 请求缓存和防抖策略
 
+5. **测试实践**:
+   - 使用Vitest进行单元测试
+   - 使用Puppeteer进行端到端测试
+   - 组件测试覆盖主要交互逻辑
+
+## 缓存策略
+
+### Redis缓存实现
+- **缓存管理器**: 使用统一的CacheManager封装Redis操作
+- **缓存键策略**: 采用命名空间和前缀管理不同类型的缓存
+- **过期时间**: 根据数据更新频率设置合理过期时间
+- **缓存穿透防护**: 使用布隆过滤器或空值缓存防止缓存穿透
+- **缓存雪崩防护**: 设置随机过期时间避免大量缓存同时失效
+
+### 全文搜索实现
+- **索引存储**: 使用bleve库实现全文搜索引擎
+- **多字段索引**: 为标题、作者、主角、描述等字段建立索引
+- **内容搜索**: 支持小说内容的全文搜索
+- **搜索建议**: 提供模糊和前缀查询的搜索建议
+- **索引维护**: 自动维护索引与数据库数据的同步
+
 ## 部署考虑
 
 - 需要准备MySQL和Redis服务 (当前配置: 192.168.3.3:3306, 192.168.3.3:6379)
@@ -598,6 +637,7 @@ func (ReadingProgress) TableName() string {
 - 建议使用Docker进行容器化部署
 - 配置SSL证书以支持HTTPS
 - 搜索索引需要持久化存储
+- 配置负载均衡以支持高并发访问
 
 ## 安全考虑
 
@@ -610,6 +650,7 @@ func (ReadingProgress) TableName() string {
 - 使用HTTPS进行数据传输加密
 - 实现了API频率限制防止滥用
 - 实现了用户激活验证机制
+- 使用中间件进行访问控制和权限验证
 
 ## 性能要求
 
@@ -619,6 +660,15 @@ func (ReadingProgress) TableName() string {
 - **搜索功能**: 在100万数据量下响应时间不超过1秒
 - **文件上传**: 最大支持20MB，上传速度不低于1MB/s
 - **缓存策略**: 实现多层次缓存优化性能，Redis缓存命中率 > 95%
+
+## 测试策略
+
+- **单元测试**: 覆盖核心业务逻辑，包括用户认证、小说管理、搜索等
+- **集成测试**: 测试API端点，验证数据库操作和业务逻辑
+- **端到端测试**: 使用Puppeteer测试前端功能和用户交互
+- **性能测试**: 测试系统在高并发下的性能表现
+- **安全测试**: 验证认证授权、输入验证等安全措施
+- **自动化测试**: 集成到CI/CD流程中，确保代码质量
 
 ## 当前开发进度
 
@@ -656,3 +706,6 @@ func (ReadingProgress) TableName() string {
 - **活动历史**: 实现了小说操作历史查看功能
 - **前端测试**: 新增了vitest测试框架
 - **章节路由**: 修正了章节内容获取的路由结构
+- **缓存管理**: 实现了更完善的Redis缓存管理机制
+- **搜索建议**: 增加了模糊搜索和前缀查询的搜索建议功能
+- **测试增强**: 新增了全面的测试覆盖，包括单元测试、集成测试和端到端测试
