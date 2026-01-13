@@ -1,7 +1,7 @@
 package main
 
 import (
-	"./tests"
+	"xiaoshuo-backend/tests"
 )
 
 func main() {

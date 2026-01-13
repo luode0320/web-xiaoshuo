@@ -6,15 +6,27 @@ import (
 	"strconv"
 	"time"
 	"xiaoshuo-backend/models"
-	"xiaoshuo-backend/utils"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v4"
 	"gorm.io/gorm"
 )
 
 // GetPendingNovels 获取待审核小说列表
 func GetPendingNovels(c *gin.Context) {
+	// 从上下文获取用户信息（通过AdminAuthMiddleware已验证为管理员）
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
+		return
+	}
+
+	// 确认用户是管理员（这应该总是为true，因为AdminAuthMiddleware已经验证了）
+	dbUser := user.(models.User)
+	if !dbUser.IsAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "权限不足，仅管理员可访问"})
+		return
+	}
+
 	var novels []models.Novel
 	var count int64
 
@@ -55,18 +67,14 @@ func GetPendingNovels(c *gin.Context) {
 
 // ApproveNovel 审核小说
 func ApproveNovel(c *gin.Context) {
-	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
+	// 从上下文获取用户信息（通过AdminAuthMiddleware已验证为管理员）
+	user, exists := c.Get("user")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
+
+	dbUser := user.(models.User)
 
 	novelID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -98,7 +106,7 @@ func ApproveNovel(c *gin.Context) {
 
 	// 记录管理员操作日志
 	log := models.AdminLog{
-		AdminUserID: claims.UserID,
+		AdminUserID: dbUser.ID,
 		Action:      "approve_novel",
 		TargetType:  "novel",
 		TargetID:    uint(novelID),
@@ -118,18 +126,14 @@ func ApproveNovel(c *gin.Context) {
 
 // BatchApproveNovels 批量审核小说
 func BatchApproveNovels(c *gin.Context) {
-	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
+	// 从上下文获取用户信息（通过AdminAuthMiddleware已验证为管理员）
+	user, exists := c.Get("user")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
+
+	dbUser := user.(models.User)
 
 	var input struct {
 		Ids []uint `json:"ids" binding:"required"`
@@ -159,7 +163,7 @@ func BatchApproveNovels(c *gin.Context) {
 
 	// 记录管理员操作日志
 	log := models.AdminLog{
-		AdminUserID: claims.UserID,
+		AdminUserID: dbUser.ID,
 		Action:      "batch_approve_novels",
 		TargetType:  "novel",
 		TargetID:    0, // 表示批量操作
@@ -226,21 +230,17 @@ func GetAdminLogs(c *gin.Context) {
 
 // AutoExpirePendingNovels 自动处理过期的待审核小说
 func AutoExpirePendingNovels(c *gin.Context) {
-	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
+	// 从上下文获取用户信息（通过AdminAuthMiddleware已验证为管理员）
+	user, exists := c.Get("user")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
 
-	// 检查是否为管理员
-	if !claims.IsAdmin {
+	dbUser := user.(models.User)
+	
+	// 确认用户是管理员（这应该总是为true，因为AdminAuthMiddleware已经验证了）
+	if !dbUser.IsAdmin {
 		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "权限不足，仅管理员可访问"})
 		return
 	}
@@ -272,7 +272,7 @@ func AutoExpirePendingNovels(c *gin.Context) {
 
 		// 记录管理员操作日志
 		log := models.AdminLog{
-			AdminUserID: claims.UserID,
+			AdminUserID: dbUser.ID,
 			Action:      "auto_expire_novel",
 			TargetType:  "novel",
 			TargetID:    novel.ID,
@@ -294,24 +294,14 @@ func AutoExpirePendingNovels(c *gin.Context) {
 
 // CreateSystemMessage 管理员创建系统消息
 func CreateSystemMessage(c *gin.Context) {
-	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
+	// 从上下文获取用户信息（通过AdminAuthMiddleware已验证为管理员）
+	user, exists := c.Get("user")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
 
-	// 检查是否为管理员
-	if !claims.IsAdmin {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "权限不足，仅管理员可访问"})
-		return
-	}
+	dbUser := user.(models.User)
 
 	var input struct {
 		Title       string `json:"title" binding:"required,min=1,max=200"`
@@ -331,7 +321,7 @@ func CreateSystemMessage(c *gin.Context) {
 		Content:     input.Content,
 		Type:        input.Type,
 		IsPublished: input.IsPublished,
-		CreatedBy:   claims.UserID,
+		CreatedBy:   dbUser.ID,
 	}
 
 	if err := models.DB.Create(&message).Error; err != nil {
@@ -341,7 +331,7 @@ func CreateSystemMessage(c *gin.Context) {
 
 	// 记录管理员操作日志
 	log := models.AdminLog{
-		AdminUserID: claims.UserID,
+		AdminUserID: dbUser.ID,
 		Action:      "create_system_message",
 		TargetType:  "system_message",
 		TargetID:    message.ID,
@@ -361,21 +351,16 @@ func CreateSystemMessage(c *gin.Context) {
 
 // GetSystemMessages 管理员获取系统消息列表
 func GetSystemMessages(c *gin.Context) {
-	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
+	// 从上下文获取用户信息（通过AdminAuthMiddleware已验证为管理员）
+	user, exists := c.Get("user")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
 
-	// 检查是否为管理员
-	if !claims.IsAdmin {
+	// 从上下文获取用户信息，确保是管理员
+	dbUser := user.(models.User)
+	if !dbUser.IsAdmin {
 		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "权限不足，仅管理员可访问"})
 		return
 	}
@@ -431,24 +416,14 @@ func GetSystemMessages(c *gin.Context) {
 
 // UpdateSystemMessage 管理员更新系统消息
 func UpdateSystemMessage(c *gin.Context) {
-	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
+	// 从上下文获取用户信息（通过AdminAuthMiddleware已验证为管理员）
+	user, exists := c.Get("user")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
 
-	// 检查是否为管理员
-	if !claims.IsAdmin {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "权限不足，仅管理员可访问"})
-		return
-	}
+	dbUser := user.(models.User)
 
 	messageID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -504,7 +479,7 @@ func UpdateSystemMessage(c *gin.Context) {
 
 	// 记录管理员操作日志
 	log := models.AdminLog{
-		AdminUserID: claims.UserID,
+		AdminUserID: dbUser.ID,
 		Action:      "update_system_message",
 		TargetType:  "system_message",
 		TargetID:    message.ID,
@@ -524,24 +499,14 @@ func UpdateSystemMessage(c *gin.Context) {
 
 // DeleteSystemMessage 管理员删除系统消息
 func DeleteSystemMessage(c *gin.Context) {
-	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
+	// 从上下文获取用户信息（通过AdminAuthMiddleware已验证为管理员）
+	user, exists := c.Get("user")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
 
-	// 检查是否为管理员
-	if !claims.IsAdmin {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "权限不足，仅管理员可访问"})
-		return
-	}
+	dbUser := user.(models.User)
 
 	messageID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -567,7 +532,7 @@ func DeleteSystemMessage(c *gin.Context) {
 
 	// 记录管理员操作日志
 	log := models.AdminLog{
-		AdminUserID: claims.UserID,
+		AdminUserID: dbUser.ID,
 		Action:      "delete_system_message",
 		TargetType:  "system_message",
 		TargetID:    message.ID,
@@ -586,24 +551,14 @@ func DeleteSystemMessage(c *gin.Context) {
 
 // DeleteContentByAdmin 管理员删除内容（小说、评论、评分等）
 func DeleteContentByAdmin(c *gin.Context) {
-	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
+	// 从上下文获取用户信息（通过AdminAuthMiddleware已验证为管理员）
+	user, exists := c.Get("user")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
 
-	// 检查是否为管理员
-	if !claims.IsAdmin {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "权限不足，仅管理员可访问"})
-		return
-	}
+	dbUser := user.(models.User)
 
 	var input struct {
 		TargetType string `json:"target_type" binding:"required"` // novel, comment, rating
@@ -695,7 +650,7 @@ func DeleteContentByAdmin(c *gin.Context) {
 
 	// 记录管理员操作日志
 	log := models.AdminLog{
-		AdminUserID: claims.UserID,
+		AdminUserID: dbUser.ID,
 		Action:      "delete_content",
 		TargetType:  input.TargetType,
 		TargetID:    input.TargetID,
@@ -714,21 +669,17 @@ func DeleteContentByAdmin(c *gin.Context) {
 
 // GetReviewCriteria 获取审核标准列表
 func GetReviewCriteria(c *gin.Context) {
-	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
+	// 从上下文获取用户信息（通过AdminAuthMiddleware已验证为管理员）
+	user, exists := c.Get("user")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
 
-	// 检查是否为管理员
-	if !claims.IsAdmin {
+	dbUser := user.(models.User)
+	
+	// 确认用户是管理员（这应该总是为true，因为AdminAuthMiddleware已经验证了）
+	if !dbUser.IsAdmin {
 		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "权限不足，仅管理员可访问"})
 		return
 	}
@@ -784,24 +735,14 @@ func GetReviewCriteria(c *gin.Context) {
 
 // CreateReviewCriteria 创建审核标准
 func CreateReviewCriteria(c *gin.Context) {
-	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
+	// 从上下文获取用户信息（通过AdminAuthMiddleware已验证为管理员）
+	user, exists := c.Get("user")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
 
-	// 检查是否为管理员
-	if !claims.IsAdmin {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "权限不足，仅管理员可访问"})
-		return
-	}
+	dbUser := user.(models.User)
 
 	var input struct {
 		Name        string `json:"name" binding:"required,min=1,max=255"`
@@ -825,8 +766,8 @@ func CreateReviewCriteria(c *gin.Context) {
 		Content:     input.Content,
 		IsActive:    input.IsActive,
 		Weight:      input.Weight,
-		CreatedBy:   claims.UserID,
-		UpdatedBy:   claims.UserID,
+		CreatedBy:   dbUser.ID,
+		UpdatedBy:   dbUser.ID,
 	}
 
 	if err := models.DB.Create(&criteria).Error; err != nil {
@@ -836,7 +777,7 @@ func CreateReviewCriteria(c *gin.Context) {
 
 	// 记录管理员操作日志
 	log := models.AdminLog{
-		AdminUserID: claims.UserID,
+		AdminUserID: dbUser.ID,
 		Action:      "create_review_criteria",
 		TargetType:  "review_criteria",
 		TargetID:    criteria.ID,
@@ -856,24 +797,14 @@ func CreateReviewCriteria(c *gin.Context) {
 
 // UpdateReviewCriteria 更新审核标准
 func UpdateReviewCriteria(c *gin.Context) {
-	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
+	// 从上下文获取用户信息（通过AdminAuthMiddleware已验证为管理员）
+	user, exists := c.Get("user")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
 
-	// 检查是否为管理员
-	if !claims.IsAdmin {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "权限不足，仅管理员可访问"})
-		return
-	}
+	dbUser := user.(models.User)
 
 	criteriaID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -925,7 +856,7 @@ func UpdateReviewCriteria(c *gin.Context) {
 	if input.Weight != nil {
 		updates["weight"] = *input.Weight
 	}
-	updates["updated_by"] = claims.UserID
+	updates["updated_by"] = dbUser.ID
 
 	if err := models.DB.Model(&criteria).Updates(updates).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新审核标准失败", "data": err.Error()})
@@ -934,7 +865,7 @@ func UpdateReviewCriteria(c *gin.Context) {
 
 	// 记录管理员操作日志
 	log := models.AdminLog{
-		AdminUserID: claims.UserID,
+		AdminUserID: dbUser.ID,
 		Action:      "update_review_criteria",
 		TargetType:  "review_criteria",
 		TargetID:    criteria.ID,
@@ -954,24 +885,14 @@ func UpdateReviewCriteria(c *gin.Context) {
 
 // DeleteReviewCriteria 删除审核标准
 func DeleteReviewCriteria(c *gin.Context) {
-	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
+	// 从上下文获取用户信息（通过AdminAuthMiddleware已验证为管理员）
+	user, exists := c.Get("user")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
 
-	// 检查是否为管理员
-	if !claims.IsAdmin {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "权限不足，仅管理员可访问"})
-		return
-	}
+	dbUser := user.(models.User)
 
 	criteriaID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -997,7 +918,7 @@ func DeleteReviewCriteria(c *gin.Context) {
 
 	// 记录管理员操作日志
 	log := models.AdminLog{
-		AdminUserID: claims.UserID,
+		AdminUserID: dbUser.ID,
 		Action:      "delete_review_criteria",
 		TargetType:  "review_criteria",
 		TargetID:    criteria.ID,
