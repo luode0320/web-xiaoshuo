@@ -15,6 +15,7 @@ type ReadingProgress struct {
 	ChapterName string `json:"chapter_name"`
 	Position    int    `json:"position"` // 当前阅读位置
 	Progress    int    `json:"progress"` // 阅读进度百分比
+	ReadingTime int    `json:"reading_time"` // 阅读时长（秒）
 	LastReadAt  *gorm.DeletedAt `json:"last_read_at"`
 }
 

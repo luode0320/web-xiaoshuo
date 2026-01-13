@@ -25,5 +25,7 @@ func InitializeDB() {
 		&CommentLike{},
 		&RatingLike{},
 		&ReadingProgress{},
+		&SearchHistory{},
+		&ReviewCriteria{},
 	)
 }

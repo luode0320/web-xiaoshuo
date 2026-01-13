@@ -95,3 +95,13 @@ func (c *CacheManager) GetOrSet(key string, dest interface{}, expiration time.Du
 	// 返回生成的值
 	return json.Unmarshal(json.RawMessage(fmt.Sprintf("%v", value)), dest)
 }
+
+// GetWithDefault 从缓存获取值，如果不存在则返回默认值
+func (c *CacheManager) GetWithDefault(key string, defaultValue interface{}) interface{} {
+	var value interface{}
+	err := c.Get(key, &value)
+	if err != nil {
+		return defaultValue
+	}
+	return value
+}

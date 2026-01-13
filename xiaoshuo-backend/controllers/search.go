@@ -3,10 +3,13 @@ package controllers
 import (
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 	"xiaoshuo-backend/models"
 	"xiaoshuo-backend/utils"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // SearchNovels 搜索小说（基础搜索）
@@ -68,8 +71,11 @@ func SearchNovels(c *gin.Context) {
 		return
 	}
 
-	// 记录搜索统计（可选）
-	go recordSearchStat(keyword)
+	// 记录搜索统计和搜索历史
+	go func() {
+		recordSearchStat(keyword)
+		recordSearchHistory(c, keyword)
+	}()
 
 	c.JSON(http.StatusOK, gin.H{
 		"code": 200,
@@ -87,28 +93,64 @@ func SearchNovels(c *gin.Context) {
 
 // 记录搜索统计的辅助函数
 func recordSearchStat(keyword string) {
-	if keyword == "" {
-		return
-	}
-	
-	// 这里可以实现搜索统计逻辑，比如记录到数据库或Redis
-	// 暂时留空，后续可扩展
+	SearchStatForKeyword(keyword)
+}
+
+// SearchStat 搜索统计模型
+type SearchStat struct {
+	ID          uint   `json:"id" gorm:"primaryKey"`
+	Keyword     string `json:"keyword" gorm:"index;size:255"`
+	Count       int    `json:"count" gorm:"default:1"`
+	LastSearched string `json:"last_searched" gorm:"type:timestamp"`
+}
+
+// TableName 指定表名
+func (SearchStat) TableName() string {
+	return "search_stats"
 }
 
 // GetHotSearchKeywords 获取热门搜索关键词
 func GetHotSearchKeywords(c *gin.Context) {
-	// 这里应该从数据库或缓存中获取热门搜索关键词
-	// 暂时返回模拟数据
-	hotKeywords := []string{
-		"玄幻",
-		"都市",
-		"科幻",
-		"言情",
-		"武侠",
-		"历史",
-		"军事",
-		"悬疑",
+	var hotKeywords []string
+	
+	// 尝试从缓存获取热门搜索关键词
+	cacheKey := "hot_search_keywords"
+	err := utils.GlobalCache.Get(cacheKey, &hotKeywords)
+	if err == nil && len(hotKeywords) > 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"code": 200,
+			"message": "success",
+			"data": gin.H{
+				"keywords": hotKeywords,
+			},
+		})
+		return
 	}
+	
+	// 如果缓存中没有数据，则从数据库获取
+	var searchStats []SearchStat
+	result := models.DB.Order("count DESC, last_searched DESC").Limit(10).Find(&searchStats)
+	if result.Error != nil {
+		// 如果数据库查询失败，返回默认关键词
+		hotKeywords = []string{
+			"玄幻",
+			"都市",
+			"科幻",
+			"言情",
+			"武侠",
+			"历史",
+			"军事",
+			"悬疑",
+		}
+	} else {
+		// 提取关键词
+		for _, stat := range searchStats {
+			hotKeywords = append(hotKeywords, stat.Keyword)
+		}
+	}
+
+	// 将结果存入缓存，缓存1小时
+	utils.GlobalCache.Set(cacheKey, hotKeywords, time.Hour)
 
 	c.JSON(http.StatusOK, gin.H{
 		"code": 200,
@@ -117,6 +159,38 @@ func GetHotSearchKeywords(c *gin.Context) {
 			"keywords": hotKeywords,
 		},
 	})
+}
+
+// SearchStatForKeyword 记录搜索统计
+func SearchStatForKeyword(keyword string) {
+	if keyword == "" {
+		return
+	}
+	
+	var searchStat SearchStat
+	result := models.DB.Where("keyword = ?", keyword).First(&searchStat)
+	
+	if result.Error == gorm.ErrRecordNotFound {
+		// 如果关键词不存在，创建新的记录
+		newStat := SearchStat{
+			Keyword:      keyword,
+			Count:        1,
+			LastSearched: time.Now().Format(time.RFC3339),
+		}
+		models.DB.Create(&newStat)
+	} else {
+		// 如果关键词存在，更新计数和最后搜索时间
+		models.DB.Model(&searchStat).Updates(SearchStat{
+			Count:        searchStat.Count + 1,
+			LastSearched: time.Now().Format(time.RFC3339),
+		})
+		
+		// 异步更新缓存
+		go func() {
+			cacheKey := "hot_search_keywords"
+			utils.GlobalCache.Delete(cacheKey) // 删除缓存，下次请求时重新查询
+		}()
+	}
 }
 
 // FullTextSearchNovels 全文搜索小说
@@ -342,6 +416,338 @@ func RebuildSearchIndex(c *gin.Context) {
 			"message":      "搜索索引重建完成",
 			"total_novels": len(novels),
 			"failed_count": failedCount,
+		},
+	})
+}
+
+// SearchSuggestions 搜索建议
+func SearchSuggestions(c *gin.Context) {
+	keyword := c.Query("q")
+	if keyword == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"code": 200,
+			"message": "success",
+			"data": gin.H{
+				"suggestions": []gin.H{},
+			},
+		})
+		return
+	}
+
+	var allSuggestions []gin.H
+
+	// 1. 获取用户搜索历史作为建议（仅对已认证用户）
+	var userSearchHistory []models.SearchHistory
+	token, exists := c.Get("token")
+	if exists {
+		if claims, ok := token.(*utils.JwtCustomClaims); ok {
+			// 获取用户最近的搜索历史
+			models.DB.Where("user_id = ?", claims.UserID).
+				Order("updated_at DESC").
+				Limit(5).
+				Find(&userSearchHistory)
+			
+			for _, history := range userSearchHistory {
+				if strings.Contains(strings.ToLower(history.Keyword), strings.ToLower(keyword)) {
+					// 避免重复
+					isDuplicate := false
+					for _, existingSug := range allSuggestions {
+						if existingSug["text"] == history.Keyword {
+							isDuplicate = true
+							break
+						}
+					}
+					if !isDuplicate {
+						allSuggestions = append(allSuggestions, gin.H{
+							"text":  history.Keyword,
+							"count": history.Count,
+							"type":  "history",
+						})
+					}
+				}
+			}
+		}
+	}
+
+	// 2. 从全文搜索索引获取匹配的标题建议
+	indexSuggestions, err := utils.GlobalSearchIndex.SearchSuggestions(keyword, 5)
+	if err == nil {
+		for _, suggestion := range indexSuggestions {
+			if sug, ok := suggestion.(gin.H); ok {
+				// 避免重复
+				isDuplicate := false
+				for _, existingSug := range allSuggestions {
+					if existingSug["text"] == sug["text"] {
+						isDuplicate = true
+						break
+					}
+				}
+				if !isDuplicate {
+					allSuggestions = append(allSuggestions, sug)
+				}
+			}
+		}
+	}
+
+	// 3. 获取与关键词匹配的小说作为建议
+	dbSuggestions := fallbackSearchSuggestions(keyword, 5)
+	for _, dbSug := range dbSuggestions {
+		// 避免重复
+		isDuplicate := false
+		for _, existingSug := range allSuggestions {
+			if existingSug["text"] == dbSug["text"] {
+				isDuplicate = true
+				break
+			}
+		}
+		if !isDuplicate {
+			allSuggestions = append(allSuggestions, dbSug)
+		}
+	}
+
+	// 4. 获取热门搜索关键词作为建议
+	hotKeywords := getHotKeywordsForSuggestions(keyword, 3)
+	for _, hotKeyword := range hotKeywords {
+		// 避免重复
+		isDuplicate := false
+		for _, existingSug := range allSuggestions {
+			if existingSug["text"] == hotKeyword {
+				isDuplicate = true
+				break
+			}
+		}
+		if !isDuplicate {
+			allSuggestions = append(allSuggestions, gin.H{
+				"text":  hotKeyword,
+				"count": 0, // 热门关键词没有具体的搜索次数
+				"type":  "hot",
+			})
+		}
+	}
+
+	// 限制结果数量
+	if len(allSuggestions) > 10 {
+		allSuggestions = allSuggestions[:10]
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"message": "success",
+		"data": gin.H{
+			"suggestions": allSuggestions,
+		},
+	})
+}
+
+// fallbackSearchSuggestions 回退搜索建议
+func fallbackSearchSuggestions(keyword string, limit int) []gin.H {
+	var suggestions []gin.H
+
+	// 搜索标题、作者、主角等字段
+	var novels []models.Novel
+	query := models.DB.Where("status = ?", "approved")
+
+	// 搜索包含关键词的小说
+	searchPattern := "%" + keyword + "%"
+	query.Where("title LIKE ? OR author LIKE ? OR protagonist LIKE ?", 
+		searchPattern, searchPattern, searchPattern).
+		Limit(limit).
+		Find(&novels)
+
+	for _, novel := range novels {
+		suggestions = append(suggestions, gin.H{
+			"text":  novel.Title,
+			"count": novel.ClickCount,
+		})
+	}
+
+	return suggestions
+}
+
+
+
+// recordSearchHistory 记录搜索历史
+func recordSearchHistory(c *gin.Context, keyword string) {
+	if keyword == "" {
+		return
+	}
+
+	// 从JWT token获取用户信息（如果已认证）
+	var userID *uint
+	token, exists := c.Get("token")
+	if exists {
+		if claims, ok := token.(*utils.JwtCustomClaims); ok {
+			userID = &claims.UserID
+		}
+	}
+
+	// 获取客户端IP地址
+	ipAddress := c.ClientIP()
+
+	// 查找现有的搜索历史记录
+	var searchHistory models.SearchHistory
+	query := models.DB
+	if userID != nil {
+		query = query.Where("user_id = ? AND keyword = ?", userID, keyword)
+	} else {
+		query = query.Where("user_id IS NULL AND keyword = ? AND ip_address = ?", keyword, ipAddress)
+	}
+
+	result := query.First(&searchHistory)
+
+	if result.Error == gorm.ErrRecordNotFound {
+		// 如果记录不存在，创建新记录
+		newHistory := models.SearchHistory{
+			UserID:    userID,
+			Keyword:   keyword,
+			IPAddress: ipAddress,
+			Count:     1,
+		}
+		models.DB.Create(&newHistory)
+	} else {
+		// 如果记录存在，更新计数和最后搜索时间
+		models.DB.Model(&searchHistory).UpdateColumn("count", gorm.Expr("count + ?", 1))
+	}
+}
+
+// GetUserSearchHistory 获取用户搜索历史
+func GetUserSearchHistory(c *gin.Context) {
+	// 从JWT token获取用户信息
+	token, exists := c.Get("token")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
+		return
+	}
+
+	claims, ok := token.(*utils.JwtCustomClaims)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	// 获取用户的搜索历史
+	var searchHistories []models.SearchHistory
+	var count int64
+
+	query := models.DB.Where("user_id = ?", claims.UserID)
+
+	// 获取总数
+	query.Model(&models.SearchHistory{}).Count(&count)
+
+	// 分页查询
+	offset := (page - 1) * limit
+	if err := query.Offset(offset).Limit(limit).
+		Order("updated_at DESC").
+		Find(&searchHistories).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取搜索历史失败", "data": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"message": "success",
+		"data": gin.H{
+			"search_history": searchHistories,
+			"pagination": gin.H{
+				"page":  page,
+				"limit": limit,
+				"total": count,
+			},
+		},
+	})
+}
+
+// ClearUserSearchHistory 清空用户搜索历史
+func ClearUserSearchHistory(c *gin.Context) {
+	// 从JWT token获取用户信息
+	token, exists := c.Get("token")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
+		return
+	}
+
+	claims, ok := token.(*utils.JwtCustomClaims)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
+		return
+	}
+
+	// 删除用户的搜索历史
+	if err := models.DB.Where("user_id = ?", claims.UserID).Delete(&models.SearchHistory{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "清空搜索历史失败", "data": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"message": "success",
+		"data": gin.H{
+			"message": "搜索历史已清空",
+		},
+	})
+}
+
+// getHotKeywordsForSuggestions 获取热门关键词作为建议，过滤掉与输入关键词相关的
+func getHotKeywordsForSuggestions(inputKeyword string, limit int) []string {
+	var hotKeywords []string
+	
+	// 尝试从缓存获取热门搜索关键词
+	cacheKey := "hot_search_keywords"
+	err := utils.GlobalCache.Get(cacheKey, &hotKeywords)
+	if err == nil && len(hotKeywords) > 0 {
+		// 限制数量
+		if len(hotKeywords) > limit {
+			hotKeywords = hotKeywords[:limit]
+		}
+		return hotKeywords
+	}
+	
+	// 如果缓存中没有数据，则从数据库获取
+	var searchStats []SearchStat
+	result := models.DB.Order("count DESC, last_searched DESC").Limit(limit).Find(&searchStats)
+	if result.Error != nil {
+		// 如果数据库查询失败，返回默认关键词
+		return []string{
+			"玄幻",
+			"都市",
+			"科幻",
+			"言情",
+		}
+	}
+	
+	// 提取关键词
+	resultKeywords := make([]string, 0, len(searchStats))
+	for _, stat := range searchStats {
+		resultKeywords = append(resultKeywords, stat.Keyword)
+	}
+
+	return resultKeywords
+}
+
+// GetSearchStats 获取搜索统计信息
+func GetSearchStats(c *gin.Context) {
+	// 获取总的搜索统计
+	var totalSearches int64
+	models.DB.Model(&SearchStat{}).Count(&totalSearches)
+
+	// 获取热门搜索关键词（前10个）
+	var topKeywords []SearchStat
+	models.DB.Order("count DESC").Limit(10).Find(&topKeywords)
+
+	// 获取最近的搜索统计
+	var recentSearches []SearchStat
+	models.DB.Order("updated_at DESC").Limit(10).Find(&recentSearches)
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"message": "success",
+		"data": gin.H{
+			"total_searches": totalSearches,
+			"top_keywords": topKeywords,
+			"recent_searches": recentSearches,
 		},
 	})
 }

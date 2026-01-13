@@ -12,6 +12,7 @@ type Comment struct {
 	User        User        `json:"user"`
 	NovelID     uint        `json:"novel_id"`
 	Novel       Novel       `json:"novel"`
+	ChapterID   *uint       `json:"chapter_id"` // 章节ID，可选，用于章节评论
 	ParentID    *uint       `json:"parent_id"` // 支持回复评论
 	Parent      *Comment    `json:"parent"`
 	Replies     []Comment   `gorm:"foreignKey:ParentID" json:"replies"`

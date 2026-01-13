@@ -12,6 +12,9 @@ export const useUserStore = defineStore('user', {
   getters: {
     isAdmin: (state) => {
       return state.user && state.user.is_admin
+    },
+    userId: (state) => {
+      return state.user?.id
     }
   },
   

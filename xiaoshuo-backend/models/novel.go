@@ -26,6 +26,9 @@ type Novel struct {
 	UploadUser    User      `json:"upload_user"`
 	Categories    []Category `gorm:"many2many:novel_categories;" json:"categories"`
 	Keywords      []Keyword `gorm:"many2many:novel_keywords;" json:"keywords"`
+	AverageRating float64   `gorm:"default:0" json:"average_rating"` // 平均评分
+	RatingCount   int       `gorm:"default:0" json:"rating_count"`   // 评分数量
+	Chapters      []Chapter `json:"chapters"`                        // 小说章节
 }
 
 // TableName 指定表名

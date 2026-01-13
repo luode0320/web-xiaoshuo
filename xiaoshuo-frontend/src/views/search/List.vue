@@ -3,18 +3,84 @@
     <div class="search-header">
       <h1>小说搜索</h1>
       <div class="search-box">
-        <el-input
+        <el-autocomplete
           v-model="searchKeyword"
+          :fetch-suggestions="querySearch"
           placeholder="搜索小说标题、作者、主角..."
           @keyup.enter="performSearch"
+          @select="handleSelect"
           size="large"
           clearable
+          :trigger-on-focus="false"
         >
+          <template #default="{ item }">
+            <div class="suggestion-item">
+              <span class="suggestion-text">{{ item.text }}</span>
+              <span class="suggestion-count" v-if="item.count">({{ item.count }})</span>
+            </div>
+          </template>
           <template #append>
             <el-button @click="performSearch" :icon="Search" :loading="searching" />
           </template>
-        </el-input>
+        </el-autocomplete>
       </div>
+      
+      <!-- 搜索历史管理 -->
+      <div v-if="isAuthenticated && searchHistory.length > 0" class="search-history">
+        <div class="history-header">
+          <h3>搜索历史</h3>
+          <el-button 
+            size="small" 
+            type="danger" 
+            @click="clearSearchHistory"
+            :loading="clearingHistory"
+          >
+            清空历史
+          </el-button>
+        </div>
+        <div class="history-tags">
+          <el-tag
+            v-for="history in searchHistory"
+            :key="history.id"
+            type="info"
+            closable
+            @close="removeSearchHistory(history.id)"
+            @click="searchByKeyword(history.keyword)"
+            class="history-tag"
+          >
+            {{ history.keyword }} ({{ history.count }})
+          </el-tag>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 搜索统计展示区域 -->
+    <div v-if="isAuthenticated && searchStats.total_searches" class="search-stats">
+      <el-collapse>
+        <el-collapse-item title="搜索统计" name="stats">
+          <div class="stats-content">
+            <div class="stat-item">
+              <span class="stat-label">总搜索次数:</span>
+              <span class="stat-value">{{ searchStats.total_searches }}</span>
+            </div>
+            <div class="stat-item" v-if="searchStats.top_keywords && searchStats.top_keywords.length > 0">
+              <span class="stat-label">热门搜索:</span>
+              <div class="top-keywords">
+                <el-tag 
+                  v-for="keyword in searchStats.top_keywords.slice(0, 5)" 
+                  :key="keyword.id || keyword.keyword"
+                  type="warning"
+                  size="small"
+                  class="keyword-tag"
+                  @click="searchByKeyword(keyword.keyword || keyword.text)"
+                >
+                  {{ keyword.keyword || keyword.text }} ({{ keyword.count || keyword.Count }})
+                </el-tag>
+              </div>
+            </div>
+          </div>
+        </el-collapse-item>
+      </el-collapse>
     </div>
     
     <div class="search-filters">
@@ -155,11 +221,12 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import axios from 'axios'
+import { useUserStore } from '@/stores/user'
 
 export default {
   name: 'SearchList',
@@ -168,6 +235,7 @@ export default {
   },
   setup() {
     const router = useRouter()
+    const userStore = useUserStore()
     
     const searchKeyword = ref('')
     const searching = ref(false)
@@ -179,6 +247,13 @@ export default {
     const searchTime = ref(0)
     const hasSearched = ref(false)
     const activeFilter = ref([])
+    const searchSuggestions = ref([])
+    
+    // 搜索历史相关
+    const searchHistory = ref([])
+    const showHistoryPanel = ref(false)
+    const searchStats = ref({})
+    const clearingHistory = ref(false)
     
     const searchFilters = reactive({
       page: 1,
@@ -187,6 +262,36 @@ export default {
       ratingRange: [0, 10],
       orderBy: 'relevance'
     })
+    
+    // 计算属性
+    const isAuthenticated = computed(() => userStore.isAuthenticated)
+    
+    // 查询搜索建议
+    const querySearch = async (queryString, callback) => {
+      if (!queryString) {
+        callback([])
+        return
+      }
+
+      try {
+        const response = await axios.get(`/api/v1/search/suggestions?q=${queryString}`)
+        const suggestions = response.data.data.suggestions.map(item => ({
+          value: item.text,
+          text: item.text,
+          count: item.count
+        }))
+        callback(suggestions)
+      } catch (error) {
+        // 如果API失败，返回空结果
+        callback([])
+      }
+    }
+    
+    // 选择搜索建议
+    const handleSelect = (item) => {
+      searchKeyword.value = item.value
+      performSearch()
+    }
     
     // 执行搜索
     const performSearch = async () => {
@@ -247,10 +352,12 @@ export default {
     // 获取热门搜索关键词
     const fetchHotKeywords = async () => {
       try {
-        // 注意：后端可能还没有实现这个接口，这里先使用模拟数据
-        hotKeywords.value = ['玄幻', '都市', '科幻', '言情', '武侠', '历史', '军事', '悬疑']
+        const response = await axios.get('/api/v1/search/hot-words')
+        hotKeywords.value = response.data.data.keywords
       } catch (error) {
         console.error('获取热门关键词失败:', error)
+        // 如果API失败，使用默认关键词
+        hotKeywords.value = ['玄幻', '都市', '科幻', '言情', '武侠', '历史', '军事', '悬疑']
       }
     }
     
@@ -298,10 +405,78 @@ export default {
       return `${before}<mark>${matched}</mark>${after}`
     }
     
+    // 获取搜索历史
+    const fetchSearchHistory = async () => {
+      if (!isAuthenticated.value) return
+      
+      try {
+        const response = await axios.get('/api/v1/users/search-history', {
+          headers: {
+            'Authorization': `Bearer ${userStore.token}`
+          }
+        })
+        searchHistory.value = response.data.data.search_history
+      } catch (error) {
+        console.error('获取搜索历史失败:', error)
+      }
+    }
+    
+    // 清空搜索历史
+    const clearSearchHistory = async () => {
+      if (!isAuthenticated.value) return
+      
+      try {
+        await ElMessageBox.confirm(
+          '确定要清空搜索历史吗？此操作不可恢复。',
+          '确认清空',
+          {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }
+        )
+        
+        clearingHistory.value = true
+        
+        await axios.delete('/api/v1/users/search-history', {
+          headers: {
+            'Authorization': `Bearer ${userStore.token}`
+          }
+        })
+        searchHistory.value = []
+        ElMessage.success('搜索历史已清空')
+      } catch (error) {
+        if (error !== 'cancel') {
+          console.error('清空搜索历史失败:', error)
+          ElMessage.error('清空搜索历史失败')
+        }
+      } finally {
+        clearingHistory.value = false
+      }
+    }
+    
+    // 删除单个搜索历史
+    const removeSearchHistory = async (historyId) => {
+      if (!isAuthenticated.value) return
+      
+      try {
+        // 从数组中移除，实际API中没有提供删除单个历史记录的端点
+        // 可能需要通过后端API添加此功能，这里先在前端移除
+        searchHistory.value = searchHistory.value.filter(h => h.id !== historyId)
+      } catch (error) {
+        console.error('删除搜索历史失败:', error)
+        // 重新获取历史
+        await fetchSearchHistory()
+      }
+    }
+    
     onMounted(async () => {
       await fetchCategories()
       await fetchHotKeywords()
       await fetchRecommendedNovels()
+      if (isAuthenticated.value) {
+        await fetchSearchHistory()
+      }
     })
     
     return {
@@ -316,12 +491,20 @@ export default {
       hasSearched,
       activeFilter,
       searchFilters,
+      searchHistory,
+      searchStats,
+      clearingHistory,
       performSearch,
       searchByKeyword,
       viewNovel,
       handlePageChange,
       truncateText,
-      highlightText
+      highlightText,
+      isAuthenticated,
+      fetchSearchHistory,
+      clearSearchHistory,
+      removeSearchHistory,
+      fetchSearchStats
     }
   }
 }
@@ -347,7 +530,108 @@ export default {
 
 .search-box {
   max-width: 600px;
-  margin: 0 auto;
+  margin: 0 auto 20px;
+}
+
+.search-history {
+  background: #f9f9f9;
+  border-radius: 8px;
+  padding: 15px;
+  margin-top: 15px;
+  border: 1px solid #eee;
+}
+
+/* 搜索统计样式 */
+.search-stats {
+  margin: 20px 0;
+  padding: 15px;
+  background: var(--el-bg-color-overlay);
+  border-radius: 8px;
+  border: 1px solid var(--el-border-color);
+}
+
+.stats-content {
+  padding: 10px 0;
+}
+
+.stat-item {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.stat-label {
+  font-weight: bold;
+  margin-right: 10px;
+  min-width: 100px;
+}
+
+.stat-value {
+  font-size: 16px;
+  color: var(--el-color-primary);
+  font-weight: bold;
+}
+
+.top-keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.keyword-tag {
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.keyword-tag:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.history-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 1rem;
+}
+
+.history-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.history-tag {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.history-tag:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.suggestion-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+}
+
+.suggestion-text {
+  flex: 1;
+}
+
+.suggestion-count {
+  color: #999;
+  font-size: 0.9em;
 }
 
 .search-filters {

@@ -218,3 +218,56 @@ func (s *SearchIndex) DeleteNovelFromIndex(novelID uint) error {
 func (s *SearchIndex) Close() error {
 	return s.index.Close()
 }
+
+// SearchSuggestions 获取搜索建议
+func (s *SearchIndex) SearchSuggestions(queryStr string, limit int) ([]interface{}, error) {
+	// 首先尝试使用模糊查询来获取更灵活的匹配
+	fuzzyQuery := query.NewFuzzyQuery(queryStr)
+	fuzzyQuery.SetFuzziness(1) // 设置模糊度为1，允许一个字符的差异
+	
+	// 创建搜索请求
+	searchRequest := bleve.NewSearchRequest(fuzzyQuery)
+	
+	// 设置返回结果数量限制
+	searchRequest.Size = limit
+	searchRequest.Fields = []string{"title", "author", "protagonist"} // 指定返回的字段
+	
+	// 执行搜索
+	result, err := s.index.Search(searchRequest)
+	if err != nil {
+		// 如果模糊搜索失败，尝试使用前缀查询
+		prefixQuery := query.NewPrefixQuery(queryStr)
+		searchRequest := bleve.NewSearchRequest(prefixQuery)
+		searchRequest.Size = limit
+		searchRequest.Fields = []string{"title", "author", "protagonist"}
+		
+		result, err = s.index.Search(searchRequest)
+		if err != nil {
+			return nil, fmt.Errorf("suggestions search failed: %v", err)
+		}
+	}
+	
+	// 提取搜索建议
+	var suggestions []interface{}
+	for _, hit := range result.Hits {
+		suggestion := map[string]interface{}{
+			"text":  hit.Fields["title"],
+			"count": hit.Score, // 使用相关性分数作为计数的近似值
+		}
+		
+		// 如果标题不匹配，尝试其他字段
+		if suggestion["text"] == nil || suggestion["text"] == "" {
+			if author, ok := hit.Fields["author"]; ok && author != "" {
+				suggestion["text"] = author
+			} else if protagonist, ok := hit.Fields["protagonist"]; ok && protagonist != "" {
+				suggestion["text"] = protagonist
+			}
+		}
+		
+		if suggestion["text"] != nil && suggestion["text"] != "" {
+			suggestions = append(suggestions, suggestion)
+		}
+	}
+	
+	return suggestions, nil
+}

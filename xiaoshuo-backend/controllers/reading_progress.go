@@ -31,6 +31,8 @@ func SaveReadingProgress(c *gin.Context) {
 		ChapterName string `json:"chapter_name"`
 		Position    int  `json:"position"` // 阅读位置（字节或百分比）
 		Progress    int  `json:"progress"` // 阅读进度百分比
+		ReadingTime int  `json:"reading_time"` // 阅读时长（秒）
+		IsReading   bool `json:"is_reading"`   // 是否正在阅读
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -69,6 +71,8 @@ func SaveReadingProgress(c *gin.Context) {
 				ChapterName: input.ChapterName,
 				Position:    input.Position,
 				Progress:    input.Progress,
+				ReadingTime: input.ReadingTime,
+				LastReadAt:  nil, // 使用gorm.DeletedAt类型
 			}
 			if err := models.DB.Create(&progress).Error; err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "保存阅读进度失败", "data": err.Error()})
@@ -79,11 +83,18 @@ func SaveReadingProgress(c *gin.Context) {
 			return
 		}
 	} else {
+		// 计算新的阅读时长（累加）
+		newReadingTime := progress.ReadingTime
+		if input.IsReading && input.ReadingTime > 0 {
+			newReadingTime += input.ReadingTime
+		}
+		
 		// 更新现有的阅读进度记录
 		progress.ChapterID = input.ChapterID
 		progress.ChapterName = input.ChapterName
 		progress.Position = input.Position
 		progress.Progress = input.Progress
+		progress.ReadingTime = newReadingTime
 		
 		if err := models.DB.Save(&progress).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新阅读进度失败", "data": err.Error()})

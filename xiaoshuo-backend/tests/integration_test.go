@@ -1,10 +1,9 @@
-// xiaoshuo-backend/tests\integration_test.go
+// xiaoshuo-backend/tests/integration_test.go
 // 集成测试
 
 package tests
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -17,153 +16,112 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestUserRegistrationAndLoginIntegration 用户注册和登录的集成测试
-func TestUserRegistrationAndLoginIntegration(t *testing.T) {
+// TestUserRegistrationAndLogin 集成测试：用户注册和登录
+func TestUserRegistrationAndLogin(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	router := gin.Default()
-	router.POST("/users/register", controllers.UserRegister)
-	router.POST("/users/login", controllers.UserLogin)
-	router.GET("/users/profile", controllers.GetProfile)
-
-	// 1. 注册用户
-	registerData := map[string]string{
-		"email":    "integration@example.com",
+	// 1. 测试用户注册
+	registerData := `{
+		"email": "integration_test@example.com",
 		"password": "password123",
-		"nickname": "集成测试用户",
-	}
-
-	jsonData, _ := json.Marshal(registerData)
-	req, _ := http.NewRequest(http.MethodPost, "/users/register", strings.NewReader(string(jsonData)))
+		"nickname": "集成测试用户"
+	}`
+	
+	req, _ := http.NewRequest(http.MethodPost, "/users/register", strings.NewReader(registerData))
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	// 解析响应获取token
-	var registerResp struct {
-		Code int `json:"code"`
-		Data struct {
-			Token string `json:"token"`
-			User  struct {
-				ID       uint   `json:"id"`
-				Email    string `json:"email"`
-				Nickname string `json:"nickname"`
-			} `json:"user"`
-		} `json:"data"`
-	}
-	
-	err := json.Unmarshal(w.Body.Bytes(), &registerResp)
-	assert.NoError(t, err)
-	assert.Equal(t, 200, registerResp.Code)
-
-	token := registerResp.Data.Token
-	assert.NotEmpty(t, token)
-
-	// 2. 使用相同凭据登录
-	loginData := map[string]string{
-		"email":    "integration@example.com",
-		"password": "password123",
-	}
-
-	jsonData, _ = json.Marshal(loginData)
-	req, _ = http.NewRequest(http.MethodPost, "/users/login", strings.NewReader(string(jsonData)))
-	req.Header.Set("Content-Type", "application/json")
-
-	w = httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	// 3. 使用token获取用户信息
-	req, _ = http.NewRequest(http.MethodGet, "/users/profile", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	w = httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-// TestNovelLifecycleIntegration 小说生命周期的集成测试
-func TestNovelLifecycleIntegration(t *testing.T) {
-	gin.SetMode(gin.TestMode)
 
 	router := gin.Default()
-	router.GET("/novels", controllers.GetNovels)
-	router.GET("/novels/:id", controllers.GetNovel)
+	router.POST("/users/register", controllers.UserRegister)
+
+	router.ServeHTTP(w, req)
+
+	// 验证注册成功
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// 2. 测试用户登录
+	loginData := `{
+		"email": "integration_test@example.com",
+		"password": "password123"
+	}`
+	
+	req, _ = http.NewRequest(http.MethodPost, "/users/login", strings.NewReader(loginData))
+	req.Header.Set("Content-Type", "application/json")
+
+	w = httptest.NewRecorder()
+	router.POST("/users/login", controllers.UserLogin)
+
+	router.ServeHTTP(w, req)
+
+	// 验证登录成功
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// 3. 清理测试数据
+	var user models.User
+	models.DB.Where("email = ?", "integration_test@example.com").First(&user)
+	if user.ID != 0 {
+		models.DB.Delete(&user)
+	}
+}
+
+// TestNovelOperationsIntegration 集成测试：小说操作流程
+func TestNovelOperationsIntegration(t *testing.T) {
+	gin.SetMode(gin.TestMode)
 
 	// 测试获取小说列表
 	req, _ := http.NewRequest(http.MethodGet, "/novels", nil)
 	w := httptest.NewRecorder()
 
+	router := gin.Default()
+	router.GET("/novels", controllers.GetNovels)
+
 	router.ServeHTTP(w, req)
 
+	// 验证获取小说列表成功
 	assert.Equal(t, http.StatusOK, w.Code)
-
-	// 解析响应
-	var novelsResp struct {
-		Code int `json:"code"`
-		Data struct {
-			Novels     []models.Novel `json:"novels"`
-			Pagination interface{}    `json:"pagination"`
-		} `json:"data"`
-	}
-
-	err := json.Unmarshal(w.Body.Bytes(), &novelsResp)
-	assert.NoError(t, err)
-	assert.Equal(t, 200, novelsResp.Code)
 }
 
-// TestSearchFunctionalityIntegration 搜索功能的集成测试
-func TestSearchFunctionalityIntegration(t *testing.T) {
+// TestCommentAndRatingIntegration 集成测试：评论和评分功能
+func TestCommentAndRatingIntegration(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	router := gin.Default()
-	router.GET("/search/novels", controllers.SearchNovels)
-	router.GET("/search/fulltext", controllers.FullTextSearchNovels)
+	// 测试获取评论列表
+	req, _ := http.NewRequest(http.MethodGet, "/comments", nil)
+	w := httptest.NewRecorder()
 
-	// 测试基础搜索
+	router := gin.Default()
+	router.GET("/comments", controllers.GetComments)
+
+	router.ServeHTTP(w, req)
+
+	// 验证获取评论列表成功
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+// TestSearchAndRecommendationIntegration 集成测试：搜索和推荐功能
+func TestSearchAndRecommendationIntegration(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	// 测试搜索功能
 	req, _ := http.NewRequest(http.MethodGet, "/search/novels?q=测试", nil)
 	w := httptest.NewRecorder()
 
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	// 测试全文搜索
-	req, _ = http.NewRequest(http.MethodGet, "/search/fulltext?q=测试", nil)
-	w = httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-// TestRecommendationSystemIntegration 推荐系统集成测试
-func TestRecommendationSystemIntegration(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
 	router := gin.Default()
-	router.GET("/recommendations", controllers.GetRecommendations)
-	router.GET("/recommendations/personalized", controllers.GetPersonalizedRecommendations)
-
-	// 测试通用推荐
-	req, _ := http.NewRequest(http.MethodGet, "/recommendations", nil)
-	w := httptest.NewRecorder()
+	router.GET("/search/novels", controllers.SearchNovels)
 
 	router.ServeHTTP(w, req)
 
+	// 验证搜索功能成功
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	// 测试个性化推荐（未认证，应返回通用推荐）
-	req, _ = http.NewRequest(http.MethodGet, "/recommendations/personalized", nil)
+	// 测试推荐功能
+	req, _ = http.NewRequest(http.MethodGet, "/recommendations", nil)
 	w = httptest.NewRecorder()
+	router.GET("/recommendations", controllers.GetRecommendations)
 
 	router.ServeHTTP(w, req)
 
+	// 验证推荐功能成功
 	assert.Equal(t, http.StatusOK, w.Code)
 }

@@ -62,6 +62,24 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true }
   },
   {
+    path: '/admin/standard',
+    name: 'AdminStandard',
+    component: () => import('@/views/admin/Standard.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/monitor',
+    name: 'AdminMonitor',
+    component: () => import('@/views/admin/Monitor.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/novel/:id/social-history',
+    name: 'SocialHistory',
+    component: () => import('@/views/novel/SocialHistory.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/about',
     name: 'About',
     component: () => import('@/views/About.vue')

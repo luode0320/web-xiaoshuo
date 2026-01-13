@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"xiaoshuo-backend/config"
+	"xiaoshuo-backend/controllers"
 	"xiaoshuo-backend/models"
 	"xiaoshuo-backend/routes"
 	"xiaoshuo-backend/utils"
@@ -37,6 +38,10 @@ func main() {
 	} else {
 		log.Println("搜索索引初始化成功")
 	}
+
+	// 初始化推荐服务
+	controllers.InitRecommendationService()
+	log.Println("推荐服务初始化成功")
 
 	// 设置运行模式
 	gin.SetMode(config.GlobalConfig.Server.Mode)

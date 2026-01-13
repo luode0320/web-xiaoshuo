@@ -12,6 +12,22 @@
           <span class="clicks">点击: {{ novel.click_count }}</span>
           <span class="word-count">字数: {{ novel.word_count }}万</span>
           <span class="upload-time">上传: {{ formatDate(novel.created_at) }}</span>
+          <el-tag 
+            :type="getStatusType(novel.status)" 
+            size="small"
+            class="status-tag"
+          >
+            {{ getStatusText(novel.status) }}
+          </el-tag>
+          <!-- 上传频率提示（仅对当前用户上传的小说显示） -->
+          <el-tag 
+            v-if="isAuthenticated && novel.upload_user_id === userId && uploadFrequency.remaining_count !== undefined"
+            :type="uploadFrequency.remaining_count > 2 ? 'success' : uploadFrequency.remaining_count > 0 ? 'warning' : 'danger'"
+            size="small"
+            class="upload-frequency-tag"
+          >
+            今日剩余上传: {{ uploadFrequency.remaining_count }}
+          </el-tag>
         </div>
         <div class="categories">
           <el-tag 
@@ -33,6 +49,64 @@
           <el-button v-if="isAuthenticated" @click="showRatingDialog">评分</el-button>
           <el-button @click="downloadNovel">下载</el-button>
         </div>
+        
+        <!-- 分类和关键词设置（当用户阅读进度达到20%以上时显示） -->
+        <div v-if="showClassificationSection" class="classification-section">
+          <h3>设置分类和关键词</h3>
+          <div class="current-classification">
+            <p><strong>当前分类:</strong></p>
+            <el-tag 
+              v-for="category in novel.categories" 
+              :key="category.id" 
+              type="info"
+              closable
+              @close="removeCategory(category.id)"
+            >
+              {{ category.name }}
+            </el-tag>
+            <div v-if="novel.categories.length === 0" class="no-categories">
+              尚未设置分类
+            </div>
+          </div>
+          <div class="current-keywords">
+            <p><strong>当前关键词:</strong></p>
+            <el-tag 
+              v-for="keyword in novel.keywords" 
+              :key="keyword.id" 
+              type="success"
+              closable
+              @close="removeKeyword(keyword.id)"
+            >
+              {{ keyword.keyword }}
+            </el-tag>
+            <div v-if="novel.keywords.length === 0" class="no-keywords">
+              尚未设置关键词
+            </div>
+          </div>
+          <div class="classification-inputs">
+            <el-select 
+              v-model="selectedCategory" 
+              placeholder="选择分类" 
+              style="width: 200px; margin-right: 10px;"
+            >
+              <el-option
+                v-for="category in categories"
+                :key="category.id"
+                :label="category.name"
+                :value="category.id"
+              />
+            </el-select>
+            <el-input
+              v-model="newKeyword"
+              placeholder="输入关键词并按回车添加"
+              style="width: 200px;"
+              @keyup.enter="addKeyword"
+            />
+            <el-button @click="saveClassification" type="primary" :loading="savingClassification">
+              保存设置
+            </el-button>
+          </div>
+        </div>
       </div>
     </div>
     
@@ -40,16 +114,46 @@
       <!-- 评分区域 -->
       <div class="rating-section">
         <h3>评分与评价</h3>
-        <div class="rating-summary">
-          <div class="avg-rating">
-            <span class="score">{{ avgRating }}</span>
-            <span class="text">分</span>
-          </div>
-          <div class="rating-details">
-            <p>共有 {{ ratingCount }} 人评分</p>
-          </div>
-        </div>
-      </div>
+              <div class="rating-summary">
+                <div class="avg-rating">
+                  <span class="score">{{ avgRating }}</span>
+                  <span class="text">分</span>
+                </div>
+                <div class="rating-details">
+                  <p>共有 {{ ratingCount }} 人评分</p>
+                </div>
+              </div>
+              
+              <!-- 评分列表 -->
+              <div class="ratings-list">
+                <div 
+                  v-for="rating in ratings" 
+                  :key="rating.id" 
+                  class="rating-item"
+                >
+                  <div class="rating-header">
+                    <span class="username">{{ rating.user?.nickname || '匿名用户' }}</span>
+                    <el-rate 
+                      v-model="rating.score" 
+                      disabled 
+                      :max="10" 
+                      show-text
+                    />
+                    <span class="time">{{ formatDate(rating.created_at) }}</span>
+                  </div>
+                  <div class="rating-comment">{{ rating.comment }}</div>
+                  <div class="rating-actions">
+                    <el-button 
+                      size="small" 
+                      @click="likeRating(rating.id)"
+                      :class="{ 'liked': isRatingLiked(rating.id) }"
+                    >
+                      <i :class="isRatingLiked(rating.id) ? 'el-icon-thumb' : 'el-icon-thumb'"></i> 
+                      {{ rating.like_count || 0 }}
+                    </el-button>
+                  </div>
+                </div>
+              </div>      </div>
       
       <!-- 评论区域 -->
       <div class="comments-section">
@@ -81,13 +185,85 @@
             <div class="comment-content">{{ comment.content }}</div>
             <div class="comment-actions">
               <el-button type="text" size="small">回复</el-button>
-              <el-button type="text" size="small" @click="likeComment(comment.id)">
-                <i class="el-icon-thumb"></i> {{ comment.like_count }}
+              <el-button 
+                type="text" 
+                size="small" 
+                @click="likeComment(comment.id)"
+                :class="{ 'liked': isCommentLiked(comment.id) }"
+              >
+                <i :class="isCommentLiked(comment.id) ? 'el-icon-thumb' : 'el-icon-thumb'"></i> 
+                {{ comment.like_count || 0 }}
               </el-button>
             </div>
           </div>
         </div>
       </div>
+    </div>
+    
+    <!-- 小说操作历史区域（仅对上传者或管理员显示） -->
+    <div v-if="isAuthenticated && novel && (novel.upload_user_id === userId || userStore.isAdmin)" class="history-section">
+      <el-collapse>
+        <el-collapse-item title="小说操作历史" name="history">
+          <div class="history-content">
+            <h4>管理日志</h4>
+            <div v-if="novelHistory.activity_history && novelHistory.activity_history.admin_logs.length > 0" class="admin-logs">
+              <div 
+                v-for="log in novelHistory.activity_history.admin_logs" 
+                :key="log.id" 
+                class="log-item"
+              >
+                <div class="log-header">
+                  <span class="log-action">{{ log.action }}</span>
+                  <span class="log-time">{{ formatDate(log.created_at) }}</span>
+                </div>
+                <div class="log-details">{{ log.details }}</div>
+                <div class="log-user" v-if="log.admin_user">
+                  操作员: {{ log.admin_user.nickname }}
+                </div>
+              </div>
+            </div>
+            <div v-else class="no-logs">暂无管理日志</div>
+            
+            <h4 style="margin-top: 20px;">评分历史</h4>
+            <div v-if="novelHistory.activity_history && novelHistory.activity_history.ratings.length > 0" class="ratings-history">
+              <div 
+                v-for="rating in novelHistory.activity_history.ratings" 
+                :key="rating.id" 
+                class="rating-item"
+              >
+                <div class="rating-header">
+                  <span class="username">{{ rating.user?.nickname || '匿名用户' }}</span>
+                  <el-rate 
+                    v-model="rating.score" 
+                    disabled 
+                    :max="10" 
+                    show-text
+                  />
+                  <span class="time">{{ formatDate(rating.created_at) }}</span>
+                </div>
+                <div class="rating-comment">{{ rating.comment }}</div>
+              </div>
+            </div>
+            <div v-else class="no-ratings">暂无评分记录</div>
+            
+            <h4 style="margin-top: 20px;">评论历史</h4>
+            <div v-if="novelHistory.activity_history && novelHistory.activity_history.comments.length > 0" class="comments-history">
+              <div 
+                v-for="comment in novelHistory.activity_history.comments" 
+                :key="comment.id" 
+                class="comment-item"
+              >
+                <div class="comment-header">
+                  <span class="username">{{ comment.user?.nickname || '匿名用户' }}</span>
+                  <span class="time">{{ formatDate(comment.created_at) }}</span>
+                </div>
+                <div class="comment-content">{{ comment.content }}</div>
+              </div>
+            </div>
+            <div v-else class="no-comments">暂无评论记录</div>
+          </div>
+        </el-collapse-item>
+      </el-collapse>
     </div>
     
     <!-- 评分对话框 -->
@@ -132,16 +308,28 @@ export default {
     
     const novel = ref(null)
     const comments = ref([])
+    const ratings = ref([]) // 添加评分列表
     const newComment = ref('')
     const commentLoading = ref(false)
     const ratingDialogVisible = ref(false)
     const ratingLoading = ref(false)
     const ratingFormRef = ref(null)
     
+    // 点赞状态管理
+    const likedComments = ref(new Set())
+    const likedRatings = ref(new Set())
+    
     const ratingForm = reactive({
       score: 0,
       comment: ''
     })
+    
+    // 分类和关键词设置相关
+    const showClassificationSection = ref(false)
+    const categories = ref([])
+    const selectedCategory = ref(null)
+    const newKeyword = ref('')
+    const savingClassification = ref(false)
     
     const ratingRules = {
       score: [
@@ -154,6 +342,7 @@ export default {
     
     // 计算属性
     const isAuthenticated = computed(() => userStore.isAuthenticated)
+    const userId = computed(() => userStore.userId)
     const avgRating = computed(() => {
       // 简单计算平均分，实际应该从API获取
       return novel.value?.avg_rating || 0
@@ -162,11 +351,66 @@ export default {
       return novel.value?.rating_count || 0
     })
     
+    // 检查是否显示分类设置区域
+    const checkShowClassificationSection = async () => {
+      if (!isAuthenticated.value || !novel.value) {
+        showClassificationSection.value = false
+        return
+      }
+      
+      try {
+        // 获取用户阅读进度
+        const response = await axios.get(`/api/v1/novels/${route.params.id}/progress`, {
+          headers: {
+            'Authorization': `Bearer ${userStore.token}`
+          }
+        })
+        
+        // 检查进度是否达到20%以上
+        const progress = response.data.data
+        if (progress && progress.progress && progress.progress > 20) {
+          showClassificationSection.value = true
+        } else {
+          showClassificationSection.value = false
+        }
+      } catch (error) {
+        // 如果获取进度失败，仍然可以不显示（或者按其他逻辑处理）
+        showClassificationSection.value = false
+      }
+    }
+    
+    // 检查评论是否已点赞
+    const isCommentLiked = (commentId) => {
+      return likedComments.value.has(commentId)
+    }
+    
+    // 检查评分是否已点赞
+    const isRatingLiked = (ratingId) => {
+      return likedRatings.value.has(ratingId)
+    }
+    
+    // 获取分类列表
+    const fetchCategories = async () => {
+      try {
+        const response = await axios.get('/api/v1/categories')
+        categories.value = response.data.data
+      } catch (error) {
+        console.error('获取分类列表失败:', error)
+      }
+    }
+    
     // 获取小说详情
     const fetchNovelDetail = async () => {
       try {
         const response = await axios.get(`/api/v1/novels/${route.params.id}`)
         novel.value = response.data.data
+        // 如果响应中包含评分信息，更新avgRating和ratingCount
+        if (response.data.data.avg_rating !== undefined) {
+          // 这里avgRating通过计算属性获取，不需要额外设置
+        }
+        
+        // 检查是否显示分类设置区域
+        await checkShowClassificationSection()
       } catch (error) {
         console.error('获取小说详情失败:', error)
         ElMessage.error('获取小说详情失败')
@@ -180,6 +424,16 @@ export default {
         comments.value = response.data.data.comments
       } catch (error) {
         console.error('获取评论失败:', error)
+      }
+    }
+    
+    // 获取评分列表
+    const fetchRatings = async () => {
+      try {
+        const response = await axios.get(`/api/v1/ratings/${route.params.id}`)
+        ratings.value = response.data.data.ratings
+      } catch (error) {
+        console.error('获取评分失败:', error)
       }
     }
     
@@ -263,17 +517,63 @@ export default {
       }
       
       try {
-        await axios.post(`/api/v1/comments/${commentId}/like`, {}, {
-          headers: {
-            'Authorization': `Bearer ${userStore.token}`
-          }
-        })
+        if (isCommentLiked(commentId)) {
+          // 取消点赞
+          await axios.delete(`/api/v1/comments/${commentId}/like`, {
+            headers: {
+              'Authorization': `Bearer ${userStore.token}`
+            }
+          })
+          likedComments.value.delete(commentId)
+        } else {
+          // 点赞
+          await axios.post(`/api/v1/comments/${commentId}/like`, {}, {
+            headers: {
+              'Authorization': `Bearer ${userStore.token}`
+            }
+          })
+          likedComments.value.add(commentId)
+        }
         
-        ElMessage.success('点赞成功')
-        fetchComments() // 刷新评论列表
+        // 刷新评论列表以获取最新的点赞数
+        fetchComments()
       } catch (error) {
-        console.error('点赞失败:', error)
-        ElMessage.error('点赞失败')
+        console.error('操作点赞失败:', error)
+        ElMessage.error('操作点赞失败')
+      }
+    }
+    
+    // 点赞评分
+    const likeRating = async (ratingId) => {
+      if (!isAuthenticated.value) {
+        router.push('/login')
+        return
+      }
+      
+      try {
+        if (isRatingLiked(ratingId)) {
+          // 取消点赞
+          await axios.delete(`/api/v1/ratings/${ratingId}/like`, {
+            headers: {
+              'Authorization': `Bearer ${userStore.token}`
+            }
+          })
+          likedRatings.value.delete(ratingId)
+        } else {
+          // 点赞
+          await axios.post(`/api/v1/ratings/${ratingId}/like`, {}, {
+            headers: {
+              'Authorization': `Bearer ${userStore.token}`
+            }
+          })
+          likedRatings.value.add(ratingId)
+        }
+        
+        // 刷新小说信息以获取最新的评分
+        fetchNovelDetail()
+      } catch (error) {
+        console.error('操作点赞失败:', error)
+        ElMessage.error('操作点赞失败')
       }
     }
     
@@ -292,19 +592,165 @@ export default {
       window.open(`/api/v1/novels/${route.params.id}/download`, '_blank')
     }
     
+    // 添加关键词
+    const addKeyword = () => {
+      if (!newKeyword.value.trim()) {
+        ElMessage.warning('请输入关键词')
+        return
+      }
+      
+      // 检查是否已存在
+      const exists = novel.value.keywords.some(k => k.keyword === newKeyword.value.trim())
+      if (!exists) {
+        novel.value.keywords.push({
+          id: Date.now(), // 临时ID，保存时会更新
+          keyword: newKeyword.value.trim()
+        })
+      }
+      newKeyword.value = ''
+    }
+    
+    // 移除分类
+    const removeCategory = (categoryId) => {
+      novel.value.categories = novel.value.categories.filter(cat => cat.id !== categoryId)
+    }
+    
+    // 移除关键词
+    const removeKeyword = (keywordId) => {
+      novel.value.keywords = novel.value.keywords.filter(kw => kw.id !== keywordId)
+    }
+    
+    // 保存分类和关键词设置
+    const saveClassification = async () => {
+      if (!selectedCategory.value && novel.value.keywords.length === 0) {
+        ElMessage.warning('请至少设置一个分类或关键词')
+        return
+      }
+      
+      try {
+        savingClassification.value = true
+        
+        const payload = {
+          category_id: selectedCategory.value,
+          keywords: novel.value.keywords.map(kw => kw.keyword)
+        }
+        
+        await axios.post(`/api/v1/novels/${route.params.id}/classify`, payload, {
+          headers: {
+            'Authorization': `Bearer ${userStore.token}`
+          }
+        })
+        
+        ElMessage.success('分类和关键词设置成功')
+        selectedCategory.value = null
+      } catch (error) {
+        console.error('保存分类和关键词失败:', error)
+        ElMessage.error('保存分类和关键词失败')
+      } finally {
+        savingClassification.value = false
+      }
+    }
+    
+    // 获取上传频率信息
+    const fetchUploadFrequency = async () => {
+      if (!isAuthenticated.value) return
+      
+      try {
+        const response = await axios.get('/api/v1/users/upload-frequency', {
+          headers: {
+            'Authorization': `Bearer ${userStore.token}`
+          }
+        })
+        uploadFrequency.value = response.data.data
+      } catch (error) {
+        console.error('获取上传频率失败:', error)
+      }
+    }
+    
+    // 获取小说状态
+    const fetchNovelStatus = async () => {
+      if (!isAuthenticated.value || !novel.value) return
+      
+      try {
+        const response = await axios.get(`/api/v1/novels/${route.params.id}/status`, {
+          headers: {
+            'Authorization': `Bearer ${userStore.token}`
+          }
+        })
+        novelStatus.value = response.data.data.status
+      } catch (error) {
+        console.error('获取小说状态失败:', error)
+      }
+    }
+    
+    // 获取小说操作历史
+    const fetchNovelHistory = async () => {
+      if (!isAuthenticated.value || !novel.value) return
+      
+      try {
+        const response = await axios.get(`/api/v1/novels/${route.params.id}/history`, {
+          headers: {
+            'Authorization': `Bearer ${userStore.token}`
+          }
+        })
+        novelHistory.value = response.data.data
+      } catch (error) {
+        console.error('获取小说历史失败:', error)
+      }
+    }
+    
+    // 获取状态类型
+    const getStatusType = (status) => {
+      switch (status) {
+        case 'pending':
+          return 'warning'
+        case 'approved':
+          return 'success'
+        case 'rejected':
+          return 'danger'
+        default:
+          return 'info'
+      }
+    }
+    
+    // 获取状态文本
+    const getStatusText = (status) => {
+      switch (status) {
+        case 'pending':
+          return '待审核'
+        case 'approved':
+          return '已通过'
+        case 'rejected':
+          return '已拒绝'
+        default:
+          return status
+      }
+    }
+    
     // 格式化日期
     const formatDate = (date) => {
       return dayjs(date).format('YYYY-MM-DD')
     }
     
-    onMounted(() => {
-      fetchNovelDetail()
-      fetchComments()
+    // 上传频率信息
+    const uploadFrequency = ref({})
+    const novelStatus = ref({})
+    const novelHistory = ref({})
+    
+    onMounted(async () => {
+      await fetchCategories()
+      await fetchNovelDetail()
+      await fetchComments()
+      await fetchRatings()
+      await fetchUploadFrequency()
+      await fetchNovelStatus()
+      // 操作历史只对特定用户显示，按需获取
     })
     
     return {
       novel,
       comments,
+      ratings,
       newComment,
       commentLoading,
       ratingDialogVisible,
@@ -312,16 +758,39 @@ export default {
       ratingForm,
       ratingFormRef,
       ratingRules,
+      likedComments,
+      likedRatings,
+      showClassificationSection,
+      categories,
+      selectedCategory,
+      newKeyword,
+      savingClassification,
       isAuthenticated,
       avgRating,
       ratingCount,
+      isCommentLiked,
+      isRatingLiked,
+      checkShowClassificationSection,
+      addKeyword,
+      removeCategory,
+      removeKeyword,
+      saveClassification,
       submitComment,
       showRatingDialog,
       submitRating,
       likeComment,
+      likeRating,
       startReading,
       downloadNovel,
-      formatDate
+      formatDate,
+      uploadFrequency,
+      novelStatus,
+      novelHistory,
+      getStatusType,
+      getStatusText,
+      fetchUploadFrequency,
+      fetchNovelStatus,
+      fetchNovelHistory
     }
   }
 }
@@ -496,6 +965,152 @@ export default {
   gap: 15px;
 }
 
+.rating-item {
+  padding: 20px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+.rating-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.username {
+  font-weight: 500;
+  color: #333;
+}
+
+.time {
+  color: #999;
+  font-size: 0.9rem;
+}
+
+.rating-comment {
+  margin-bottom: 15px;
+  line-height: 1.6;
+  color: #333;
+}
+
+.rating-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.classification-section {
+  margin-top: 25px;
+  padding: 20px;
+  background: #f9f9f9;
+  border-radius: 8px;
+  border: 1px solid #eee;
+}
+
+.classification-section h3 {
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.current-classification,
+.current-keywords {
+  margin-bottom: 15px;
+}
+
+.current-classification .el-tag,
+.current-keywords .el-tag {
+  margin-right: 8px;
+  margin-bottom: 5px;
+}
+
+.no-categories,
+.no-keywords {
+  color: #999;
+  font-size: 0.9rem;
+  margin-top: 5px;
+}
+
+.classification-inputs {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.stats .status-tag {
+  margin-left: 10px;
+}
+
+.stats .upload-frequency-tag {
+  margin-left: 10px;
+}
+
+.history-section {
+  margin-top: 30px;
+  padding: 20px;
+  background: #fafafa;
+  border-radius: 8px;
+  border: 1px solid #eee;
+}
+
+.history-content h4 {
+  margin-bottom: 10px;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 5px;
+}
+
+.log-item {
+  padding: 10px;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  background: white;
+}
+
+.log-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.log-action {
+  font-weight: 500;
+  color: #409eff;
+}
+
+.log-time {
+  color: #999;
+  font-size: 0.9rem;
+}
+
+.log-details {
+  color: #666;
+  font-size: 0.9rem;
+  margin-bottom: 5px;
+}
+
+.log-user {
+  color: #999;
+  font-size: 0.8rem;
+}
+
+.no-logs, .no-ratings, .no-comments {
+  color: #999;
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+}
+
+.rating-item, .comment-item {
+  padding: 10px;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  background: white;
+}
+
 @media (max-width: 768px) {
   .novel-header {
     flex-direction: column;
@@ -517,4 +1132,21 @@ export default {
     flex-direction: column;
     gap: 5px;
   }
+  
+  .stats .status-tag,
+  .stats .upload-frequency-tag {
+    margin-left: 0;
+    margin-top: 5px;
+  }
+  
+  .classification-inputs {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .classification-inputs .el-select,
+  .classification-inputs .el-input {
+    width: 100% !important;
+  }
 }
+</style>

@@ -1,103 +1,142 @@
 package utils
 
 import (
-	"archive/zip"
-	"io"
+	"bufio"
 	"os"
 	"regexp"
 	"strings"
+	"xiaoshuo-backend/models"
 )
 
-// ReadFileContent 读取文件内容
-func ReadFileContent(filepath string) (string, error) {
-	// 检查文件扩展名以确定处理方式
-	if strings.HasSuffix(strings.ToLower(filepath), ".epub") {
-		return readEpubContent(filepath)
-	}
-	
-	// 对于.txt文件，直接读取
+// ParseChapterFromTXT 解析TXT文件的章节
+func ParseChapterFromTXT(filepath string) ([]models.Chapter, error) {
 	file, err := os.Open(filepath)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer file.Close()
 
-	content, err := io.ReadAll(file)
-	if err != nil {
-		return "", err
+	scanner := bufio.NewScanner(file)
+	var lines []string
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
 	}
 
-	return string(content), nil
-}
-
-// readEpubContent 读取EPUB文件内容
-func readEpubContent(filepath string) (string, error) {
-	// 打开EPUB文件（EPUB本质上是一个ZIP文件）
-	reader, err := zip.OpenReader(filepath)
-	if err != nil {
-		return "", err
+	if err := scanner.Err(); err != nil {
+		return nil, err
 	}
-	defer reader.Close()
 
-	var fullText strings.Builder
-	
-	// 遍历EPUB文件中的所有文件
-	for _, file := range reader.File {
-		// 检查文件是否是HTML或XHTML文件（通常是内容文件）
-		if isContentFile(file.Name) {
-			f, err := file.Open()
-			if err != nil {
-				continue // 跳过无法打开的文件
+	// 定义章节标题的正则表达式
+	// 支持中文数字和阿拉伯数字的章节格式
+	chapterRegex := regexp.MustCompile(`^(第[一二三四五六七八九十百千万零\d]+[章节回部卷].*|Chapter\s+\d+|Prologue|Epilogue|引子|序|尾声|后记|\d+\..*|.*卷.*|\d+)$`)
+
+	var chapters []models.Chapter
+	var currentChapter *models.Chapter
+	chapterIndex := 1
+
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		// 检查是否是章节标题（长度不能太长，一般章节标题不会超过50个字符）
+		if chapterRegex.MatchString(trimmedLine) && len(trimmedLine) < 50 {
+			// 如果已经有当前章节，先保存它
+			if currentChapter != nil && currentChapter.Content != "" {
+				currentChapter.WordCount = calculateWordCount(currentChapter.Content)
+				chapters = append(chapters, *currentChapter)
 			}
-			
-			// 读取文件内容
-			contentBytes, err := io.ReadAll(f)
-			f.Close() // 立即关闭文件
-			
-			if err != nil {
-				continue // 跳过读取失败的文件
+
+			// 创建新章节
+			currentChapter = &models.Chapter{
+				Title:    trimmedLine,
+				Content:  "",
+				Position: chapterIndex,
 			}
-			
-			// 移除HTML标签，只保留文本内容
-			textContent := removeHTMLTags(string(contentBytes))
-			
-			// 将内容添加到结果中
-			fullText.WriteString("\n")
-			fullText.WriteString(textContent)
+			chapterIndex++
+		} else {
+			// 如果当前有章节，将当前行添加到章节内容中
+			if currentChapter != nil {
+				if currentChapter.Content != "" {
+					currentChapter.Content += "\n"
+				}
+				currentChapter.Content += line
+			}
 		}
 	}
 
-	return fullText.String(), nil
-}
-
-// isContentFile 检查文件是否是EPUB内容文件
-func isContentFile(filename string) bool {
-	// 检查是否是HTML或XHTML文件，但排除导航文件
-	lowerName := strings.ToLower(filename)
-	if strings.HasSuffix(lowerName, ".html") || 
-	   strings.HasSuffix(lowerName, ".xhtml") ||
-	   strings.HasSuffix(lowerName, ".htm") {
-		// 排除一些常见的非内容文件
-		if strings.Contains(lowerName, "toc") || 
-		   strings.Contains(lowerName, "nav") ||
-		   strings.Contains(lowerName, "cover") ||
-		   strings.Contains(lowerName, "titlepage") {
-			return false
-		}
-		return true
+	// 保存最后一个章节
+	if currentChapter != nil && currentChapter.Content != "" {
+		currentChapter.WordCount = calculateWordCount(currentChapter.Content)
+		chapters = append(chapters, *currentChapter)
 	}
-	return false
+
+	// 如果没有找到任何章节，将整个文件作为一个章节
+	if len(chapters) == 0 {
+		content, err := ReadFileContent(filepath)
+		if err != nil {
+			return nil, err
+		}
+		chapters = []models.Chapter{
+			{
+				Title:     "第一章",
+				Content:   content,
+				Position:  1,
+				WordCount: calculateWordCount(content),
+			},
+		}
+	}
+
+	return chapters, nil
 }
 
-// removeHTMLTags 移除HTML标签，只保留文本内容
-func removeHTMLTags(html string) string {
-	// 使用正则表达式移除HTML标签
+// ParseChapterFromEPUB 解析EPUB文件的章节
+func ParseChapterFromEPUB(filepath string) ([]models.Chapter, error) {
+	// 由于EPUB解析库的复杂性，我们返回一个占位章节
+	// 在实际部署中，需要使用EPUB解析库来提取章节
+	content, err := ReadFileContent(filepath)
+	if err != nil {
+		return nil, err
+	}
+
+	// 对于EPUB文件，我们暂时返回一个包含整个内容的章节
+	chapters := []models.Chapter{
+		{
+			Title:     "第一章",
+			Content:   removeHTMLTags(content),
+			Position:  1,
+			WordCount: calculateWordCount(removeHTMLTags(content)),
+		},
+	}
+
+	return chapters, nil
+}
+
+// removeHTMLTags 移除HTML标签
+func removeHTMLTags(htmlContent string) string {
+	// 使用正则表达式简单移除HTML标签
 	re := regexp.MustCompile(`<[^>]*>`)
-	text := re.ReplaceAllString(html, " ")
-	
-	// 清理多余的空白字符
-	text = regexp.MustCompile(`\s+`).ReplaceAllString(text, " ")
-	
-	// 去除首尾空白
-	return strings.TrimSpace(text)
+	return re.ReplaceAllString(htmlContent, "")
+}
+
+// calculateWordCount 计算字数
+func calculateWordCount(content string) int {
+	// 移除空白字符后计算长度
+	cleaned := strings.ReplaceAll(content, " ", "")
+	cleaned = strings.ReplaceAll(cleaned, "\n", "")
+	cleaned = strings.ReplaceAll(cleaned, "\t", "")
+	cleaned = strings.ReplaceAll(cleaned, "\r", "")
+	cleaned = strings.TrimSpace(cleaned)
+	return len([]rune(cleaned)) // 使用rune来正确处理中文字符
+}
+
+// IsEPUBFile 检查文件是否为EPUB格式
+func IsEPUBFile(filepath string) bool {
+	return strings.ToLower(filepath[len(filepath)-5:]) == ".epub"
+}
+
+// ReadFileContent 读取文件内容
+func ReadFileContent(filepath string) (string, error) {
+	content, err := os.ReadFile(filepath)
+	if err != nil {
+		return "", err
+	}
+	return string(content), nil
 }

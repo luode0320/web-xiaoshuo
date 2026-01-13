@@ -16,9 +16,18 @@
       </div>
       
       <!-- 阅读区域 -->
-      <div class="reading-area" :style="readerStyle">
-        <div class="chapter-title">{{ currentChapter }}</div>
-        <div class="content-text" v-html="processedContent"></div>
+      <div 
+        class="reading-area" 
+        :style="readerStyle"
+        @click="handleReadingAreaClick"
+        @touchstart="handleTouchStart"
+        @touchend="handleTouchEnd"
+      >
+        <div v-if="isEpub" class="epub-container" style="height: 100%; width: 100%;"></div>
+        <div v-else>
+          <div class="chapter-title">{{ currentChapter }}</div>
+          <div class="content-text" v-html="processedContent"></div>
+        </div>
       </div>
       
       <!-- 阅读器底部 -->
@@ -92,11 +101,19 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted, computed, watch } from 'vue'
+import { ref, reactive, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
+
+// 尝试导入epub库
+let ePub = null
+try {
+  ePub = require('epubjs')
+} catch (e) {
+  console.warn('epubjs library not found, EPUB functionality will be limited')
+}
 
 export default {
   name: 'Reader',
@@ -110,13 +127,18 @@ export default {
     const novel = ref(null)
     const content = ref('')
     const showSettings = ref(false)
+    const isEpub = ref(false)
+    const epubBook = ref(null)
+    const epubRendition = ref(null)
+    const epubCurrentLocation = ref(null)
     
     // 阅读设置
     const settings = reactive({
       fontSize: 16,
       backgroundColor: 'white',
       fontFamily: 'serif',
-      lineHeight: 1.6
+      lineHeight: 1.6,
+      theme: 'light'  // 新增主题选项
     })
     
     // 章节信息
@@ -181,6 +203,9 @@ export default {
       try {
         const response = await axios.get(`/api/v1/novels/${route.params.id}`)
         novel.value = response.data.data
+        
+        // 检查是否为EPUB格式
+        isEpub.value = novel.value.file_path.toLowerCase().endsWith('.epub')
       } catch (error) {
         console.error('获取小说信息失败:', error)
         ElMessage.error('获取小说信息失败')
@@ -189,16 +214,85 @@ export default {
     
     const loadContent = async () => {
       try {
-        const response = await axios.get(`/api/v1/novels/${route.params.id}/content`)
-        content.value = response.data.data.content
-        
-        // 简单解析章节（实际应用中可能需要更复杂的解析）
-        parseChapters(content.value)
+        if (isEpub.value && ePub) {
+          // 加载EPUB格式
+          await loadEpubContent()
+        } else {
+          // 加载文本内容
+          const response = await axios.get(`/api/v1/novels/${route.params.id}/content`)
+          content.value = response.data.data.content
+          
+          // 简单解析章节（实际应用中可能需要更复杂的解析）
+          parseChapters(content.value)
+        }
       } catch (error) {
         console.error('获取小说内容失败:', error)
         ElMessage.error('获取小说内容失败')
       } finally {
         loading.value = false
+      }
+    }
+    
+    const loadEpubContent = async () => {
+      try {
+        // 使用流式加载EPUB内容
+        const epubUrl = `/api/v1/novels/${route.params.id}/content`
+        
+        // 创建EPUB书籍实例
+        epubBook.value = ePub(epubUrl, {
+          requestCredentials: 'include' // 确保发送认证信息
+        })
+        
+        // 获取章节信息
+        await epubBook.value.ready
+        const spine = epubBook.value.spine
+        const epubChapters = []
+        
+        for (let i = 0; i < spine.length; i++) {
+          const item = spine[i]
+          epubChapters.push({
+            id: item.id,
+            href: item.href,
+            title: item.title || `Chapter ${i + 1}`,
+            index: i
+          })
+        }
+        
+        chapters.value = epubChapters
+        
+        // 渲染EPUB到阅读器容器
+        const container = document.querySelector('.epub-container') || document.body
+        epubRendition.value = epubBook.value.renderTo(container, {
+          width: '100%',
+          height: '80vh',
+          // 使用流式加载
+          manager: 'continuous',
+          flow: 'paginated',
+          ignoreClass: 'annotator-hl'
+        })
+        
+        // 开始渲染
+        await epubRendition.value.display()
+        
+        // 监听位置变化
+        epubRendition.value.on('relocated', (location) => {
+          epubCurrentLocation.value = location
+          // 更新章节索引
+          if (location && location.start) {
+            const spinePos = epubBook.value.spine.get(location.start.href)
+            if (spinePos) {
+              currentChapterIndex.value = spinePos.index
+            }
+          }
+        })
+        
+      } catch (error) {
+        console.error('加载EPUB内容失败:', error)
+        // 如果EPUB加载失败，尝试作为文本加载
+        const response = await axios.get(`/api/v1/novels/${route.params.id}/content`)
+        content.value = response.data.data.content
+        parseChapters(content.value)
+        isEpub.value = false
       }
     }
     
@@ -287,17 +381,106 @@ export default {
       }
     }
     
+    // 翻页相关
+    const startX = ref(0)
+    const startY = ref(0)
+    
+    const handleReadingAreaClick = (event) => {
+      // 获取点击位置相对于阅读区域的坐标
+      const rect = event.target.closest('.reading-area').getBoundingClientRect()
+      const x = event.clientX - rect.left
+      const percentage = x / rect.width
+      
+      if (percentage < 0.3) {
+        // 左侧30%区域，上一页/上一章
+        prevPage()
+      } else if (percentage > 0.7) {
+        // 右侧30%区域，下一页/下一章
+        nextPage()
+      }
+    }
+    
+    const handleTouchStart = (event) => {
+      startX.value = event.touches[0].clientX
+      startY.value = event.touches[0].clientY
+    }
+    
+    const handleTouchEnd = (event) => {
+      if (!startX.value || !startY.value) return
+      
+      const endX = event.changedTouches[0].clientX
+      const endY = event.changedTouches[0].clientY
+      const diffX = endX - startX.value
+      const diffY = endY - startY.value
+      
+      // 检查是否是水平滑动（而不是垂直滚动）
+      if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 30) {
+        if (diffX > 0) {
+          // 向右滑动，上一页
+          prevPage()
+        } else {
+          // 向左滑动，下一页
+          nextPage()
+        }
+      }
+      
+      startX.value = 0
+      startY.value = 0
+    }
+    
+    const prevPage = () => {
+      if (isEpub.value && epubRendition.value) {
+        // EPUB格式翻页
+        epubRendition.value.prev()
+      } else {
+        // 文本格式，翻章
+        if (currentChapterIndex.value > 0) {
+          currentChapterIndex.value--
+          updateChapterContent()
+        }
+      }
+    }
+    
+    const nextPage = () => {
+      if (isEpub.value && epubRendition.value) {
+        // EPUB格式翻页
+        epubRendition.value.next()
+      } else {
+        // 文本格式，翻章
+        if (currentChapterIndex.value < totalChapters.value - 1) {
+          currentChapterIndex.value++
+          updateChapterContent()
+        }
+      }
+    }
+    
     const prevChapter = () => {
       if (currentChapterIndex.value > 0) {
         currentChapterIndex.value--
-        updateChapterContent()
+        if (isEpub.value && epubRendition.value) {
+          // 对于EPUB，跳转到指定章节
+          const chapterHref = chapters.value[currentChapterIndex.value]?.href
+          if (chapterHref) {
+            epubRendition.value.display(chapterHref)
+          }
+        } else {
+          updateChapterContent()
+        }
       }
     }
     
     const nextChapter = () => {
       if (currentChapterIndex.value < totalChapters.value - 1) {
         currentChapterIndex.value++
-        updateChapterContent()
+        if (isEpub.value && epubRendition.value) {
+          // 对于EPUB，跳转到指定章节
+          const chapterHref = chapters.value[currentChapterIndex.value]?.href
+          if (chapterHref) {
+            epubRendition.value.display(chapterHref)
+          }
+        } else {
+          updateChapterContent()
+        }
       }
     }
     
@@ -323,10 +506,26 @@ export default {
       saveReadingProgress()
     })
     
+    const unloadEpub = () => {
+      if (epubRendition.value) {
+        epubRendition.value.destroy()
+        epubRendition.value = null
+      }
+      if (epubBook.value) {
+        epubBook.value.destroy()
+        epubBook.value = null
+      }
+    }
+    
     onMounted(async () => {
       await loadNovel()
       await loadContent()
       await loadReadingProgress()
+    })
+    
+    onUnmounted(() => {
+      // 组件卸载时清理EPUB资源
+      unloadEpub()
     })
     
     return {
@@ -342,6 +541,7 @@ export default {
       currentChapter,
       processedContent,
       readerStyle,
+      isEpub,
       fontSize: computed({
         get: () => settings.fontSize,
         set: (value) => { settings.fontSize = value }
@@ -360,6 +560,11 @@ export default {
       }),
       prevChapter,
       nextChapter,
+      prevPage,
+      nextPage,
+      handleReadingAreaClick,
+      handleTouchStart,
+      handleTouchEnd,
       onProgressChange,
       formatChapter,
       saveSettings,
@@ -412,6 +617,37 @@ export default {
   padding: 40px 20px;
   text-align: justify;
   color: #333;
+  cursor: pointer; /* 添加指针光标表示可点击 */
+  position: relative;
+}
+
+/* EPUB阅读器容器样式 */
+.epub-container {
+  width: 100%;
+  height: 100%;
+}
+
+/* 为EPUB阅读器添加翻页指示器 */
+.reading-area::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 10%;
+  left: 0;
+  background: rgba(0, 0, 0, 0.02);
+  pointer-events: none;
+}
+
+.reading-area::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 10%;
+  right: 0;
+  background: rgba(0, 0, 0, 0.02);
+  pointer-events: none;
 }
 
 .chapter-title {
@@ -489,6 +725,12 @@ export default {
   
   .navigation .el-button {
     margin: 0;
+  }
+  
+  /* 移动端翻页指示器更明显 */
+  .reading-area::before,
+  .reading-area::after {
+    width: 15%;
   }
 }
 </style>

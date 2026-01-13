@@ -13,6 +13,8 @@ type User struct {
 	Nickname         string `gorm:"default:null" json:"nickname"`
 	IsActive         bool   `gorm:"default:true" json:"is_active"`
 	IsAdmin          bool   `gorm:"default:false" json:"is_admin"`
+	IsActivated      bool   `gorm:"default:false" json:"is_activated"` // 用户是否已激活
+	ActivationCode   string `gorm:"size:255" json:"-"` // 激活码
 	LastLoginAt      *gorm.DeletedAt `json:"last_login_at"`
 	LastReadNovelID  *uint  `json:"last_read_novel_id"` // 最后阅读的小说ID
 }
