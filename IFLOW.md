@@ -243,7 +243,7 @@ export default defineConfig({
 - `GET /api/v1/novels/:id/content` - 获取小说内容
 - `GET /api/v1/novels/:id/content-stream` - 流式获取小说内容
 - `GET /api/v1/novels/:id/chapters` - 获取小说章节列表 (需要认证)
-- `GET /api/v1/novels/:novel_id/chapters/:chapter_id` - 获取章节内容 (需要认证)
+- `GET /api/v1/chapters/:id` - 获取章节内容 (需要认证)
 - `POST /api/v1/novels/:id/click` - 记录小说点击量
 - `DELETE /api/v1/novels/:id` - 删除小说 (需要认证，上传者或管理员)
 - `GET /api/v1/novels/:id/status` - 获取小说状态 (需要认证)
@@ -260,7 +260,7 @@ export default defineConfig({
 
 ### 评分相关路由
 - `POST /api/v1/ratings` - 提交评分 (需要认证)
-- `GET /api/v1/ratings/:novel_id` - 获取评分信息
+- `GET /api/v1/ratings/novel/:novel_id` - 获取评分信息
 - `DELETE /api/v1/ratings/:id` - 删除评分 (需要认证)
 - `POST /api/v1/ratings/:id/like` - 点赞评分 (需要认证)
 - `DELETE /api/v1/ratings/:id/like` - 取消点赞评分 (需要认证)
@@ -330,6 +330,15 @@ export default defineConfig({
 2. 安装依赖：`npm install`
 3. 启动开发服务器：`npm run dev`
 4. 前端开发服务器将启动在 `http://localhost:3000`
+
+### 前端开发脚本
+- `npm run dev` - 启动开发服务器
+- `npm run build` - 构建生产版本
+- `npm run preview` - 预览构建结果
+- `npm run lint` - 代码检查
+- `npm run test` - 运行测试
+- `npm run test:run` - 运行测试（一次性）
+- `npm run test:ui` - 运行测试UI界面
 
 ### 生产环境部署
 - **前端构建**: `npm run build`，构建后的文件位于 `xiaoshuo-frontend/dist/`
@@ -642,3 +651,8 @@ func (ReadingProgress) TableName() string {
 - **管理员增强**: 新增了系统消息管理、审核标准管理等高级管理功能
 - **阅读统计**: 新增了阅读时长统计、用户活动日志等功能
 - **搜索优化**: 实现了搜索建议、搜索统计等高级搜索功能
+- **流式加载**: 实现了小说内容的流式加载功能，支持Range请求
+- **上传频率限制**: 实现了用户每日上传频率限制机制
+- **活动历史**: 实现了小说操作历史查看功能
+- **前端测试**: 新增了vitest测试框架
+- **章节路由**: 修正了章节内容获取的路由结构
