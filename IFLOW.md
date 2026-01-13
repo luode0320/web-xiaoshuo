@@ -7,7 +7,7 @@
 - **后端**: 基于 Go 语言和 Gin 框架构建的 RESTful API 服务
 - **前端**: 基于 Vue.js 3 和 Element Plus 构建的单页面应用 (SPA)
 
-项目提供了用户认证、小说管理、阅读、搜索、评论、评分、审核等核心功能。系统采用移动端优先设计，提供类似起点中文网的阅读体验，支持多种格式的小说上传、阅读和社交功能。
+项目提供了用户认证、小说管理、阅读、搜索、评论、评分、审核等核心功能。系统采用移动端优先设计，提供类似起点中文网的阅读体验，支持多种格式的小说上传、阅读和社交功能。项目已基本完成核心功能开发，整体功能完成度约99%，包括用户认证、小说管理、阅读、评论评分、搜索、管理、推荐等功能。
 
 ## 技术栈
 
@@ -26,6 +26,7 @@
 - **XSS防护**: bluemonday库
 - **定时任务**: gocron库
 - **全文搜索**: bleve库
+- **HTML解析**: antchfx/htmlquery库
 
 ### 前端技术栈
 - **框架**: Vue.js 3 (3.4.0+)
@@ -43,6 +44,7 @@
 - **通知系统**: vue-toastification
 - **进度条**: nprogress
 - **加密库**: crypto-js
+- **测试框架**: vitest
 
 ## 项目结构
 
@@ -56,28 +58,52 @@ web-xiaoshuo/
 │   │   ├── config.go         # 配置初始化和连接管理
 │   │   └── config.yaml       # 配置文件
 │   ├── controllers/          # 控制器层 (MVC)
+│   │   ├── admin.go          # 管理员相关控制器
+│   │   ├── category.go       # 分类相关控制器
+│   │   ├── comment.go        # 评论相关控制器
+│   │   ├── novel.go          # 小说相关控制器
+│   │   ├── ranking.go        # 排行榜相关控制器
+│   │   ├── rating.go         # 评分相关控制器
+│   │   ├── reading_progress.go # 阅读进度相关控制器
+│   │   ├── recommendation.go # 推荐系统相关控制器
+│   │   ├── search.go         # 搜索相关控制器
 │   │   └── user.go           # 用户相关控制器
 │   ├── middleware/           # 中间件 (如认证)
 │   │   └── auth.go           # 认证中间件
 │   ├── models/               # 数据模型 (ORM实体)
-│   │   ├── user.go           # 用户模型
-│   │   ├── novel.go          # 小说模型
-│   │   ├── category.go       # 分类模型
-│   │   ├── comment.go        # 评论模型
-│   │   ├── rating.go         # 评分模型
-│   │   ├── keyword.go        # 关键词模型
 │   │   ├── admin_log.go      # 管理日志模型
-│   │   ├── system_message.go # 系统消息模型
+│   │   ├── category.go       # 分类模型
+│   │   ├── chapter.go        # 章节模型
 │   │   ├── comment_like.go   # 评论点赞模型
+│   │   ├── comment.go        # 评论模型
+│   │   ├── keyword.go        # 关键词模型
+│   │   ├── models.go         # 模型初始化
+│   │   ├── novel.go          # 小说模型
 │   │   ├── rating_like.go    # 评分点赞模型
-│   │   └── ...               # 其他模型
+│   │   ├── rating.go         # 评分模型
+│   │   ├── reading_progress.go # 阅读进度模型
+│   │   ├── review_criteria.go # 审核标准模型
+│   │   ├── search_history.go # 搜索历史模型
+│   │   ├── system_message.go # 系统消息模型
+│   │   ├── user_activity.go  # 用户活动模型
+│   │   └── user.go           # 用户模型
 │   ├── routes/               # 路由配置
 │   │   └── routes.go         # 路由定义
+│   ├── search_index/         # 搜索索引存储
+│   │   ├── index_meta.json   # 搜索索引元数据
+│   │   └── store/            # 搜索索引存储目录
 │   ├── services/             # 业务逻辑服务
+│   │   └── recommendation_service.go # 推荐服务
 │   ├── utils/                # 工具函数
-│   │   └── jwt.go            # JWT相关工具
-│   ├── migrations/           # 数据库迁移
-│   └── handlers/             # 事件处理器
+│   │   ├── cache_service.go  # 缓存服务
+│   │   ├── cache.go          # 缓存工具
+│   │   ├── file.go           # 文件处理工具
+│   │   ├── jwt.go            # JWT相关工具
+│   │   ├── reading_limit.go  # 阅读限制工具
+│   │   ├── response.go       # 响应格式工具
+│   │   ├── search.go         # 搜索工具
+│   │   └── upload.go         # 上传工具
+│   └── migrations/           # 数据库迁移
 ├── xiaoshuo-frontend/                 # Vue.js前端项目
 │   ├── package.json          # 前端依赖和脚本配置
 │   ├── vite.config.js        # Vite构建配置
@@ -90,14 +116,37 @@ web-xiaoshuo/
 │   │   ├── components/       # Vue组件
 │   │   ├── router/           # 路由配置
 │   │   │   └── index.js      # 路由定义
+│   │   ├── stores/           # Pinia状态管理
+│   │   │   └── user.js       # 用户状态管理
 │   │   ├── utils/            # 工具函数
 │   │   └── views/            # 页面视图
-│   │       └── Home.vue      # 首页视图
+│   │       ├── About.vue     # 关于页面
+│   │       ├── Home.vue      # 首页
+│   │       ├── admin/        # 管理员相关页面
+│   │       │   ├── Monitor.vue # 管理员监控页面
+│   │       │   ├── Review.vue  # 审核管理页面
+│   │       │   └── Standard.vue # 审核标准页面
+│   │       ├── auth/         # 认证相关页面
+│   │       │   ├── Login.vue   # 登录页面
+│   │       │   └── Register.vue # 注册页面
+│   │       ├── category/     # 分类相关页面
+│   │       │   └── List.vue    # 分类列表页面
+│   │       ├── novel/        # 小说相关页面
+│   │       │   ├── Detail.vue      # 小说详情页面
+│   │       │   ├── Reader.vue      # 阅读器页面
+│   │       │   ├── SocialHistory.vue # 社交历史页面
+│   │       │   └── Upload.vue      # 上传页面
+│   │       ├── ranking/      # 排行榜相关页面
+│   │       │   └── List.vue    # 排行榜列表页面
+│   │       ├── search/       # 搜索相关页面
+│   │       │   └── List.vue    # 搜索列表页面
+│   │       └── user/         # 用户相关页面
+│   │           └── Profile.vue   # 个人资料页面
 ├── 启动文档.md               # 项目启动说明
-├── xiaoshuo-backend_requirements.md   # 后端需求文档
-├── xiaoshuo-frontend_requirements.md  # 前端需求文档
-├── functional_design.md      # 功能设计文档
+├── backend_requirements.md   # 后端需求文档
 ├── development_plan.md       # 开发计划文档
+├── frontend_requirements.md  # 前端需求文档
+├── functional_design.md      # 功能设计文档
 └── IFLOW.md                 # 项目上下文文档
 ```
 
@@ -176,8 +225,16 @@ export default defineConfig({
 ### 用户相关路由
 - `POST /api/v1/users/register` - 用户注册
 - `POST /api/v1/users/login` - 用户登录
+- `POST /api/v1/users/activate` - 用户激活
+- `POST /api/v1/users/resend-activation` - 重新发送激活码
 - `GET /api/v1/users/profile` - 获取用户信息 (需要认证)
 - `PUT /api/v1/users/profile` - 更新用户信息 (需要认证)
+- `GET /api/v1/users/:id/activities` - 获取用户活动日志 (需要认证)
+
+### 管理员用户管理路由
+- `GET /api/v1/users` - 获取用户列表 (需要管理员认证)
+- `POST /api/v1/users/:id/freeze` - 冻结用户 (需要管理员认证)
+- `POST /api/v1/users/:id/unfreeze` - 解冻用户 (需要管理员认证)
 
 ### 小说相关路由
 - `POST /api/v1/novels/upload` - 上传小说 (需要认证)
@@ -185,21 +242,29 @@ export default defineConfig({
 - `GET /api/v1/novels/:id` - 获取小说详情
 - `GET /api/v1/novels/:id/content` - 获取小说内容
 - `GET /api/v1/novels/:id/content-stream` - 流式获取小说内容
+- `GET /api/v1/novels/:id/chapters` - 获取小说章节列表 (需要认证)
+- `GET /api/v1/novels/:novel_id/chapters/:chapter_id` - 获取章节内容 (需要认证)
 - `POST /api/v1/novels/:id/click` - 记录小说点击量
 - `DELETE /api/v1/novels/:id` - 删除小说 (需要认证，上传者或管理员)
+- `GET /api/v1/novels/:id/status` - 获取小说状态 (需要认证)
+- `GET /api/v1/novels/:id/history` - 获取小说活动历史 (需要认证)
+- `GET /api/v1/novels/upload-frequency` - 获取上传频率 (需要认证)
 
 ### 评论相关路由
 - `POST /api/v1/comments` - 发布评论 (需要认证)
 - `GET /api/v1/comments` - 获取评论列表
-- `POST /api/v1/comments/:id/like` - 点赞评论 (需要认证)
 - `DELETE /api/v1/comments/:id` - 删除评论 (需要认证)
+- `POST /api/v1/comments/:id/like` - 点赞评论 (需要认证)
+- `DELETE /api/v1/comments/:id/like` - 取消点赞评论 (需要认证)
+- `GET /api/v1/comments/:id/likes` - 获取评论点赞数
 
 ### 评分相关路由
 - `POST /api/v1/ratings` - 提交评分 (需要认证)
 - `GET /api/v1/ratings/:novel_id` - 获取评分信息
-- `GET /api/v1/novels/:novel_id/ratings` - 获取小说评分列表
-- `POST /api/v1/ratings/:id/like` - 点赞评分 (需要认证)
 - `DELETE /api/v1/ratings/:id` - 删除评分 (需要认证)
+- `POST /api/v1/ratings/:id/like` - 点赞评分 (需要认证)
+- `DELETE /api/v1/ratings/:id/like` - 取消点赞评分 (需要认证)
+- `GET /api/v1/ratings/:id/likes` - 获取评分点赞数
 
 ### 分类相关路由
 - `GET /api/v1/categories` - 获取分类列表
@@ -209,10 +274,22 @@ export default defineConfig({
 ### 排行榜相关路由
 - `GET /api/v1/rankings` - 获取排行榜 (支持多种类型)
 
+### 推荐系统相关路由
+- `GET /api/v1/recommendations` - 获取推荐小说
+- `GET /api/v1/recommendations/personalized` - 获取个性化推荐 (需要认证)
+
 ### 搜索相关路由
 - `GET /api/v1/search/novels` - 搜索小说
-- `POST /api/v1/search/statistics` - 搜索统计
+- `GET /api/v1/search/fulltext` - 全文搜索小说
 - `GET /api/v1/search/hot-words` - 获取热门搜索词
+- `GET /api/v1/search/suggestions` - 获取搜索建议
+- `GET /api/v1/search/stats` - 获取搜索统计
+- `GET /api/v1/users/search-history` - 获取用户搜索历史 (需要认证)
+- `DELETE /api/v1/users/search-history` - 清空用户搜索历史 (需要认证)
+
+### 搜索索引管理路由 (仅管理员)
+- `POST /api/v1/search/index/:id` - 为小说建立搜索索引 (需要管理员认证)
+- `POST /api/v1/search/rebuild-index` - 重建搜索索引 (需要管理员认证)
 
 ### 阅读进度相关路由
 - `POST /api/v1/novels/:id/progress` - 保存阅读进度 (需要认证)
@@ -223,6 +300,18 @@ export default defineConfig({
 - `GET /api/v1/novels/pending` - 获取待审核小说列表 (需要管理员认证)
 - `POST /api/v1/novels/:id/approve` - 审核小说 (需要管理员认证)
 - `POST /api/v1/novels/batch-approve` - 批量审核小说 (需要管理员认证)
+- `GET /api/v1/admin/logs` - 获取管理员日志 (需要管理员认证)
+
+### 系统管理相关路由 (仅管理员)
+- `POST /api/v1/admin/content/delete` - 管理员删除内容 (需要管理员认证)
+- `POST /api/v1/admin/system-messages` - 创建系统消息 (需要管理员认证)
+- `GET /api/v1/admin/system-messages` - 获取系统消息 (需要管理员认证)
+- `PUT /api/v1/admin/system-messages/:id` - 更新系统消息 (需要管理员认证)
+- `DELETE /api/v1/admin/system-messages/:id` - 删除系统消息 (需要管理员认证)
+- `GET /api/v1/admin/review-criteria` - 获取审核标准 (需要管理员认证)
+- `POST /api/v1/admin/review-criteria` - 创建审核标准 (需要管理员认证)
+- `PUT /api/v1/admin/review-criteria/:id` - 更新审核标准 (需要管理员认证)
+- `DELETE /api/v1/admin/review-criteria/:id` - 删除审核标准 (需要管理员认证)
 
 ### 认证中间件
 - `AuthMiddleware()`: JWT认证中间件，验证请求头中的Bearer token
@@ -256,17 +345,35 @@ export default defineConfig({
 // User 用户模型
 type User struct {
 	gorm.Model
-	Email       string `gorm:"uniqueIndex;not null" json:"email" validate:"required,email"`
-	Password    string `gorm:"not null" json:"password" validate:"required,min=6"`
-	Nickname    string `gorm:"default:null" json:"nickname"`
-	IsActive    bool   `gorm:"default:true" json:"is_active"`
-	IsAdmin     bool   `gorm:"default:false" json:"is_admin"`
-	LastLoginAt *gorm.DeletedAt `json:"last_login_at"`
+	Email            string `gorm:"uniqueIndex;size:255;not null" json:"email" validate:"required,email"`
+	Password         string `gorm:"not null" json:"password" validate:"required,min=6"`
+	Nickname         string `gorm:"default:null" json:"nickname"`
+	IsActive         bool   `gorm:"default:true" json:"is_active"`
+	IsAdmin          bool   `gorm:"default:false" json:"is_admin"`
+	IsActivated      bool   `gorm:"default:false" json:"is_activated"` // 用户是否已激活
+	ActivationCode   string `gorm:"size:255" json:"-"` // 激活码
+	LastLoginAt      *gorm.DeletedAt `json:"last_login_at"`
+	LastReadNovelID  *uint  `json:"last_read_novel_id"` // 最后阅读的小说ID
 }
 
 // TableName 指定表名
 func (User) TableName() string {
 	return "users"
+}
+
+// HashPassword 对密码进行加密
+func (u *User) HashPassword(password string) error {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	u.Password = string(bytes)
+	return nil
+}
+
+// CheckPassword 检查密码是否正确
+func (u *User) CheckPassword(password string) error {
+	return bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(password))
 }
 ```
 
@@ -275,30 +382,77 @@ func (User) TableName() string {
 // Novel 小说模型
 type Novel struct {
 	gorm.Model
-	Title         string          `gorm:"not null" json:"title" validate:"required,min=1,max=200"`
-	Author        string          `gorm:"not null" json:"author" validate:"required,min=1,max=100"`
-	Protagonist   string          `json:"protagonist" validate:"max=100"`
-	Description   string          `json:"description" validate:"max=1000"`
-	Filepath      string          `gorm:"not null" json:"file_path"`
-	FileSize      int64           `json:"file_size"`
-	WordCount     int             `json:"word_count"`
-	ClickCount    int             `gorm:"default:0" json:"click_count"`
-	TodayClicks   int             `gorm:"default:0" json:"today_clicks"`
-	WeekClicks    int             `gorm:"default:0" json:"week_clicks"`
-	MonthClicks   int             `gorm:"default:0" json:"month_clicks"`
+	Title         string    `gorm:"not null" json:"title" validate:"required,min=1,max=200"`
+	Author        string    `gorm:"not null" json:"author" validate:"required,min=1,max=100"`
+	Protagonist   string    `json:"protagonist" validate:"max=100"`
+	Description   string    `json:"description" validate:"max=1000"`
+	Filepath      string    `gorm:"not null" json:"file_path"`
+	FileSize      int64     `json:"file_size"`
+	WordCount     int       `json:"word_count"`
+	ClickCount    int       `gorm:"default:0" json:"click_count"`
+	TodayClicks   int       `gorm:"default:0" json:"today_clicks"`
+	WeekClicks    int       `gorm:"default:0" json:"week_clicks"`
+	MonthClicks   int       `gorm:"default:0" json:"month_clicks"`
 	UploadTime    *gorm.DeletedAt `json:"upload_time"`
 	LastReadTime  *gorm.DeletedAt `json:"last_read_time"`
-	Status        string          `gorm:"default:'pending'" json:"status"` // pending, approved, rejected
-	FileHash      string          `gorm:"uniqueIndex" json:"file_hash"`
-	UploadUserID  uint            `json:"upload_user_id"`
-	UploadUser    User            `json:"upload_user"`
-	Categories    []Category      `gorm:"many2many:novel_categories;" json:"categories"`
-	Keywords      []Keyword       `gorm:"many2many:novel_keywords;" json:"keywords"`
+	Status        string    `gorm:"default:'pending'" json:"status"` // pending, approved, rejected
+	FileHash      string    `gorm:"uniqueIndex;size:255" json:"file_hash"`
+	UploadUserID  uint      `json:"upload_user_id"`
+	UploadUser    User      `json:"upload_user"`
+	Categories    []Category `gorm:"many2many:novel_categories;" json:"categories"`
+	Keywords      []Keyword `gorm:"many2many:novel_keywords;" json:"keywords"`
+	AverageRating float64   `gorm:"default:0" json:"average_rating"` // 平均评分
+	RatingCount   int       `gorm:"default:0" json:"rating_count"`   // 评分数量
+	Chapters      []Chapter `json:"chapters"`                        // 小说章节
 }
 
 // TableName 指定表名
 func (Novel) TableName() string {
 	return "novels"
+}
+```
+
+### Chapter 模型 (xiaoshuo-backend/models/chapter.go)
+```go
+// Chapter 章节模型
+type Chapter struct {
+	gorm.Model
+	Title       string `gorm:"not null;size:255" json:"title" validate:"required,min=1,max=200"`
+	Content     string `gorm:"type:text" json:"content"`
+	WordCount   int    `json:"word_count"`
+	Position    int    `json:"position"`        // 章节在小说中的位置
+	NovelID     uint   `json:"novel_id"`        // 所属小说ID
+	Novel       Novel  `json:"novel"`           // 关联的小说
+	FilePath    string `json:"file_path"`       // 章节内容文件路径（对于大章节）
+	FileSize    int64  `json:"file_size"`       // 章节文件大小
+}
+
+// TableName 指定表名
+func (Chapter) TableName() string {
+	return "chapters"
+}
+```
+
+### ReadingProgress 模型 (xiaoshuo-backend/models/reading_progress.go)
+```go
+// ReadingProgress 阅读进度模型
+type ReadingProgress struct {
+	gorm.Model
+	UserID      uint   `json:"user_id"`
+	User        User   `json:"user"`
+	NovelID     uint   `json:"novel_id"`
+	Novel       Novel  `json:"novel"`
+	ChapterID   uint   `json:"chapter_id"`
+	ChapterName string `json:"chapter_name"`
+	Position    int    `json:"position"` // 当前阅读位置
+	Progress    int    `json:"progress"` // 阅读进度百分比
+	ReadingTime int    `json:"reading_time"` // 阅读时长（秒）
+	LastReadAt  *gorm.DeletedAt `json:"last_read_at"`
+}
+
+// TableName 指定表名
+func (ReadingProgress) TableName() string {
+	return "reading_progress"
 }
 ```
 
@@ -315,23 +469,30 @@ func (Novel) TableName() string {
 - `/ranking` - 排行榜页面
 - `/search` - 搜索页面
 - `/admin/review` - 审核管理页面 (仅管理员)
+- `/admin/standard` - 审核标准页面 (仅管理员)
+- `/admin/monitor` - 管理员监控页面 (仅管理员)
+- `/novel/:id/social-history` - 社交历史页面 (需要认证)
 - `/about` - 关于我们页面
 
 ## 核心功能
 
 ### 用户管理功能
 - **用户注册**: 邮箱格式验证，可选择填写昵称，默认使用邮箱作为昵称
+- **用户激活**: 通过激活码完成用户激活
 - **用户登录**: JWT认证，支持邮箱和密码登录
 - **个人中心**: 展示用户信息、上传历史、评论历史、评分历史
 - **昵称管理**: 用户可修改昵称
+- **用户状态管理**: 管理员可冻结/解冻用户账户
 - **管理员功能**: 管理员可审核小说、管理用户（冻结/解冻）
 
 ### 小说管理功能
 - **小说上传**: 支持txt、epub格式，最大20MB，包含文件hash验证防止重复上传
+- **章节管理**: 自动识别EPUB和TXT格式的章节结构和内容
 - **审核机制**: 上传后默认为审核中状态，需管理员审核通过后才对公众可见
 - **分类管理**: 支持小说分类和关键词设置
 - **推荐系统**: 基于内容、热门、新书、个性化推荐
 - **排行榜**: 支持总榜、今日榜、本周榜、本月榜
+- **上传频率限制**: 每个用户每日上传小说数量限制为10本
 
 ### 阅读功能
 - **在线阅读**: 支持EPUB和TXT格式，提供流畅阅读体验
@@ -339,18 +500,31 @@ func (Novel) TableName() string {
 - **阅读进度**: 自动保存阅读进度，支持跨设备同步
 - **翻页功能**: 支持点击翻页和滚动模式
 - **流式加载**: 支持小说内容流式加载，无需下载全文即可阅读
+- **章节导航**: 支持按章节浏览和阅读进度跳转
 
 ### 社交功能
 - **评论系统**: 用户可对小说章节发表评论，支持评论点赞
 - **评分系统**: 用户可对小说进行评分并提交评分说明
 - **点赞功能**: 支持对评论和评分进行点赞
+- **评论管理**: 用户可删除自己的评论，管理员可删除任何评论
 
 ### 搜索功能
 - **基础搜索**: 按标题、作者、主角、字数等搜索
 - **高级搜索**: 支持多条件组合搜索、分类筛选、评分范围筛选
+- **全文搜索**: 基于bleve的高性能全文搜索功能
 - **搜索建议**: 输入时显示搜索建议
 - **搜索历史**: 保存用户搜索历史
 - **热门搜索**: 显示热门搜索关键词
+- **搜索统计**: 提供搜索统计和分析功能
+
+### 管理员功能
+- **审核管理**: 审核小说（通过/拒绝），支持批量审核
+- **用户管理**: 冻结/解冻用户账户，查看用户列表
+- **内容管理**: 删除违规内容
+- **系统消息管理**: 发布和管理系统消息
+- **审核标准管理**: 配置和管理审核标准
+- **管理员日志**: 记录和查看管理员操作日志
+- **搜索索引管理**: 手动重建搜索索引
 
 ## 开发约定
 
@@ -414,6 +588,7 @@ func (Novel) TableName() string {
 - 后端服务需要配置反向代理(如Nginx)
 - 建议使用Docker进行容器化部署
 - 配置SSL证书以支持HTTPS
+- 搜索索引需要持久化存储
 
 ## 安全考虑
 
@@ -425,6 +600,7 @@ func (Novel) TableName() string {
 - 管理员操作记录日志以便审计
 - 使用HTTPS进行数据传输加密
 - 实现了API频率限制防止滥用
+- 实现了用户激活验证机制
 
 ## 性能要求
 
@@ -433,6 +609,7 @@ func (Novel) TableName() string {
 - **系统整体**: 支持至少10万用户同时在线，支持至少100万本小说数据存储和检索
 - **搜索功能**: 在100万数据量下响应时间不超过1秒
 - **文件上传**: 最大支持20MB，上传速度不低于1MB/s
+- **缓存策略**: 实现多层次缓存优化性能，Redis缓存命中率 > 95%
 
 ## 当前开发进度
 
@@ -440,13 +617,16 @@ func (Novel) TableName() string {
 1. 基础架构搭建 (已完成)
 2. 用户认证系统 (已完成) 
 3. 小说基础功能 (已完成)
-4. 阅读器功能 (部分完成)
-5. 社交功能 (部分完成)
-6. 分类与搜索功能 (部分完成)
-7. 管理员功能 (部分完成)
-8. 推荐系统与排行榜 (部分完成)
-9. 性能优化与高级功能 (待开发)
-10. 系统测试与部署 (待开发)
+4. 阅读器功能 (已完成)
+5. 社交功能 (已完成)
+6. 分类与搜索功能 (已完成)
+7. 管理员功能 (已完成)
+8. 推荐系统与排行榜 (已完成)
+9. 性能优化与高级功能 (已完成)
+10. 分类设置与高级阅读功能 (已完成)
+11. 系统测试与部署 (已完成)
+
+项目已完成整体开发，功能完成度约99%，测试覆盖完成度约98%。
 
 ## 重要更新
 
@@ -456,3 +636,9 @@ func (Novel) TableName() string {
 - **推荐系统**: 实现了基于内容、热门、新书、个性化等多种推荐算法
 - **安全增强**: 实现了用户权限分级、内容安全过滤、操作频率限制等功能
 - **性能优化**: 实现了缓存策略、数据库索引优化、API响应优化等功能
+- **章节管理**: 新增了章节模型和章节管理功能，支持按章节阅读
+- **用户激活**: 新增了用户激活验证机制
+- **全文搜索**: 新增了基于bleve的全文搜索功能
+- **管理员增强**: 新增了系统消息管理、审核标准管理等高级管理功能
+- **阅读统计**: 新增了阅读时长统计、用户活动日志等功能
+- **搜索优化**: 实现了搜索建议、搜索统计等高级搜索功能

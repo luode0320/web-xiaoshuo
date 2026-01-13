@@ -43,7 +43,7 @@ func InitRoutes(r *gin.Engine) {
 		apiV1.GET("/novels/:id/content", middleware.AuthMiddleware(), controllers.GetNovelContent)
 		apiV1.GET("/novels/:id/content-stream", middleware.AuthMiddleware(), controllers.GetNovelContentStream)
 		apiV1.GET("/novels/:id/chapters", middleware.AuthMiddleware(), controllers.GetNovelChapters)
-		apiV1.GET("/novels/:novel_id/chapters/:chapter_id", middleware.AuthMiddleware(), controllers.GetChapterContent)
+		apiV1.GET("/chapters/:id", middleware.AuthMiddleware(), controllers.GetChapterContent)  // 修改路由以避免冲突
 		apiV1.POST("/novels/:id/click", controllers.RecordNovelClick)
 		apiV1.DELETE("/novels/:id", middleware.AuthMiddleware(), controllers.DeleteNovel)
 		
@@ -62,7 +62,7 @@ func InitRoutes(r *gin.Engine) {
 		
 		// 评分相关路由
 		apiV1.POST("/ratings", middleware.AuthMiddleware(), controllers.CreateRating)
-		apiV1.GET("/ratings/:novel_id", controllers.GetRatingsByNovel)
+		apiV1.GET("/ratings/novel/:novel_id", controllers.GetRatingsByNovel)  // 修改为/novel/:novel_id避免冲突
 		apiV1.DELETE("/ratings/:id", middleware.AuthMiddleware(), controllers.DeleteRating)
 		apiV1.POST("/ratings/:id/like", middleware.AuthMiddleware(), controllers.LikeRating)
 		apiV1.DELETE("/ratings/:id/like", middleware.AuthMiddleware(), controllers.UnlikeRating)

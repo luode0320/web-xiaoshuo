@@ -727,41 +727,25 @@ func GetChapterContent(c *gin.Context) {
 		return
 	}
 
-	novelID, err := strconv.ParseUint(c.Param("novel_id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的小说ID"})
-		return
-	}
-
-	chapterID, err := strconv.ParseUint(c.Param("chapter_id"), 10, 64)
+	chapterID, err := strconv.ParseUint(c.Param("id"), 10, 64)  // 使用新的参数名 'id'
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的章节ID"})
 		return
 	}
 
-	var novel models.Novel
-	if err := models.DB.First(&novel, novelID).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "小说不存在"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取小说信息失败", "data": err.Error()})
-		return
-	}
-
-	// 检查小说是否已审核
-	if novel.Status != "approved" {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "小说尚未通过审核"})
-		return
-	}
-
 	var chapter models.Chapter
-	if err := models.DB.Where("novel_id = ? AND id = ?", novelID, chapterID).First(&chapter).Error; err != nil {
+	if err := models.DB.Preload("Novel").First(&chapter, chapterID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "章节不存在"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取章节内容失败", "data": err.Error()})
+		return
+	}
+
+	// 检查小说是否已审核
+	if chapter.Novel.Status != "approved" {
+		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "小说尚未通过审核"})
 		return
 	}
 
