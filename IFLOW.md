@@ -145,14 +145,16 @@ web-xiaoshuo/
 │   │           └── Profile.vue   # 个人资料页面
 ├── 启动文档.md               # 项目启动说明
 ├── backend_requirements.md   # 后端需求文档
-├── create_admin.go           # 创建管理员账户脚本
 ├── check_users.go            # 检查用户状态脚本
+├── create_admin.go           # 创建管理员账户脚本
 ├── development_plan.md       # 开发计划文档
 ├── frontend_requirements.md  # 前端需求文档
 ├── functional_design.md      # 功能设计文档
+├── run_all_tests.go          # 运行所有测试脚本
 ├── test_admin_features.go    # 管理员功能测试脚本
 ├── test_novel_function.go    # 小说功能测试脚本
 ├── test_reading_features.go  # 阅读功能测试脚本
+├── test_recommendation_ranking.go # 推荐系统与排行榜测试脚本
 ├── test_search_function.js   # 前端搜索功能测试脚本
 ├── test_social_features.go   # 社交功能测试脚本
 ├── test_system.go            # 后端系统测试脚本
@@ -633,6 +635,7 @@ func (UserActivity) TableName() string {
 - **翻页功能**: 支持点击翻页和滚动模式
 - **流式加载**: 支持小说内容流式加载，无需下载全文即可阅读
 - **章节导航**: 支持按章节浏览和阅读进度跳转
+- **Range请求支持**: 实现了HTTP Range请求以支持部分内容加载和断点续传
 
 ### 社交功能
 - **评论系统**: 用户可对小说章节发表评论，支持评论点赞
@@ -666,6 +669,19 @@ func (UserActivity) TableName() string {
 - **用户标签**: 基于用户行为生成标签用于推荐
 - **内容关联**: 基于相似性推荐相关小说
 - **用户画像**: 构建用户兴趣画像用于个性化服务
+
+### 测试功能
+- **系统测试**: `test_system.go` - 后端系统功能测试
+- **小说功能测试**: `test_novel_function.go` - 小说管理功能测试
+- **阅读功能测试**: `test_reading_features.go` - 阅读功能测试
+- **社交功能测试**: `test_social_features.go` - 评论、评分、点赞等社交功能测试
+- **管理员功能测试**: `test_admin_features.go` - 管理员功能测试
+- **推荐与排行榜测试**: `test_recommendation_ranking.go` - 推荐系统和排行榜功能测试
+- **端点验证测试**: `verify_endpoints.go` - API端点验证测试
+- **前端搜索功能测试**: `test_search_function.js` - 使用Puppeteer进行前端搜索功能测试
+- **运行所有测试**: `run_all_tests.go` - 统一运行所有功能测试脚本
+- **用户状态检查**: `check_users.go` - 检查用户状态的工具脚本
+- **管理员创建**: `create_admin.go` - 创建管理员账户的工具脚本
 
 ## 开发约定
 
@@ -736,10 +752,12 @@ func (UserActivity) TableName() string {
 
 ### Redis缓存实现
 - **缓存管理器**: 使用统一的CacheManager封装Redis操作
+- **缓存服务**: 实现了业务特定的CacheService，提供缓存键管理、缓存失效等功能
 - **缓存键策略**: 采用命名空间和前缀管理不同类型的缓存
 - **过期时间**: 根据数据更新频率设置合理过期时间
 - **缓存穿透防护**: 使用布隆过滤器或空值缓存防止缓存穿透
 - **缓存雪崩防护**: 设置随机过期时间避免大量缓存同时失效
+- **缓存预热**: 实现GetOrSet方法，当缓存不存在时自动加载数据并设置缓存
 
 ### 全文搜索实现
 - **索引存储**: 使用bleve库实现全文搜索引擎
@@ -789,6 +807,7 @@ func (UserActivity) TableName() string {
 - **性能测试**: 测试系统在高并发下的性能表现
 - **安全测试**: 验证认证授权、输入验证等安全措施
 - **自动化测试**: 集成到CI/CD流程中，确保代码质量
+- **测试脚本**: 提供了多个专门的测试脚本，覆盖系统各个功能模块
 
 ## 当前开发进度
 
@@ -850,3 +869,9 @@ func (UserActivity) TableName() string {
 - **数据统计分析**: 实现了全面的数据统计和分析功能
 - **系统稳定性**: 经过全面的系统测试，系统稳定性达到上线标准
 - **用户体验优化**: 完成了移动端体验优化、响应式设计等用户体验改进
+- **Range请求支持**: 实现了HTTP Range请求支持，用于小说内容的分段加载
+- **统一测试脚本**: 添加了`run_all_tests.go`脚本，可统一运行所有测试
+- **用户活动日志**: 新增了用户活动日志功能，用于追踪用户行为
+- **上传频率监控**: 实现了用户小说上传频率的监控和限制
+- **小说状态API**: 添加了小说状态查询API，用于获取小说审核状态等信息
+- **小说活动历史**: 实现了小说操作历史查看功能，便于追踪小说的审核和修改记录
