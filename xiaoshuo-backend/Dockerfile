@@ -37,4 +37,4 @@ USER appuser
 EXPOSE 8888
 
 # 启动应用
-CMD ["./main"]
+CMD ["./main -env=prod"]

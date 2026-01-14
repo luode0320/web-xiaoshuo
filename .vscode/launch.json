@@ -12,6 +12,7 @@
             "dlvFlags": [
                 "--check-go-version=false"
             ],
+            "args": "-env=local", // 启动程序时的命令行参数。
             "program": "${workspaceFolder}/xiaoshuo-backend/" // 要调试的程序路径，`${workspaceFolder}` 表示当前工作区的根目录。
         }
     ]

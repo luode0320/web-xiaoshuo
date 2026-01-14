@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"sync"
 
@@ -61,7 +62,22 @@ var GlobalConfig *Config
 
 // InitConfig 初始化配置
 func InitConfig() {
-	viper.SetConfigName("config")
+	// 获取环境变量，支持命令行参数或环境变量
+	env := viper.GetString("env")
+	if env == "" {
+		env = viper.GetString("ENV") // 尝试从环境变量读取
+	}
+	if env == "" {
+		env = "default" // 默认使用config.yaml
+	}
+
+	// 根据环境设置配置文件名
+	configFileName := "config"
+	if env != "default" {
+		configFileName = fmt.Sprintf("config.%s", env)
+	}
+
+	viper.SetConfigName(configFileName)
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("./config")
 	viper.AddConfigPath(".")
@@ -84,6 +100,12 @@ func InitConfig() {
 
 	if err := viper.ReadInConfig(); err != nil {
 		log.Printf("配置文件读取失败: %v", err)
+		log.Printf("尝试使用默认配置文件 config.yaml")
+		// 如果环境特定配置文件不存在，尝试使用默认配置
+		viper.SetConfigName("config")
+		if err := viper.ReadInConfig(); err != nil {
+			log.Printf("默认配置文件读取失败: %v", err)
+		}
 	}
 
 	GlobalConfig = &Config{}
@@ -91,6 +113,7 @@ func InitConfig() {
 		log.Fatalf("配置文件解析失败: %v", err)
 	}
 
+	log.Printf("使用配置文件: %s, 环境: %s", viper.ConfigFileUsed(), env)
 	log.Println("配置初始化完成")
 }
 
@@ -122,4 +145,9 @@ func InitRedis() {
 	})
 
 	log.Println("Redis连接成功")
+}
+
+// SetEnv 设置运行环境
+func SetEnv(env string) {
+	viper.Set("env", env)
 }

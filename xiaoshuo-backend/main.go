@@ -1,7 +1,9 @@
 package main
 
 import (
+	"flag"
 	"log"
+	"os"
 
 	"xiaoshuo-backend/config"
 	"xiaoshuo-backend/controllers"
@@ -13,6 +15,23 @@ import (
 )
 
 func main() {
+	// 定义命令行参数
+	env := flag.String("env", "", "运行环境 (local, prod, etc.)")
+	flag.Parse()
+
+	// 如果命令行参数未指定，则尝试从环境变量获取
+	if *env == "" {
+		*env = os.Getenv("APP_ENV")
+	}
+
+	// 如果仍未指定，则使用默认值
+	if *env == "" {
+		*env = "default"
+	}
+
+	// 设置环境变量到viper
+	config.SetEnv(*env)
+
 	// 加载配置
 	config.InitConfig()
 

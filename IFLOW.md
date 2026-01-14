@@ -116,9 +116,6 @@ web-xiaoshuo/
 │   │   ├── response.go       # 响应格式工具
 │   │   ├── search.go         # 搜索工具
 │   │   └── upload.go         # 上传工具
-│   ├── final_verification.go # 最终验证脚本
-│   ├── run_unified_tests.go  # 统一测试入口
-│   ├── verify_endpoints.go   # 端点验证测试
 │   └── migrations/           # 数据库迁移
 ├── xiaoshuo-frontend/                 # Vue.js前端项目
 │   ├── package.json          # 前端依赖和脚本配置
@@ -161,22 +158,100 @@ web-xiaoshuo/
 │           └── user/         # 用户相关页面
 │               └── Profile.vue   # 个人资料页面
 ├── 启动文档.md               # 项目启动说明
-├── backend_requirements.md   # 后端需求文档
-├── check_users.go            # 检查用户状态脚本
-├── create_admin.go           # 创建管理员账户脚本
-├── development_plan.md       # 开发计划文档
-├── frontend_requirements.md  # 前端需求文档
-├── functional_design.md      # 功能设计文档
-├── final_verification.go     # 最终验证脚本
-├── run_unified_tests.go      # 统一测试入口
-├── TEST_GUIDE.md             # 测试指南文档
+├── 小说阅读系统后端需求文档.md   # 后端需求文档
+├── 小说阅读系统前端需求文档.md   # 前端需求文档
+├── 小说阅读系统功能设计文档.md   # 功能设计文档
+├── 小说阅读系统开发周期计划.md   # 开发计划文档
+├── 小说阅读系统测试指南.md       # 测试指南文档
+├── 小说阅读系统部署文档.md       # 部署文档
+├── 小说阅读系统项目完成总结报告.md # 项目完成总结
+├── 小说阅读系统项目完成总结报告2.md # 项目完成总结2
+├── docker-compose.yml        # Docker容器编排配置
+├── start_system.bat          # Windows系统启动脚本
 ├── IFLOW.md                 # 项目上下文文档
 └── README.md                 # 项目说明文档
 ```
 
 ## 配置文件
 
-### 后端配置 (xiaoshuo-backend/config/config.yaml)
+### 后端配置系统
+
+项目支持多环境配置，通过以下方式指定运行环境：
+
+- **本地环境**: 使用 `config.local.yaml` 配置文件，通过 `-env=local` 参数或 `APP_ENV=local` 环境变量启动
+- **生产环境**: 使用 `config.prod.yaml` 配置文件，通过 `-env=prod` 参数或 `APP_ENV=prod` 环境变量启动
+- **默认环境**: 使用 `config.yaml` 配置文件
+
+#### 配置文件加载优先级
+1. 首先尝试根据环境参数加载 `config.{env}.yaml` 文件
+2. 如果环境特定配置文件不存在，则回退到默认的 `config.yaml` 文件
+
+#### 启动方式
+```
+# 使用本地环境配置
+go run main.go -env=local
+
+# 使用生产环境配置
+go run main.go -env=prod
+
+# 使用环境变量指定
+APP_ENV=local go run main.go
+
+# 使用默认配置
+go run main.go
+```
+
+#### 本地环境配置 (xiaoshuo-backend/config/config.local.yaml)
+```yaml
+server:
+  port: "8888"
+  mode: "debug"
+  base_path: "/api/v1"
+
+database:
+  host: "localhost"
+  port: "3306"
+  user: "root"
+  password: "Ld588588"
+  dbname: "xiaoshuo_dev"
+  charset: "utf8mb4"
+
+redis:
+  addr: "localhost:6379"
+  password: ""
+  db: 0
+
+jwt:
+  secret: "xiaoshuo_local_secret_key"
+  expires: 3600
+```
+
+#### 生产环境配置 (xiaoshuo-backend/config/config.prod.yaml)
+```yaml
+server:
+  port: "8888"
+  mode: "release"
+  base_path: "/api/v1"
+
+database:
+  host: "prod-db-host"
+  port: "3306"
+  user: "prod_user"
+  password: "prod_password"
+  dbname: "xiaoshuo_prod"
+  charset: "utf8mb4"
+
+redis:
+  addr: "prod-redis-host:6379"
+  password: "prod_redis_password"
+  db: 0
+
+jwt:
+  secret: "xiaoshuo_prod_secret_key"
+  expires: 3600
+```
+
+#### 默认环境配置 (xiaoshuo-backend/config/config.yaml)
 ```yaml
 server:
   port: "8888"  # Note: Updated from 8080 to 8888 in current config
@@ -305,7 +380,7 @@ export default defineConfig({
 
 ### 搜索相关路由
 - `GET /api/v1/search/novels` - 搜索小说
-- `GET /api/v1/search/full-text` - 全文搜索小说 (修正后的路由)
+- `GET /api/v1/search/fulltext` - 全文搜索小说 (修正后的路由)
 - `GET /api/v1/search/hot-words` - 获取热门搜索词
 - `GET /api/v1/search/suggestions` - 获取搜索建议
 - `GET /api/v1/search/stats` - 获取搜索统计
@@ -347,7 +422,10 @@ export default defineConfig({
 ### 后端启动步骤
 1. 进入xiaoshuo-backend目录：`cd xiaoshuo-backend`
 2. 安装依赖：`go mod tidy`
-3. 启动服务：`go run main.go`
+3. 启动服务：
+   - 本地环境：`go run main.go -env=local`
+   - 生产环境：`go run main.go -env=prod`
+   - 默认环境：`go run main.go`
 4. 服务将启动在 `http://localhost:8888` (端口已在配置中更新)
 
 ### 前端启动步骤
@@ -366,8 +444,6 @@ export default defineConfig({
 - `npm run test:ui` - 运行测试UI界面
 
 ### 后端测试
-- `go run run_unified_tests.go` - 运行统一测试入口（运行所有测试）
-- `go run final_verification.go` - 运行最终验证报告
 - `go run tests/run_all_tests.go` - 运行所有测试脚本
 - `go run tests/test_system.go` - 运行系统测试
 - `go run tests/verify_endpoints.go` - 运行端点验证测试
@@ -385,7 +461,17 @@ export default defineConfig({
 
 ### 生产环境部署
 - **前端构建**: `npm run build`，构建后的文件位于 `xiaoshuo-frontend/dist/`
-- **后端构建**: `go build -o server . && ./server`
+- **后端构建**: 
+  - 本地环境：`go build -o server . && ./server -env=local`
+  - 生产环境：`go build -o server . && ./server -env=prod`
+  - 默认环境：`go build -o server . && ./server`
+
+### 使用Docker Compose部署
+- `docker-compose up -d` - 启动整个系统（包括MySQL、Redis、后端、前端）
+- `docker-compose down` - 停止整个系统
+
+### 启动脚本
+- `start_system.bat` - Windows系统启动脚本，自动检测Docker并选择启动方式
 
 ### API代理配置
 前端项目已配置API代理，所有 `/api` 开头的请求将被代理到 `http://localhost:8888`。
@@ -688,8 +774,7 @@ func (UserActivity) TableName() string {
 - **用户画像**: 构建用户兴趣画像用于个性化服务
 
 ### 测试功能
-- **统一测试入口**: `run_unified_tests.go` - 运行所有后端测试并提供汇总结果
-- **最终验证报告**: `final_verification.go` - 验证所有开发任务完成情况
+- **运行所有测试**: `tests/run_all_tests.go` - 统一运行所有功能测试脚本
 - **系统测试**: `tests/test_system.go` - 后端系统功能测试
 - **小说功能测试**: `tests/test_novel_function.go` - 小说管理功能测试
 - **阅读功能测试**: `tests/test_reading_features.go` - 阅读功能测试
@@ -700,10 +785,12 @@ func (UserActivity) TableName() string {
 - **全面系统测试**: `tests/test_comprehensive.go` - 全面系统测试
 - **端点验证测试**: `tests/verify_endpoints.go` - API端点验证测试
 - **前端搜索功能测试**: `tests/test_search_function.js` - 使用Puppeteer进行前端搜索功能测试
-- **运行所有测试**: `tests/run_all_tests.go` - 统一运行所有功能测试脚本
-- **用户状态检查**: `check_users.go` - 检查用户状态的工具脚本
-- **管理员创建**: `create_admin.go` - 创建管理员账户的工具脚本
-- **测试指南**: `TEST_GUIDE.md` - 详细的测试指南文档
+
+### Docker化部署
+- **一键部署**: 通过docker-compose.yml文件实现整个系统的容器化部署
+- **服务编排**: 自动管理MySQL、Redis、后端和前端服务的依赖关系
+- **环境隔离**: 通过Docker容器实现开发、测试、生产环境的一致性
+- **启动脚本**: 提供Windows批处理脚本(start_system.bat)，自动检测Docker并选择启动方式
 
 ## 开发约定
 
@@ -798,6 +885,7 @@ func (UserActivity) TableName() string {
 - 配置SSL证书以支持HTTPS
 - 搜索索引需要持久化存储
 - 配置负载均衡以支持高并发访问
+- 通过docker-compose.yml实现一键部署整个系统
 
 ## 安全考虑
 
@@ -830,12 +918,11 @@ func (UserActivity) TableName() string {
 - **安全测试**: 验证认证授权、输入验证等安全措施
 - **自动化测试**: 集成到CI/CD流程中，确保代码质量
 - **测试脚本**: 提供了多个专门的测试脚本，覆盖系统各个功能模块
-- **统一测试入口**: 通过`run_unified_tests.go`可以一键运行所有后端测试
-- **测试指南**: 通过`TEST_GUIDE.md`文档详细说明测试流程和方法
+- **测试指南**: 通过`小说阅读系统测试指南.md`文档详细说明测试流程和方法
 
 ## 当前开发进度
 
-根据 development_plan.md，项目按以下阶段开发：
+根据 小说阅读系统开发周期计划.md，项目按以下阶段开发：
 1. 基础架构搭建 (已完成)
 2. 用户认证系统 (已完成) 
 3. 小说基础功能 (已完成)
@@ -884,12 +971,10 @@ func (UserActivity) TableName() string {
 - **图片懒加载**: 前端从vue-lazyload更新为vue3-lazy
 - **系统完成**: 所有开发阶段已完成，系统已具备完整功能
 - **社交功能增强**: 完善了评论、评分、点赞等社交功能
-- **测试脚本**: 添加了多个专门的测试脚本文件，包括小说功能测试、阅读功能测试、社交功能测试、管理员功能测试等
 - **管理功能完成**: 管理员功能已全部实现，包括小说审核、用户管理、内容删除、系统消息管理、审核标准配置等
 - **系统监控**: 实现了用户活动监控和管理员操作日志功能
 - **自动审核**: 实现了自动处理超过30天未审核小说的功能
 - **行为监控**: 实现了用户和管理员行为监控功能
-- **脚本工具**: 添加了创建管理员账户和检查用户状态的脚本工具
 - **推荐系统完成**: 实现了基于内容、热门、新书、个性化等多种推荐算法
 - **性能优化完成**: 完成了数据库查询优化、Redis缓存、API响应缓存等性能优化
 - **前端体验优化**: 完成了组件懒加载、代码分割、阅读器性能优化等前端性能改进
@@ -903,7 +988,6 @@ func (UserActivity) TableName() string {
 - **系统稳定性**: 经过全面的系统测试，系统稳定性达到上线标准
 - **用户体验优化**: 完成了移动端体验优化、响应式设计等用户体验改进
 - **Range请求支持**: 实现了HTTP Range请求支持，用于小说内容的分段加载
-- **统一测试脚本**: 添加了`run_unified_tests.go`脚本，可统一运行所有测试
 - **用户活动日志**: 新增了用户活动日志功能，用于追踪用户行为
 - **上传频率监控**: 实现了用户小说上传频率的监控和限制
 - **小说状态API**: 添加了小说状态查询API，用于获取小说审核状态等信息
@@ -916,10 +1000,8 @@ func (UserActivity) TableName() string {
 - **上传频率API**: 添加了`/api/v1/novels/upload-frequency` API，用于查询用户上传频率限制
 - **小说状态API**: 添加了`/api/v1/novels/:id/status` API，用于获取小说状态详情
 - **小说活动历史API**: 添加了`/api/v1/novels/:id/history` API，用于获取小说操作历史
-- **测试指南文档**: 新增了`TEST_GUIDE.md`文档，详细说明测试流程和方法
-- **最终验证脚本**: 新增了`final_verification.go`脚本，用于验证所有开发任务完成情况
-- **统一测试入口**: 新增了`run_unified_tests.go`脚本，可一键运行所有后端测试
-- **后端单元测试**: 新增了`test_backend_unit.go`等单元测试文件
-- **全面系统测试**: 新增了`test_comprehensive.go`等全面系统测试文件
-- **测试目录结构**: 将测试文件组织到`tests/`目录下，便于管理和维护
-- **前端测试增强**: 完善了前端搜索功能的端到端测试，使用Puppeteer进行自动化测试
+- **测试指南文档**: 新增了`小说阅读系统测试指南.md`文档，详细说明测试流程和方法
+- **Docker化部署**: 实现了完整的Docker容器化部署支持，包括docker-compose.yml配置文件
+- **启动脚本**: 新增了`start_system.bat`启动脚本，支持Docker和传统方式启动
+- **部署文档**: 新增了`小说阅读系统部署文档.md`，详细说明部署流程和注意事项
+- **项目总结**: 新增了项目完成总结报告，记录项目开发经验和技术选型总结
