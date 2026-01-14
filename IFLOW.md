@@ -262,6 +262,7 @@ export default defineConfig({
 - `GET /api/v1/novels/:id/status` - 获取小说状态 (需要认证)
 - `GET /api/v1/novels/:id/history` - 获取小说活动历史 (需要认证)
 - `GET /api/v1/novels/upload-frequency` - 获取上传频率 (需要认证)
+- `POST /api/v1/novels/:id/classify` - 设置小说分类和关键词 (需要认证)
 
 ### 评论相关路由
 - `POST /api/v1/comments` - 发布评论 (需要认证)
@@ -293,7 +294,7 @@ export default defineConfig({
 
 ### 搜索相关路由
 - `GET /api/v1/search/novels` - 搜索小说
-- `GET /api/v1/search/fulltext` - 全文搜索小说
+- `GET /api/v1/search/full-text` - 全文搜索小说 (修正后的路由)
 - `GET /api/v1/search/hot-words` - 获取热门搜索词
 - `GET /api/v1/search/suggestions` - 获取搜索建议
 - `GET /api/v1/search/stats` - 获取搜索统计
@@ -877,3 +878,9 @@ func (UserActivity) TableName() string {
 - **小说活动历史**: 实现了小说操作历史查看功能，便于追踪小说的审核和修改记录
 - **全文搜索API**: 修正了全文搜索API路由，从`/api/v1/search/fulltext`改为`/api/v1/search/full-text`
 - **章节内容获取**: 实现了专门的章节内容获取API，通过`/chapters/:id`获取单个章节内容
+- **分类关键词设置**: 实现了用户对小说分类和关键词的设置功能
+- **用户阅读统计**: 实现了用户阅读统计功能，包括阅读时长和进度记录
+- **小说分类API**: 添加了`/api/v1/novels/:id/classify` API，用于设置小说的分类和关键词
+- **上传频率API**: 添加了`/api/v1/novels/upload-frequency` API，用于查询用户上传频率限制
+- **小说状态API**: 添加了`/api/v1/novels/:id/status` API，用于获取小说状态详情
+- **小说活动历史API**: 添加了`/api/v1/novels/:id/history` API，用于获取小说操作历史
