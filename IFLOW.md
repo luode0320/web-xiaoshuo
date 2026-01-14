@@ -145,15 +145,20 @@ web-xiaoshuo/
 │   │           └── Profile.vue   # 个人资料页面
 ├── 启动文档.md               # 项目启动说明
 ├── backend_requirements.md   # 后端需求文档
+├── create_admin.go           # 创建管理员账户脚本
+├── check_users.go            # 检查用户状态脚本
 ├── development_plan.md       # 开发计划文档
 ├── frontend_requirements.md  # 前端需求文档
 ├── functional_design.md      # 功能设计文档
+├── test_admin_features.go    # 管理员功能测试脚本
+├── test_novel_function.go    # 小说功能测试脚本
 ├── test_reading_features.go  # 阅读功能测试脚本
 ├── test_search_function.js   # 前端搜索功能测试脚本
-├── test_system.go            # 后端系统测试脚本
 ├── test_social_features.go   # 社交功能测试脚本
+├── test_system.go            # 后端系统测试脚本
 ├── verify_endpoints.go       # 端点验证测试脚本
-└── IFLOW.md                 # 项目上下文文档
+├── IFLOW.md                 # 项目上下文文档
+└── README.md                 # 项目说明文档
 ```
 
 ## 配置文件
@@ -352,6 +357,8 @@ export default defineConfig({
 - `go run verify_endpoints.go` - 运行端点验证测试
 - `go run test_reading_features.go` - 运行阅读功能测试
 - `go run test_social_features.go` - 运行社交功能测试
+- `go run test_novel_function.go` - 运行小说功能测试
+- `go run test_admin_features.go` - 运行管理员功能测试
 
 ### 前端测试
 - `npm run test` - 运行前端测试
@@ -482,6 +489,105 @@ func (ReadingProgress) TableName() string {
 }
 ```
 
+### AdminLog 模型 (xiaoshuo-backend/models/admin_log.go)
+```go
+// AdminLog 管理日志模型
+type AdminLog struct {
+	gorm.Model
+	AdminUserID uint   `json:"admin_user_id"`
+	AdminUser   User   `json:"admin_user"`
+	Action      string `gorm:"not null" json:"action" validate:"required,min=1,max=100"` // 操作类型
+	TargetType  string `json:"target_type" validate:"max=50"` // 目标类型，如 "novel", "user", "comment"
+	TargetID    uint   `json:"target_id"` // 目标ID
+	Details     string `json:"details"` // 操作详情
+	IPAddress   string `json:"ip_address"` // IP地址
+	UserAgent   string `json:"user_agent"` // 用户代理
+}
+
+// TableName 指定表名
+func (AdminLog) TableName() string {
+	return "admin_logs"
+}
+```
+
+### SystemMessage 模型 (xiaoshuo-backend/models/system_message.go)
+```go
+// SystemMessage 系统消息模型
+type SystemMessage struct {
+	gorm.Model
+	Title       string `gorm:"not null" json:"title" validate:"required,min=1,max=200"`
+	Content     string `gorm:"not null" json:"content" validate:"required,min=1,max=1000"`
+	Type        string `json:"type" validate:"oneof=notification announcement warning"` // 消息类型
+	IsPublished bool   `gorm:"default:false" json:"is_published"` // 是否发布
+	PublishedAt *gorm.DeletedAt `json:"published_at"` // 发布时间
+	CreatedBy   uint   `json:"created_by"` // 创建者ID
+	CreatedByUser User `json:"created_by_user" gorm:"foreignKey:CreatedBy"` // 添加外键关系
+}
+
+// TableName 指定表名
+func (SystemMessage) TableName() string {
+	return "system_messages"
+}
+```
+
+### ReviewCriteria 模型 (xiaoshuo-backend/models/review_criteria.go)
+```go
+// ReviewCriteria 审核标准配置模型
+type ReviewCriteria struct {
+	gorm.Model
+	Name        string `gorm:"not null;size:255" json:"name" validate:"required,max=255"` // 标准名称
+	Description string `json:"description" validate:"max=1000"`                          // 标准描述
+	Type        string `json:"type" validate:"oneof=novel content"`                     // 标准类型 (小说审核/内容审核)
+	Content     string `gorm:"type:text" json:"content"`                                // 审核标准内容
+	IsActive    bool   `gorm:"default:true" json:"is_active"`                           // 是否启用
+	Weight      int    `gorm:"default:1" json:"weight"`                                 // 重要程度权重
+	CreatedBy   uint   `json:"created_by"`                                              // 创建者ID
+	UpdatedBy   uint   `json:"updated_by"`                                              // 更新者ID
+}
+
+// TableName 指定表名
+func (ReviewCriteria) TableName() string {
+	return "review_criteria"
+}
+```
+
+### SearchHistory 模型 (xiaoshuo-backend/models/search_history.go)
+```go
+// SearchHistory 搜索历史模型
+type SearchHistory struct {
+	gorm.Model
+	UserID    *uint  `json:"user_id"`    // 可选的用户ID，匿名搜索可以为空
+	Keyword   string `gorm:"size:255;not null" json:"keyword" validate:"required,max=255"`
+	IPAddress string `gorm:"size:45" json:"ip_address"` // 记录IP地址用于匿名搜索
+	Count     int    `gorm:"default:1" json:"count"`    // 搜索次数
+}
+
+// TableName 指定表名
+func (SearchHistory) TableName() string {
+	return "search_history"
+}
+```
+
+### UserActivity 模型 (xiaoshuo-backend/models/user_activity.go)
+```go
+// UserActivity 用户活动日志模型
+type UserActivity struct {
+	gorm.Model
+	UserID    uint   `json:"user_id"`
+	User      User   `json:"user"`
+	Action    string `gorm:"size:255;not null" json:"action"` // 活动类型，如 login, logout, novel_upload, comment_post 等
+	IPAddress string `gorm:"size:45" json:"ip_address"`       // IP地址（支持IPv6）
+	UserAgent string `gorm:"size:500" json:"user_agent"`      // 用户代理
+	Details   string `gorm:"type:text" json:"details"`        // 活动详情
+	IsSuccess bool   `json:"is_success"`                      // 操作是否成功
+}
+
+// TableName 指定表名
+func (UserActivity) TableName() string {
+	return "user_activities"
+}
+```
+
 ## 前端页面路由
 
 - `/` - 首页（推荐小说展示）
@@ -551,6 +657,15 @@ func (ReadingProgress) TableName() string {
 - **审核标准管理**: 配置和管理审核标准
 - **管理员日志**: 记录和查看管理员操作日志
 - **搜索索引管理**: 手动重建搜索索引
+- **自动审核**: 自动处理超过30天未审核的小说
+- **行为监控**: 监控用户和管理员行为
+
+### 个性化功能
+- **推荐算法**: 基于用户行为和偏好的个性化推荐
+- **阅读统计**: 记录用户的阅读时长、进度等数据
+- **用户标签**: 基于用户行为生成标签用于推荐
+- **内容关联**: 基于相似性推荐相关小说
+- **用户画像**: 构建用户兴趣画像用于个性化服务
 
 ## 开发约定
 
@@ -717,4 +832,9 @@ func (ReadingProgress) TableName() string {
 - **图片懒加载**: 前端从vue-lazyload更新为vue3-lazy
 - **系统完成**: 所有开发阶段已完成，系统已具备完整功能
 - **社交功能增强**: 完善了评论、评分、点赞等社交功能
-- **测试脚本**: 添加了多个专门的测试脚本文件，包括社交功能测试
+- **测试脚本**: 添加了多个专门的测试脚本文件，包括小说功能测试、阅读功能测试、社交功能测试、管理员功能测试等
+- **管理功能完成**: 管理员功能已全部实现，包括小说审核、用户管理、内容删除、系统消息管理、审核标准配置等
+- **系统监控**: 实现了用户活动监控和管理员操作日志功能
+- **自动审核**: 实现了自动处理超过30天未审核小说的功能
+- **行为监控**: 实现了用户和管理员行为监控功能
+- **脚本工具**: 添加了创建管理员账户和检查用户状态的脚本工具

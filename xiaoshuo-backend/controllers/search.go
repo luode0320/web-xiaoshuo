@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -385,7 +386,7 @@ func FullTextSearchNovels(c *gin.Context) {
 
 	if searchErr != nil {
 		// 如果搜索出错，记录错误但返回空结果而不是错误
-		c.Logger().Errorf("全文搜索错误: %v", searchErr)
+		c.Error(fmt.Errorf("全文搜索错误: %v", searchErr))
 		c.JSON(http.StatusOK, gin.H{
 			"code": 200,
 			"message": "success",
