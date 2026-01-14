@@ -1025,3 +1025,147 @@ func recordUpload(userID uint) {
 	// 增加计数并设置24小时过期
 	utils.GlobalCache.Set(key, count+1, 24*time.Hour)
 }
+
+// SetNovelClassification 设置小说的分类和关键词
+func SetNovelClassification(c *gin.Context) {
+	// 从JWT token获取用户信息
+	token, exists := c.Get("token")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
+		return
+	}
+
+	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
+		return
+	}
+
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的小说ID"})
+		return
+	}
+
+	var input struct {
+		CategoryID uint     `json:"category_id"`
+		Keywords   []string `json:"keywords"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求参数错误", "data": err.Error()})
+		return
+	}
+
+	var novel models.Novel
+	if err := models.DB.First(&novel, id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "小说不存在"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取小说信息失败", "data": err.Error()})
+		return
+	}
+
+	// 检查权限：小说的上传者或管理员可以设置分类和关键词
+	if novel.UploadUserID != claims.UserID && !claims.IsAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "没有权限设置此小说的分类和关键词"})
+		return
+	}
+
+	// 开始事务
+	tx := models.DB.Begin()
+	
+	// 如果提供了分类ID，更新小说分类
+	if input.CategoryID != 0 {
+		var category models.Category
+		if err := tx.First(&category, input.CategoryID).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				tx.Rollback()
+				c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "分类不存在"})
+				return
+			}
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取分类信息失败", "data": err.Error()})
+			return
+		}
+
+		// 清除原有的分类关联
+		if err := tx.Model(&novel).Association("Categories").Clear(); err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "清除原有分类关联失败", "data": err.Error()})
+			return
+		}
+
+		// 添加新的分类关联
+		if err := tx.Model(&novel).Association("Categories").Append(&category); err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "设置分类关联失败", "data": err.Error()})
+			return
+		}
+	}
+
+	// 如果提供了关键词列表，更新小说关键词
+	if len(input.Keywords) > 0 {
+		// 清除原有的关键词关联
+		if err := tx.Model(&novel).Association("Keywords").Clear(); err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "清除原有关键词关联失败", "data": err.Error()})
+			return
+		}
+
+		// 处理关键词，确保它们存在于数据库中（如果不存在则创建）
+		var keywords []models.Keyword
+		for _, keyword := range input.Keywords {
+			keyword = strings.TrimSpace(keyword)
+			if keyword == "" {
+				continue
+			}
+
+			var kw models.Keyword
+			// 检查关键词是否已存在
+			if err := tx.Where("word = ?", keyword).First(&kw).Error; err != nil {
+				// 如果不存在，创建新的关键词
+				kw = models.Keyword{
+					Word: keyword,
+				}
+				if err := tx.Create(&kw).Error; err != nil {
+					tx.Rollback()
+					c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "创建关键词失败", "data": err.Error()})
+					return
+				}
+			}
+			keywords = append(keywords, kw)
+		}
+
+		// 添加关键词关联
+		if len(keywords) > 0 {
+			if err := tx.Model(&novel).Association("Keywords").Append(&keywords); err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "设置关键词关联失败", "data": err.Error()})
+				return
+			}
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "提交事务失败", "data": err.Error()})
+		return
+	}
+
+	// 使相关缓存失效
+	utils.GlobalCacheService.InvalidateNovelCache(uint(id))
+
+	// 返回更新后的小说信息
+	var updatedNovel models.Novel
+	if err := models.DB.Preload("UploadUser").Preload("Categories").Preload("Keywords").First(&updatedNovel, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取更新后的小说信息失败", "data": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "success",
+		"data":    updatedNovel,
+	})
+}

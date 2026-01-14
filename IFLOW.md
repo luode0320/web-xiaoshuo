@@ -99,7 +99,7 @@ web-xiaoshuo/
 │   │   ├── cache_service.go  # 缓存服务
 │   │   ├── cache.go          # 缓存工具
 │   │   ├── file.go           # 文件处理工具
-│   │   ├── jwt.go            # JWT相关工具
+│   │   ├── jwt.go          # JWT相关工具
 │   │   ├── reading_limit.go  # 阅读限制工具
 │   │   ├── response.go       # 响应格式工具
 │   │   ├── search.go         # 搜索工具
@@ -875,3 +875,5 @@ func (UserActivity) TableName() string {
 - **上传频率监控**: 实现了用户小说上传频率的监控和限制
 - **小说状态API**: 添加了小说状态查询API，用于获取小说审核状态等信息
 - **小说活动历史**: 实现了小说操作历史查看功能，便于追踪小说的审核和修改记录
+- **全文搜索API**: 修正了全文搜索API路由，从`/api/v1/search/fulltext`改为`/api/v1/search/full-text`
+- **章节内容获取**: 实现了专门的章节内容获取API，通过`/chapters/:id`获取单个章节内容

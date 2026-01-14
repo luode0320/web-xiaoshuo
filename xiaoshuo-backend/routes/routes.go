@@ -47,6 +47,9 @@ func InitRoutes(r *gin.Engine) {
 		apiV1.POST("/novels/:id/click", controllers.RecordNovelClick)
 		apiV1.DELETE("/novels/:id", middleware.AuthMiddleware(), controllers.DeleteNovel)
 		
+		// 小说分类和关键词设置路由
+		apiV1.POST("/novels/:id/classify", middleware.AuthMiddleware(), controllers.SetNovelClassification)
+		
 		// 小说状态和历史相关路由
 		apiV1.GET("/novels/:id/status", middleware.AuthMiddleware(), controllers.GetNovelStatus)
 		apiV1.GET("/novels/:id/history", middleware.AuthMiddleware(), controllers.GetNovelActivityHistory)
