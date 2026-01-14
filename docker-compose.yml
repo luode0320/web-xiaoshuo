@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: xiaoshuo-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: Ld588588
+      MYSQL_DATABASE: xiaoshuo
+      MYSQL_USER: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - xiaoshuo-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: xiaoshuo-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - xiaoshuo-network
+
+  xiaoshuo-backend:
+    build:
+      context: ./xiaoshuo-backend
+      dockerfile: Dockerfile
+    container_name: xiaoshuo-backend
+    ports:
+      - "8888:8888"
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=Ld588588
+      - DB_NAME=xiaoshuo
+      - REDIS_ADDR=redis:6379
+      - SERVER_PORT=8888
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - xiaoshuo-network
+
+  xiaoshuo-frontend:
+    build:
+      context: ./xiaoshuo-frontend
+      dockerfile: Dockerfile
+    container_name: xiaoshuo-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - xiaoshuo-backend
+    networks:
+      - xiaoshuo-network
+
+volumes:
+  mysql_data:
+  redis_data:
+
+networks:
+  xiaoshuo-network:
+    driver: bridge

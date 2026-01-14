@@ -111,20 +111,52 @@ web-xiaoshuo/
 4. **用户体验优化**: 模仿起点中文网的阅读体验
 5. **安全防护**: XSS防护、输入验证、权限控制
 6. **可扩展性**: 模块化设计，易于扩展新功能
+7. **完整部署方案**: 支持Docker容器化部署和传统部署方式
 
 ## 部署说明
 
-### 后端启动步骤
+### Docker容器化部署（推荐）
+
+1. **环境要求**:
+   - Docker 20.10+
+   - Docker Compose v2.0+
+
+2. **启动服务**:
+   ```bash
+   # 在项目根目录运行
+   docker-compose up -d
+   ```
+
+3. **访问系统**:
+   - 前端访问地址：http://localhost:3000
+   - 后端API地址：http://localhost:8888/api/v1
+
+### 传统部署方式
+
+#### 后端启动步骤
 1. 进入xiaoshuo-backend目录：`cd xiaoshuo-backend`
 2. 安装依赖：`go mod tidy`
 3. 启动服务：`go run main.go`
 4. 服务将启动在 `http://localhost:8888`
 
-### 前端启动步骤
+#### 前端启动步骤
 1. 进入xiaoshuo-frontend目录：`cd xiaoshuo-frontend`
 2. 安装依赖：`npm install`
 3. 启动开发服务器：`npm run dev`
 4. 前端开发服务器将启动在 `http://localhost:3000`
+
+### 一键启动脚本
+
+项目提供了一键启动脚本，会自动检测可用的启动方式：
+
+**Windows系统**:
+```bash
+双击 start_system.bat
+```
+
+### 管理员账户
+- 邮箱: luode0320@qq.com
+- 密码: Ld@588588
 
 ## 总结
 

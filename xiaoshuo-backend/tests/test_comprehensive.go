@@ -19,13 +19,13 @@ func main() {
 	
 	// 首先运行所有独立的测试脚本
 	testScripts := []string{
-		"../test_system.go",
-		"../test_novel_function.go",
-		"../test_reading_features.go",
-		"../test_social_features.go",
-		"../test_admin_features.go",
-		"../test_recommendation_ranking.go",
-		"../verify_endpoints.go",
+		"tests/test_system.go",
+		"tests/test_novel_function.go",
+		"tests/test_reading_features.go",
+		"tests/test_social_features.go",
+		"tests/test_admin_features.go",
+		"tests/test_recommendation_ranking.go",
+		"tests/verify_endpoints.go",
 	}
 	
 	results := make(map[string]bool)
