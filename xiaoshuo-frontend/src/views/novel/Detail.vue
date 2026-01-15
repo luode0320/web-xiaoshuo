@@ -430,7 +430,7 @@ export default {
     // 获取评分列表
     const fetchRatings = async () => {
       try {
-        const response = await apiClient.get(`/api/v1/ratings/${route.params.id}`)
+        const response = await apiClient.get(`/api/v1/ratings/novel/${route.params.id}`)
         ratings.value = response.data.data.ratings
       } catch (error) {
         console.error('获取评分失败:', error)
