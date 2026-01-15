@@ -647,6 +647,100 @@ func generateActivationCode() string {
 	return fmt.Sprintf("%x", time.Now().UnixNano())
 }
 
+// GetUserComments 获取用户的评论列表
+func GetUserComments(c *gin.Context) {
+	// 从中间件获取用户信息
+	currentUser, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
+		return
+	}
+
+	currentUserModel := currentUser.(models.User)
+
+	// 获取查询参数
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	var comments []models.Comment
+	var count int64
+
+	// 构建查询
+	query := models.DB.Preload("User").Preload("Novel").Where("user_id = ?", currentUserModel.ID)
+
+	// 获取总数
+	query.Model(&models.Comment{}).Count(&count)
+
+	// 分页查询
+	offset := (page - 1) * limit
+	if err := query.Offset(offset).Limit(limit).
+		Order("created_at DESC").
+		Find(&comments).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取评论列表失败", "data": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"message": "success",
+		"data": gin.H{
+			"comments": comments,
+			"pagination": gin.H{
+				"page":  page,
+				"limit": limit,
+				"total": count,
+			},
+		},
+	})
+}
+
+// GetUserRatings 获取用户的评分列表
+func GetUserRatings(c *gin.Context) {
+	// 从中间件获取用户信息
+	currentUser, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
+		return
+	}
+
+	currentUserModel := currentUser.(models.User)
+
+	// 获取查询参数
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	var ratings []models.Rating
+	var count int64
+
+	// 构建查询
+	query := models.DB.Preload("User").Preload("Novel").Where("user_id = ?", currentUserModel.ID)
+
+	// 获取总数
+	query.Model(&models.Rating{}).Count(&count)
+
+	// 分页查询
+	offset := (page - 1) * limit
+	if err := query.Offset(offset).Limit(limit).
+		Order("created_at DESC").
+		Find(&ratings).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取评分列表失败", "data": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"message": "success",
+		"data": gin.H{
+			"ratings": ratings,
+			"pagination": gin.H{
+				"page":  page,
+				"limit": limit,
+				"total": count,
+			},
+		},
+	})
+}
+
 // recordUserActivity 记录用户活动
 func recordUserActivity(userID uint, action, ipAddress, userAgent, details string, isSuccess bool) {
 	activity := models.UserActivity{

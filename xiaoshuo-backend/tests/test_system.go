@@ -99,6 +99,14 @@ func runAllTests() []TestResult {
 	// 测试小说分类和关键词设置API
 	results = append(results, testNovelClassificationAPI())
 
+	// 测试评论与评分相关API
+	results = append(results, testUserCommentsAPI())
+	results = append(results, testUserRatingsAPI())
+	results = append(results, testAdminUserManagementAPI())
+	results = append(results, testAdminUserStatisticsAPI())
+	results = append(results, testAdminUserTrendAPI())
+	results = append(results, testAdminUserActivitiesAPI())
+
 	return results
 }
 
@@ -1503,6 +1511,318 @@ func testNovelClassificationAPI() TestResult {
 
 	return TestResult{
 		TestName: "小说分类和关键词设置API",
+		Status:   "PASS",
+		Error:    "",
+	}
+}
+
+// 测试用户评论列表API
+func testUserCommentsAPI() TestResult {
+	fmt.Println("正在测试：用户评论列表API (GetUserComments)...")
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	
+	// 尝试访问用户评论列表API，需要认证，所以预期会返回401（未认证）或403（无权限），这都表示API存在
+	url := fmt.Sprintf("http://localhost:%s/api/v1/users/comments", config.GlobalConfig.Server.Port)
+	resp, err := client.Get(url)
+	if err != nil {
+		return TestResult{
+			TestName: "用户评论列表API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("请求失败: %v", err),
+		}
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return TestResult{
+			TestName: "用户评论列表API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("读取响应失败: %v", err),
+		}
+	}
+
+	var apiResp APITestResponse
+	if err := json.Unmarshal(body, &apiResp); err != nil {
+		return TestResult{
+			TestName: "用户评论列表API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("响应格式错误: %v", err),
+		}
+	}
+
+	// 无认证时应返回401，有权限时返回200，这都是正常的
+	if apiResp.Code != 401 && apiResp.Code != 200 {
+		return TestResult{
+			TestName: "用户评论列表API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("用户评论列表API返回意外状态码: %d", apiResp.Code),
+		}
+	}
+
+	return TestResult{
+		TestName: "用户评论列表API",
+		Status:   "PASS",
+		Error:    "",
+	}
+}
+
+// 测试用户评分列表API
+func testUserRatingsAPI() TestResult {
+	fmt.Println("正在测试：用户评分列表API (GetUserRatings)...")
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	
+	// 尝试访问用户评分列表API，需要认证，所以预期会返回401（未认证）或403（无权限），这都表示API存在
+	url := fmt.Sprintf("http://localhost:%s/api/v1/users/ratings", config.GlobalConfig.Server.Port)
+	resp, err := client.Get(url)
+	if err != nil {
+		return TestResult{
+			TestName: "用户评分列表API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("请求失败: %v", err),
+		}
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return TestResult{
+			TestName: "用户评分列表API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("读取响应失败: %v", err),
+		}
+	}
+
+	var apiResp APITestResponse
+	if err := json.Unmarshal(body, &apiResp); err != nil {
+		return TestResult{
+			TestName: "用户评分列表API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("响应格式错误: %v", err),
+		}
+	}
+
+	// 无认证时应返回401，有权限时返回200，这都是正常的
+	if apiResp.Code != 401 && apiResp.Code != 200 {
+		return TestResult{
+			TestName: "用户评分列表API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("用户评分列表API返回意外状态码: %d", apiResp.Code),
+		}
+	}
+
+	return TestResult{
+		TestName: "用户评分列表API",
+		Status:   "PASS",
+		Error:    "",
+	}
+}
+
+// 测试管理员用户管理API
+func testAdminUserManagementAPI() TestResult {
+	fmt.Println("正在测试：管理员用户管理API...")
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	
+	// 尝试访问管理员用户列表API，需要管理员权限，所以预期会返回401（未认证）或403（权限不足），这都表示API存在
+	url := fmt.Sprintf("http://localhost:%s/api/v1/users", config.GlobalConfig.Server.Port)
+	resp, err := client.Get(url)
+	if err != nil {
+		return TestResult{
+			TestName: "管理员用户管理API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("请求失败: %v", err),
+		}
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return TestResult{
+			TestName: "管理员用户管理API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("读取响应失败: %v", err),
+		}
+	}
+
+	var apiResp APITestResponse
+	if err := json.Unmarshal(body, &apiResp); err != nil {
+		return TestResult{
+			TestName: "管理员用户管理API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("响应格式错误: %v", err),
+		}
+	}
+
+	// 无认证时应返回401，权限不足时返回403，有权限时返回200，这都是正常的
+	if apiResp.Code != 401 && apiResp.Code != 403 && apiResp.Code != 200 {
+		return TestResult{
+			TestName: "管理员用户管理API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("管理员用户管理API返回意外状态码: %d", apiResp.Code),
+		}
+	}
+
+	return TestResult{
+		TestName: "管理员用户管理API",
+		Status:   "PASS",
+		Error:    "",
+	}
+}
+
+// 测试管理员用户统计数据API
+func testAdminUserStatisticsAPI() TestResult {
+	fmt.Println("正在测试：管理员用户统计数据API...")
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	
+	// 尝试访问管理员用户统计数据API，需要管理员权限，所以预期会返回401（未认证）或403（权限不足），这都表示API存在
+	url := fmt.Sprintf("http://localhost:%s/api/v1/admin/user-statistics", config.GlobalConfig.Server.Port)
+	resp, err := client.Get(url)
+	if err != nil {
+		return TestResult{
+			TestName: "管理员用户统计数据API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("请求失败: %v", err),
+		}
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return TestResult{
+			TestName: "管理员用户统计数据API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("读取响应失败: %v", err),
+		}
+	}
+
+	var apiResp APITestResponse
+	if err := json.Unmarshal(body, &apiResp); err != nil {
+		return TestResult{
+			TestName: "管理员用户统计数据API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("响应格式错误: %v", err),
+		}
+	}
+
+	// 无认证时应返回401，权限不足时返回403，有权限时返回200，这都是正常的
+	if apiResp.Code != 401 && apiResp.Code != 403 && apiResp.Code != 200 {
+		return TestResult{
+			TestName: "管理员用户统计数据API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("管理员用户统计数据API返回意外状态码: %d", apiResp.Code),
+		}
+	}
+
+	return TestResult{
+		TestName: "管理员用户统计数据API",
+		Status:   "PASS",
+		Error:    "",
+	}
+}
+
+// 测试管理员用户趋势数据API
+func testAdminUserTrendAPI() TestResult {
+	fmt.Println("正在测试：管理员用户趋势数据API...")
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	
+	// 尝试访问管理员用户趋势数据API，需要管理员权限，所以预期会返回401（未认证）或403（权限不足），这都表示API存在
+	url := fmt.Sprintf("http://localhost:%s/api/v1/admin/user-trend", config.GlobalConfig.Server.Port)
+	resp, err := client.Get(url)
+	if err != nil {
+		return TestResult{
+			TestName: "管理员用户趋势数据API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("请求失败: %v", err),
+		}
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return TestResult{
+			TestName: "管理员用户趋势数据API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("读取响应失败: %v", err),
+		}
+	}
+
+	var apiResp APITestResponse
+	if err := json.Unmarshal(body, &apiResp); err != nil {
+		return TestResult{
+			TestName: "管理员用户趋势数据API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("响应格式错误: %v", err),
+		}
+	}
+
+	// 无认证时应返回401，权限不足时返回403，有权限时返回200，这都是正常的
+	if apiResp.Code != 401 && apiResp.Code != 403 && apiResp.Code != 200 {
+		return TestResult{
+			TestName: "管理员用户趋势数据API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("管理员用户趋势数据API返回意外状态码: %d", apiResp.Code),
+		}
+	}
+
+	return TestResult{
+		TestName: "管理员用户趋势数据API",
+		Status:   "PASS",
+		Error:    "",
+	}
+}
+
+// 测试管理员用户活动数据API
+func testAdminUserActivitiesAPI() TestResult {
+	fmt.Println("正在测试：管理员用户活动数据API...")
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	
+	// 尝试访问管理员用户活动数据API，需要管理员权限，所以预期会返回401（未认证）或403（权限不足），这都表示API存在
+	url := fmt.Sprintf("http://localhost:%s/api/v1/admin/user-activities", config.GlobalConfig.Server.Port)
+	resp, err := client.Get(url)
+	if err != nil {
+		return TestResult{
+			TestName: "管理员用户活动数据API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("请求失败: %v", err),
+		}
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return TestResult{
+			TestName: "管理员用户活动数据API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("读取响应失败: %v", err),
+		}
+	}
+
+	var apiResp APITestResponse
+	if err := json.Unmarshal(body, &apiResp); err != nil {
+		return TestResult{
+			TestName: "管理员用户活动数据API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("响应格式错误: %v", err),
+		}
+	}
+
+	// 无认证时应返回401，权限不足时返回403，有权限时返回200，这都是正常的
+	if apiResp.Code != 401 && apiResp.Code != 403 && apiResp.Code != 200 {
+		return TestResult{
+			TestName: "管理员用户活动数据API",
+			Status:   "FAIL",
+			Error:    fmt.Sprintf("管理员用户活动数据API返回意外状态码: %d", apiResp.Code),
+		}
+	}
+
+	return TestResult{
+		TestName: "管理员用户活动数据API",
 		Status:   "PASS",
 		Error:    "",
 	}

@@ -935,6 +935,302 @@ func DeleteReviewCriteria(c *gin.Context) {
 	})
 }
 
+// GetUsers 获取用户列表（管理员功能）
+func GetUsers(c *gin.Context) {
+	// 从上下文获取用户信息（通过AdminAuthMiddleware已验证为管理员）
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
+		return
+	}
+
+	dbUser := user.(models.User)
+	if !dbUser.IsAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "权限不足，仅管理员可访问"})
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	status := c.Query("status") // "active", "inactive", "all"
+	email := c.Query("email")   // 按邮箱搜索
+
+	var users []models.User
+	var count int64
+
+	// 构建查询
+	query := models.DB.Model(&models.User{})
+
+	if email != "" {
+		query = query.Where("email LIKE ?", "%"+email+"%")
+	}
+
+	if status != "" && status != "all" {
+		if status == "active" {
+			query = query.Where("is_active = ?", true)
+		} else if status == "inactive" {
+			query = query.Where("is_active = ?", false)
+		}
+	}
+
+	// 获取总数
+	query.Count(&count)
+
+	// 分页查询
+	offset := (page - 1) * limit
+	if err := query.Offset(offset).Limit(limit).
+		Order("created_at DESC").
+		Find(&users).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户列表失败", "data": err.Error()})
+		return
+	}
+
+	// 移除密码字段
+	for i := range users {
+		users[i].Password = ""
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"message": "success",
+		"data": gin.H{
+			"users": users,
+			"pagination": gin.H{
+				"page":  page,
+				"limit": limit,
+				"total": count,
+			},
+		},
+	})
+}
+
+// GetUserStatistics 获取用户统计信息
+func GetUserStatistics(c *gin.Context) {
+	// 从上下文获取用户信息（通过AdminAuthMiddleware已验证为管理员）
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
+		return
+	}
+
+	dbUser := user.(models.User)
+	if !dbUser.IsAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "权限不足，仅管理员可访问"})
+		return
+	}
+
+	// 获取基本统计信息
+	var totalUsers int64
+	models.DB.Model(&models.User{}).Count(&totalUsers)
+
+	var activeUsers int64
+	models.DB.Model(&models.User{}).Where("is_active = ?", true).Count(&activeUsers)
+
+	var inactiveUsers int64
+	models.DB.Model(&models.User{}).Where("is_active = ?", false).Count(&inactiveUsers)
+
+	var adminUsers int64
+	models.DB.Model(&models.User{}).Where("is_admin = ?", true).Count(&adminUsers)
+
+	// 获取最近注册用户数（最近7天）
+	recentTime := time.Now().AddDate(0, 0, -7)
+	var recentUsers int64
+	models.DB.Model(&models.User{}).Where("created_at > ?", recentTime).Count(&recentUsers)
+
+	// 获取用户活动统计（评论、评分等）
+	var totalComments int64
+	models.DB.Model(&models.Comment{}).Count(&totalComments)
+
+	var totalRatings int64
+	models.DB.Model(&models.Rating{}).Count(&totalRatings)
+
+	var totalNovels int64
+	models.DB.Model(&models.Novel{}).Count(&totalNovels)
+
+	var pendingNovels int64
+	models.DB.Model(&models.Novel{}).Where("status = ?", "pending").Count(&pendingNovels)
+
+	var approvedNovels int64
+	models.DB.Model(&models.Novel{}).Where("status = ?", "approved").Count(&approvedNovels)
+
+	var rejectedNovels int64
+	models.DB.Model(&models.Novel{}).Where("status = ?", "rejected").Count(&rejectedNovels)
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"message": "success",
+		"data": gin.H{
+			"total_users":      totalUsers,
+			"active_users":     activeUsers,
+			"inactive_users":   inactiveUsers,
+			"admin_users":      adminUsers,
+			"recent_users":     recentUsers,
+			"total_comments":   totalComments,
+			"total_ratings":    totalRatings,
+			"total_novels":     totalNovels,
+			"pending_novels":   pendingNovels,
+			"approved_novels":  approvedNovels,
+			"rejected_novels":  rejectedNovels,
+		},
+	})
+}
+
+// GetUserTrend 获取用户趋势（注册趋势等）
+func GetUserTrend(c *gin.Context) {
+	// 从上下文获取用户信息（通过AdminAuthMiddleware已验证为管理员）
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
+		return
+	}
+
+	dbUser := user.(models.User)
+	if !dbUser.IsAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "权限不足，仅管理员可访问"})
+		return
+	}
+
+	// 获取查询参数
+	days, _ := strconv.Atoi(c.DefaultQuery("days", "30")) // 默认30天
+
+	// 计算开始时间
+	startTime := time.Now().AddDate(0, 0, -days)
+
+	// 按日期统计用户注册数量
+	var userTrends []struct {
+		Date      time.Time `json:"date"`
+		UserCount int       `json:"user_count"`
+	}
+	
+	// 使用Raw SQL查询按日期分组的用户注册数量
+	query := `
+		SELECT DATE(created_at) as date, COUNT(*) as user_count
+		FROM users
+		WHERE created_at >= ?
+		GROUP BY DATE(created_at)
+		ORDER BY date ASC
+	`
+	
+	if err := models.DB.Raw(query, startTime).Scan(&userTrends).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户趋势失败", "data": err.Error()})
+		return
+	}
+
+	// 获取按周统计的数据
+	var weeklyTrends []struct {
+		Week      string `json:"week"`
+		UserCount int    `json:"user_count"`
+	}
+	
+	weeklyQuery := `
+		SELECT DATE_FORMAT(created_at, '%Y-W%u') as week, COUNT(*) as user_count
+		FROM users
+		WHERE created_at >= ?
+		GROUP BY DATE_FORMAT(created_at, '%Y-W%u')
+		ORDER BY week ASC
+	`
+	
+	if err := models.DB.Raw(weeklyQuery, startTime).Scan(&weeklyTrends).Error; err != nil {
+		// 如果MySQL版本不支持DATE_FORMAT，尝试另一种方式
+		// 使用标准SQL方式获取按周统计
+		weeklyQuery2 := `
+			SELECT strftime('%Y-W%W', created_at) as week, COUNT(*) as user_count
+			FROM users
+			WHERE created_at >= ?
+			GROUP BY strftime('%Y-W%W', created_at)
+			ORDER BY week ASC
+		`
+		
+		if err := models.DB.Raw(weeklyQuery2, startTime).Scan(&weeklyTrends).Error; err != nil {
+			// 如果还是失败，返回空的统计数据
+			weeklyTrends = []struct {
+				Week      string `json:"week"`
+				UserCount int    `json:"user_count"`
+			}{}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"message": "success",
+		"data": gin.H{
+			"daily_trends":  userTrends,
+			"weekly_trends": weeklyTrends,
+			"days":          days,
+		},
+	})
+}
+
+// GetUserActivities 获取用户活动列表（管理员功能）
+func GetUserActivities(c *gin.Context) {
+	// 从上下文获取用户信息（通过AdminAuthMiddleware已验证为管理员）
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
+		return
+	}
+
+	dbUser := user.(models.User)
+	if !dbUser.IsAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "权限不足，仅管理员可访问"})
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	action := c.Query("action")
+	userID, _ := strconv.ParseUint(c.Query("user_id"), 10, 64) // 按用户ID过滤
+	dateFrom := c.Query("date_from")
+	dateTo := c.Query("date_to")
+
+	var activities []models.UserActivity
+	var count int64
+
+	// 构建查询
+	query := models.DB.Preload("User")
+
+	if action != "" {
+		query = query.Where("action LIKE ?", "%"+action+"%")
+	}
+	
+	if userID > 0 {
+		query = query.Where("user_id = ?", userID)
+	}
+	
+	if dateFrom != "" {
+		query = query.Where("created_at >= ?", dateFrom+" 00:00:00")
+	}
+	
+	if dateTo != "" {
+		query = query.Where("created_at <= ?", dateTo+" 23:59:59")
+	}
+
+	// 获取总数
+	query.Model(&models.UserActivity{}).Count(&count)
+
+	// 分页查询
+	offset := (page - 1) * limit
+	if err := query.Offset(offset).Limit(limit).
+		Order("created_at DESC").
+		Find(&activities).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户活动列表失败", "data": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"message": "success",
+		"data": gin.H{
+			"activities": activities,
+			"pagination": gin.H{
+				"page":  page,
+				"limit": limit,
+				"total": count,
+			},
+		},
+	})
+}
+
 // ProcessExpiredNovels 定时处理过期小说的函数（可由定时任务调用）
 func ProcessExpiredNovels() {
 	// 计算30天前的时间点

@@ -25,6 +25,8 @@ func InitRoutes(r *gin.Engine) {
 			protected.GET("/users/profile", controllers.GetProfile)
 			protected.PUT("/users/profile", controllers.UpdateProfile)
 			protected.GET("/users/:id/activities", controllers.GetUserActivityLog)
+			protected.GET("/users/comments", controllers.GetUserComments)  // 获取用户评论列表
+			protected.GET("/users/ratings", controllers.GetUserRatings)   // 获取用户评分列表
 		}
 		
 		// 管理员用户管理路由
@@ -85,7 +87,8 @@ func InitRoutes(r *gin.Engine) {
 		
 		// 搜索相关路由
 		apiV1.GET("/search/novels", controllers.SearchNovels)
-		apiV1.GET("/search/fulltext", controllers.FullTextSearchNovels)
+		apiV1.GET("/search/fulltext", controllers.FullTextSearchNovels)  // 兼容旧路径
+		apiV1.GET("/search/full-text", controllers.FullTextSearchNovels) // 新路径
 		apiV1.GET("/search/hot-words", controllers.GetHotSearchKeywords)
 		apiV1.GET("/search/suggestions", controllers.SearchSuggestions)
 		apiV1.GET("/search/stats", controllers.GetSearchStats)
@@ -115,6 +118,11 @@ func InitRoutes(r *gin.Engine) {
 			admin.POST("/novels/:id/approve", controllers.ApproveNovel)
 			admin.POST("/novels/batch-approve", controllers.BatchApproveNovels)
 			admin.GET("/admin/logs", controllers.GetAdminLogs)
+			
+			// 高级管理员用户管理路由（统计、趋势等）
+			admin.GET("/admin/user-statistics", controllers.GetUserStatistics)
+			admin.GET("/admin/user-trend", controllers.GetUserTrend)
+			admin.GET("/admin/user-activities", controllers.GetUserActivities)
 			
 			// 内容管理路由
 			admin.POST("/admin/content/delete", controllers.DeleteContentByAdmin)
