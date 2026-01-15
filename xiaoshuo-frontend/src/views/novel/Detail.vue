@@ -656,7 +656,7 @@ export default {
       if (!isAuthenticated.value) return
       
       try {
-        const response = await apiClient.get('/api/v1/users/upload-frequency', {
+        const response = await apiClient.get('/api/v1/novels/upload-frequency', {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }

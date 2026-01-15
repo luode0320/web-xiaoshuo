@@ -16,6 +16,7 @@
 - 后端实际接口: `/api/v1/novels/upload-frequency` 
 - 问题原因: 前端路径不符合后端定义
 - 修复建议: 将前端API调用改为 `/api/v1/novels/upload-frequency`
+- 修复状态：已修复 - 前端路径已更新为 `/api/v1/novels/upload-frequency`
 
 ## 3. 搜索建议接口返回结构问题
 
