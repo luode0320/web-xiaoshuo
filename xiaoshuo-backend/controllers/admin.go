@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 	"xiaoshuo-backend/models"
@@ -1019,42 +1020,75 @@ func GetUserStatistics(c *gin.Context) {
 		return
 	}
 
-	// 获取基本统计信息
+	// 获取基本统计信息，改进错误处理
 	var totalUsers int64
-	models.DB.Model(&models.User{}).Count(&totalUsers)
+	if err := models.DB.Model(&models.User{}).Count(&totalUsers).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户总数失败", "data": err.Error()})
+		return
+	}
 
 	var activeUsers int64
-	models.DB.Model(&models.User{}).Where("is_active = ?", true).Count(&activeUsers)
+	if err := models.DB.Model(&models.User{}).Where("is_active = ?", true).Count(&activeUsers).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取活跃用户数失败", "data": err.Error()})
+		return
+	}
 
 	var inactiveUsers int64
-	models.DB.Model(&models.User{}).Where("is_active = ?", false).Count(&inactiveUsers)
+	if err := models.DB.Model(&models.User{}).Where("is_active = ?", false).Count(&inactiveUsers).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取非活跃用户数失败", "data": err.Error()})
+		return
+	}
 
 	var adminUsers int64
-	models.DB.Model(&models.User{}).Where("is_admin = ?", true).Count(&adminUsers)
+	if err := models.DB.Model(&models.User{}).Where("is_admin = ?", true).Count(&adminUsers).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取管理员用户数失败", "data": err.Error()})
+		return
+	}
 
 	// 获取最近注册用户数（最近7天）
 	recentTime := time.Now().AddDate(0, 0, -7)
 	var recentUsers int64
-	models.DB.Model(&models.User{}).Where("created_at > ?", recentTime).Count(&recentUsers)
+	if err := models.DB.Model(&models.User{}).Where("created_at > ?", recentTime).Count(&recentUsers).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取最近注册用户数失败", "data": err.Error()})
+		return
+	}
 
 	// 获取用户活动统计（评论、评分等）
 	var totalComments int64
-	models.DB.Model(&models.Comment{}).Count(&totalComments)
+	if err := models.DB.Model(&models.Comment{}).Count(&totalComments).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取评论总数失败", "data": err.Error()})
+		return
+	}
 
 	var totalRatings int64
-	models.DB.Model(&models.Rating{}).Count(&totalRatings)
+	if err := models.DB.Model(&models.Rating{}).Count(&totalRatings).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取评分总数失败", "data": err.Error()})
+		return
+	}
 
 	var totalNovels int64
-	models.DB.Model(&models.Novel{}).Count(&totalNovels)
+	if err := models.DB.Model(&models.Novel{}).Count(&totalNovels).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取小说总数失败", "data": err.Error()})
+		return
+	}
 
 	var pendingNovels int64
-	models.DB.Model(&models.Novel{}).Where("status = ?", "pending").Count(&pendingNovels)
+	if err := models.DB.Model(&models.Novel{}).Where("status = ?", "pending").Count(&pendingNovels).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取待审核小说数失败", "data": err.Error()})
+		return
+	}
 
 	var approvedNovels int64
-	models.DB.Model(&models.Novel{}).Where("status = ?", "approved").Count(&approvedNovels)
+	if err := models.DB.Model(&models.Novel{}).Where("status = ?", "approved").Count(&approvedNovels).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取已审核小说数失败", "data": err.Error()})
+		return
+	}
 
 	var rejectedNovels int64
-	models.DB.Model(&models.Novel{}).Where("status = ?", "rejected").Count(&rejectedNovels)
+	if err := models.DB.Model(&models.Novel{}).Where("status = ?", "rejected").Count(&rejectedNovels).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取已拒绝小说数失败", "data": err.Error()})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"code": 200,
@@ -1103,6 +1137,7 @@ func GetUserTrend(c *gin.Context) {
 	}
 	
 	// 使用Raw SQL查询按日期分组的用户注册数量
+	// 尝试MySQL语法
 	query := `
 		SELECT DATE(created_at) as date, COUNT(*) as user_count
 		FROM users
@@ -1111,9 +1146,45 @@ func GetUserTrend(c *gin.Context) {
 		ORDER BY date ASC
 	`
 	
-	if err := models.DB.Raw(query, startTime).Scan(&userTrends).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户趋势失败", "data": err.Error()})
-		return
+	var err error
+	if err = models.DB.Raw(query, startTime).Scan(&userTrends).Error; err != nil {
+		// 如果MySQL语法失败，尝试SQLite语法
+		query = `
+			SELECT DATE(created_at) as date, COUNT(*) as user_count
+			FROM users
+			WHERE created_at >= ?
+			GROUP BY DATE(created_at)
+			ORDER BY date ASC
+		`
+		if err = models.DB.Raw(query, startTime).Scan(&userTrends).Error; err != nil {
+			// 如果还是失败，使用GORM的预加载和内存中处理
+			var users []models.User
+			if dbErr := models.DB.Where("created_at >= ?", startTime).Find(&users).Error; dbErr != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户趋势失败", "data": dbErr.Error()})
+				return
+			}
+			
+			// 在内存中按日期聚合
+			trendMap := make(map[string]int)
+			for _, user := range users {
+				dateStr := user.CreatedAt.Format("2006-01-02")
+				trendMap[dateStr]++
+			}
+			
+			// 转换为结构体切片并排序
+			for dateStr, count := range trendMap {
+				date, _ := time.Parse("2006-01-02", dateStr)
+				userTrends = append(userTrends, struct {
+					Date      time.Time `json:"date"`
+					UserCount int       `json:"user_count"`
+				}{Date: date, UserCount: count})
+			}
+			
+			// 按日期排序
+			sort.Slice(userTrends, func(i, j int) bool {
+				return userTrends[i].Date.Before(userTrends[j].Date)
+			})
+		}
 	}
 
 	// 获取按周统计的数据
@@ -1122,6 +1193,7 @@ func GetUserTrend(c *gin.Context) {
 		UserCount int    `json:"user_count"`
 	}
 	
+	// 尝试MySQL周统计查询
 	weeklyQuery := `
 		SELECT DATE_FORMAT(created_at, '%Y-W%u') as week, COUNT(*) as user_count
 		FROM users
@@ -1130,23 +1202,47 @@ func GetUserTrend(c *gin.Context) {
 		ORDER BY week ASC
 	`
 	
-	if err := models.DB.Raw(weeklyQuery, startTime).Scan(&weeklyTrends).Error; err != nil {
-		// 如果MySQL版本不支持DATE_FORMAT，尝试另一种方式
-		// 使用标准SQL方式获取按周统计
-		weeklyQuery2 := `
+	if err = models.DB.Raw(weeklyQuery, startTime).Scan(&weeklyTrends).Error; err != nil {
+		// 如果MySQL语法失败，尝试SQLite语法
+		weeklyQuery = `
 			SELECT strftime('%Y-W%W', created_at) as week, COUNT(*) as user_count
 			FROM users
 			WHERE created_at >= ?
 			GROUP BY strftime('%Y-W%W', created_at)
 			ORDER BY week ASC
 		`
-		
-		if err := models.DB.Raw(weeklyQuery2, startTime).Scan(&weeklyTrends).Error; err != nil {
-			// 如果还是失败，返回空的统计数据
-			weeklyTrends = []struct {
-				Week      string `json:"week"`
-				UserCount int    `json:"user_count"`
-			}{}
+		if err = models.DB.Raw(weeklyQuery, startTime).Scan(&weeklyTrends).Error; err != nil {
+			// 如果还是失败，使用GORM的预加载和内存中处理
+			var users []models.User
+			if dbErr := models.DB.Where("created_at >= ?", startTime).Find(&users).Error; dbErr != nil {
+				// 如果已经获取过用户数据了，就使用现有的userTrends
+				// 否则返回空的weeklyTrends
+				weeklyTrends = []struct {
+					Week      string `json:"week"`
+					UserCount int    `json:"user_count"`
+				}{}
+			} else {
+				// 在内存中按周聚合
+				weekMap := make(map[string]int)
+				for _, user := range users {
+					year, week := user.CreatedAt.ISOWeek()
+					weekStr := fmt.Sprintf("%d-W%02d", year, week)
+					weekMap[weekStr]++
+				}
+				
+				// 转换为结构体切片
+				for weekStr, count := range weekMap {
+					weeklyTrends = append(weeklyTrends, struct {
+						Week      string `json:"week"`
+						UserCount int    `json:"user_count"`
+					}{Week: weekStr, UserCount: count})
+				}
+				
+				// 按周排序
+				sort.Slice(weeklyTrends, func(i, j int) bool {
+					return weeklyTrends[i].Week < weeklyTrends[j].Week
+				})
+			}
 		}
 	}
 
@@ -1206,7 +1302,10 @@ func GetUserActivities(c *gin.Context) {
 	}
 
 	// 获取总数
-	query.Model(&models.UserActivity{}).Count(&count)
+	if err := query.Model(&models.UserActivity{}).Count(&count).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户活动总数失败", "data": err.Error()})
+		return
+	}
 
 	// 分页查询
 	offset := (page - 1) * limit
