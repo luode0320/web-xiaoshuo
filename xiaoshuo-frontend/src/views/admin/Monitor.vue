@@ -231,7 +231,7 @@ import { ref, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
-import axios from 'axios'
+import apiClient from '@/utils/api'
 import dayjs from 'dayjs'
 import * as echarts from 'echarts'
 
@@ -302,7 +302,7 @@ export default {
     const fetchUsers = async () => {
       loading.value.users = true
       try {
-        const response = await axios.get('/api/v1/admin/users', {
+        const response = await apiClient.get('/api/v1/admin/users', {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -338,7 +338,7 @@ export default {
           params.end_date = activityFilters.value.date_range[1]
         }
         
-        const response = await axios.get('/api/v1/admin/user-activities', {
+        const response = await apiClient.get('/api/v1/admin/user-activities', {
           params,
           headers: {
             'Authorization': `Bearer ${userStore.token}`
@@ -373,7 +373,7 @@ export default {
           params.end_date = logFilters.value.date_range[1]
         }
         
-        const response = await axios.get('/api/v1/admin/system-logs', {
+        const response = await apiClient.get('/api/v1/admin/system-logs', {
           params,
           headers: {
             'Authorization': `Bearer ${userStore.token}`
@@ -393,7 +393,7 @@ export default {
     // 获取用户统计
     const fetchUserStats = async () => {
       try {
-        const response = await axios.get('/api/v1/admin/user-statistics', {
+        const response = await apiClient.get('/api/v1/admin/user-statistics', {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -409,7 +409,7 @@ export default {
     // 获取趋势数据并绘制图表
     const fetchTrendData = async () => {
       try {
-        const response = await axios.get('/api/v1/admin/user-trend', {
+        const response = await apiClient.get('/api/v1/admin/user-trend', {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }

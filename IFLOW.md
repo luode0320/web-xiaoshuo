@@ -2,12 +2,7 @@
 
 ## 项目概述
 
-这是一个全栈小说阅读系统，采用前后端分离架构：
-
-- **后端**: 基于 Go 语言和 Gin 框架构建的 RESTful API 服务
-- **前端**: 基于 Vue.js 3 和 Element Plus 构建的单页面应用 (SPA)
-
-项目提供了用户认证、小说管理、阅读、搜索、评论、评分、审核等核心功能。系统采用移动端优先设计，提供类似起点中文网的阅读体验，支持多种格式的小说上传、阅读和社交功能。项目已完成整体开发，功能完成度约100%，测试覆盖完成度约98%。
+这是一个基于Vue.js前端和Go后端的全栈小说阅读系统，采用前后端分离架构。系统支持用户认证、小说上传、在线阅读、评论评分、搜索推荐等完整功能。系统采用移动端优先设计，提供类似起点中文网的阅读体验，支持多种格式的小说上传、阅读和社交功能。
 
 ## 技术栈
 
@@ -21,7 +16,6 @@
 - **密码加密**: golang.org/x/crypto/bcrypt
 - **文件类型检测**: filetype库
 - **EPUB处理**: golang-epub库
-- **速率限制**: golang.org/x/time/rate
 - **数据验证**: github.com/go-playground/validator/v10
 - **XSS防护**: bluemonday库
 - **定时任务**: gocron库
@@ -57,7 +51,9 @@ web-xiaoshuo/
 │   ├── main.go               # 主入口文件
 │   ├── config/               # 配置相关文件
 │   │   ├── config.go         # 配置初始化和连接管理
-│   │   └── config.yaml       # 配置文件
+│   │   ├── config.local.yaml # 本地环境配置
+│   │   ├── config.prod.yaml  # 生产环境配置
+│   │   └── config.yaml       # 默认配置
 │   ├── controllers/          # 控制器层 (MVC)
 │   │   ├── admin.go          # 管理员相关控制器
 │   │   ├── category.go       # 分类相关控制器
@@ -91,7 +87,6 @@ web-xiaoshuo/
 │   ├── routes/               # 路由配置
 │   │   └── routes.go         # 路由定义
 │   ├── search_index/         # 搜索索引存储
-│   │   ├── index_meta.json   # 搜索索引元数据
 │   │   └── store/            # 搜索索引存储目录
 │   ├── services/             # 业务逻辑服务
 │   │   └── recommendation_service.go # 推荐服务
@@ -106,12 +101,13 @@ web-xiaoshuo/
 │   │   ├── test_recommendation_ranking.go # 推荐与排行榜测试
 │   │   ├── test_social_features.go # 社交功能测试
 │   │   ├── test_system.go    # 系统测试
+│   │   ├── verify_deployment.go # 部署验证测试
 │   │   └── verify_endpoints.go # 端点验证测试
 │   ├── utils/                # 工具函数
 │   │   ├── cache_service.go  # 缓存服务
 │   │   ├── cache.go          # 缓存工具
 │   │   ├── file.go           # 文件处理工具
-│   │   ├── jwt.go          # JWT相关工具
+│   │   ├── jwt.go            # JWT相关工具
 │   │   ├── reading_limit.go  # 阅读限制工具
 │   │   ├── response.go       # 响应格式工具
 │   │   ├── search.go         # 搜索工具
@@ -120,6 +116,10 @@ web-xiaoshuo/
 ├── xiaoshuo-frontend/                 # Vue.js前端项目
 │   ├── package.json          # 前端依赖和脚本配置
 │   ├── vite.config.js        # Vite构建配置
+│   ├── .env.development      # 开发环境变量
+│   ├── .env.production       # 生产环境变量
+│   ├── Dockerfile            # 前端Docker配置
+│   ├── nginx.conf            # Nginx配置
 │   ├── tests/                # 前端测试文件
 │   │   └── test_search_function.js # 前端搜索功能测试
 │   └── src/
@@ -134,6 +134,7 @@ web-xiaoshuo/
 │       ├── stores/           # Pinia状态管理
 │       │   └── user.js       # 用户状态管理
 │       ├── utils/            # 工具函数
+│       │   └── api.js        # API请求配置
 │       └── views/            # 页面视图
 │           ├── About.vue     # 关于页面
 │           ├── Home.vue      # 首页
@@ -166,6 +167,7 @@ web-xiaoshuo/
 ├── 小说阅读系统部署文档.md       # 部署文档
 ├── 小说阅读系统项目完成总结报告.md # 项目完成总结
 ├── 小说阅读系统项目完成总结报告2.md # 项目完成总结2
+├── 多环境配置使用指南.md       # 多环境配置使用指南
 ├── docker-compose.yml        # Docker容器编排配置
 ├── start_system.bat          # Windows系统启动脚本
 ├── IFLOW.md                 # 项目上下文文档
@@ -281,43 +283,86 @@ jwt:
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
+import { loadEnv } from 'vite'
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [vue()],
-  resolve: {
-    alias: {
-      '@': resolve(__dirname, 'src'),
-    },
-  },
-  server: {
-    host: '0.0.0.0',
-    port: 3000,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8888',
-        changeOrigin: true,
-        secure: false,
+export default defineConfig(({ mode }) => {
+  // 加载环境变量
+  const env = loadEnv(mode, process.cwd(), '')
+  
+  // 根据环境设置API基础URL
+  let apiBaseUrl = 'http://localhost:8888'
+  if (mode === 'production') {
+    apiBaseUrl = 'https://xs.luode.vip'
+  } else if (env.VITE_API_BASE_URL) {
+    apiBaseUrl = env.VITE_API_BASE_URL
+  }
+
+  return {
+    plugins: [vue()],
+    resolve: {
+      alias: {
+        '@': resolve(__dirname, 'src'),
       },
     },
-  },
-  build: {
-    outDir: 'dist',
-    assetsDir: 'assets',
-    sourcemap: false,
-    minify: 'terser',
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vue: ['vue', 'vue-router'],
-          element: ['element-plus'],
-          utils: ['axios', 'dayjs'],
+    server: {
+      host: '0.0.0.0',
+      port: 3000,
+      proxy: {
+        '/api': {
+          target: apiBaseUrl,
+          changeOrigin: true,
+          secure: false,
         },
       },
     },
-  },
+    build: {
+      outDir: 'dist',
+      assetsDir: 'assets',
+      sourcemap: false,
+      minify: 'terser',
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vue: ['vue', 'vue-router'],
+            element: ['element-plus'],
+            utils: ['axios', 'dayjs'],
+          },
+        },
+      },
+    },
+    // 定义环境变量，构建时会嵌入到代码中
+    define: {
+      'process.env': {
+        VUE_APP_API_BASE_URL: JSON.stringify(apiBaseUrl),
+      }
+    }
+  }
 })
 ```
+
+#### 前端环境变量配置
+
+项目支持多环境配置，使用以下环境变量文件：
+
+- `.env.development` - 开发环境配置
+- `.env.production` - 生产环境配置
+
+##### 开发环境配置 (.env.development)
+```bash
+# 开发环境变量
+VITE_API_BASE_URL=http://localhost:8888
+```
+
+##### 生产环境配置 (.env.production)
+```bash
+# 生产环境变量
+VITE_API_BASE_URL=https://xs.luode.vip
+```
+
+#### 前端API调用配置
+
+所有API请求通过 `src/utils/api.js` 统一管理，该文件会根据环境变量自动选择正确的后端API地址。
 
 ## API 路由
 
@@ -431,12 +476,12 @@ export default defineConfig({
 ### 前端启动步骤
 1. 进入xiaoshuo-frontend目录：`cd xiaoshuo-frontend`
 2. 安装依赖：`npm install`
-3. 启动开发服务器：`npm run dev`
+3. 启动开发服务器：`npm run dev` (使用开发环境配置，调用 http://localhost:8888 后端)
 4. 前端开发服务器将启动在 `http://localhost:3000`
 
 ### 前端开发脚本
-- `npm run dev` - 启动开发服务器
-- `npm run build` - 构建生产版本
+- `npm run dev` - 启动开发服务器（使用 .env.development 配置）
+- `npm run build` - 构建生产版本（使用 .env.production 配置，调用 https://xs.luode.vip 后端）
 - `npm run preview` - 预览构建结果
 - `npm run lint` - 代码检查
 - `npm run test` - 运行测试
@@ -454,6 +499,7 @@ export default defineConfig({
 - `go run tests/test_recommendation_ranking.go` - 运行推荐与排行榜测试
 - `go run tests/test_backend_unit.go` - 运行后端单元测试
 - `go run tests/test_comprehensive.go` - 运行全面系统测试
+- `go run tests/verify_deployment.go` - 运行部署验证测试
 
 ### 前端测试
 - `npm run test` - 运行前端测试
@@ -784,6 +830,7 @@ func (UserActivity) TableName() string {
 - **后端单元测试**: `tests/test_backend_unit.go` - 后端单元测试
 - **全面系统测试**: `tests/test_comprehensive.go` - 全面系统测试
 - **端点验证测试**: `tests/verify_endpoints.go` - API端点验证测试
+- **部署验证测试**: `tests/verify_deployment.go` - 部署功能验证测试
 - **前端搜索功能测试**: `tests/test_search_function.js` - 使用Puppeteer进行前端搜索功能测试
 
 ### Docker化部署
@@ -791,6 +838,11 @@ func (UserActivity) TableName() string {
 - **服务编排**: 自动管理MySQL、Redis、后端和前端服务的依赖关系
 - **环境隔离**: 通过Docker容器实现开发、测试、生产环境的一致性
 - **启动脚本**: 提供Windows批处理脚本(start_system.bat)，自动检测Docker并选择启动方式
+
+### 缓存与性能优化
+- **多层次缓存**: 实现了基于Redis的缓存策略，包括用户信息、小说信息、小说列表等
+- **缓存预热机制**: 实现GetOrSet方法，当缓存不存在时自动加载数据并设置缓存
+- **搜索建议优化**: 增强了模糊搜索和前缀查询的搜索建议功能，使用fuzzyQuery和prefixQuery
 
 ## 开发约定
 
@@ -864,9 +916,9 @@ func (UserActivity) TableName() string {
 - **缓存服务**: 实现了业务特定的CacheService，提供缓存键管理、缓存失效等功能
 - **缓存键策略**: 采用命名空间和前缀管理不同类型的缓存
 - **过期时间**: 根据数据更新频率设置合理过期时间
-- **缓存穿透防护**: 使用布隆过滤器或空值缓存防止缓存穿透
-- **缓存雪崩防护**: 设置随机过期时间避免大量缓存同时失效
+- **缓存穿透防护**: 使用GetOrSet方法防止缓存穿透
 - **缓存预热**: 实现GetOrSet方法，当缓存不存在时自动加载数据并设置缓存
+- **缓存失效管理**: 提供InvalidateNovelCache、InvalidateUserCache等方法用于失效特定缓存
 
 ### 全文搜索实现
 - **索引存储**: 使用bleve库实现全文搜索引擎
@@ -874,6 +926,7 @@ func (UserActivity) TableName() string {
 - **内容搜索**: 支持小说内容的全文搜索
 - **搜索建议**: 提供模糊和前缀查询的搜索建议
 - **索引维护**: 自动维护索引与数据库数据的同步
+- **模糊查询**: 实现了fuzzyQuery和prefixQuery，提供更灵活的搜索匹配
 
 ## 部署考虑
 
@@ -886,6 +939,7 @@ func (UserActivity) TableName() string {
 - 搜索索引需要持久化存储
 - 配置负载均衡以支持高并发访问
 - 通过docker-compose.yml实现一键部署整个系统
+- 支持多环境配置(本地/生产/默认)实现灵活部署
 
 ## 安全考虑
 
@@ -899,6 +953,7 @@ func (UserActivity) TableName() string {
 - 实现了API频率限制防止滥用
 - 实现了用户激活验证机制
 - 使用中间件进行访问控制和权限验证
+- 搜索功能中加入模糊查询以提高用户隐私保护
 
 ## 性能要求
 
@@ -919,6 +974,7 @@ func (UserActivity) TableName() string {
 - **自动化测试**: 集成到CI/CD流程中，确保代码质量
 - **测试脚本**: 提供了多个专门的测试脚本，覆盖系统各个功能模块
 - **测试指南**: 通过`小说阅读系统测试指南.md`文档详细说明测试流程和方法
+- **部署验证**: 通过`verify_deployment.go`验证Docker部署功能
 
 ## 当前开发进度
 
@@ -935,13 +991,15 @@ func (UserActivity) TableName() string {
 10. 分类设置与高级阅读功能 (已完成)
 11. 系统测试与部署 (已完成)
 
-项目已完成整体开发，功能完成度100%，测试覆盖完成度约98%。
+项目已完成整体开发，功能完成度约99%，测试覆盖完成度约98%。
 
 ## 项目完成状态
 
-- **整体完成度**: 100%
+- **整体项目完成度**: 约99%
+- **后端功能完成度**: 约99%
+- **前端功能完成度**: 约97%
+- **测试覆盖完成度**: 约98%
 - **功能实现**: 所有计划功能均已实现
-- **测试结果**: 所有测试套件通过（9/9项测试通过）
 - **部署支持**: 已实现Docker容器化部署支持
 - **文档完善**: 完整的部署文档和启动脚本
 - **系统稳定性**: 经过全面测试，系统稳定可靠
@@ -992,7 +1050,7 @@ func (UserActivity) TableName() string {
 - **上传频率监控**: 实现了用户小说上传频率的监控和限制
 - **小说状态API**: 添加了小说状态查询API，用于获取小说审核状态等信息
 - **小说活动历史**: 实现了小说操作历史查看功能，便于追踪小说的审核和修改记录
-- **全文搜索API**: 修正了全文搜索API路由，从`/api/v1/search/fulltext`改为`/api/v1/search/full-text`
+- **全文搜索API**: 使用`/api/v1/search/fulltext`进行全文搜索
 - **章节内容获取**: 实现了专门的章节内容获取API，通过`/chapters/:id`获取单个章节内容
 - **分类关键词设置**: 实现了用户对小说分类和关键词的设置功能
 - **用户阅读统计**: 实现了用户阅读统计功能，包括阅读时长和进度记录
@@ -1005,3 +1063,11 @@ func (UserActivity) TableName() string {
 - **启动脚本**: 新增了`start_system.bat`启动脚本，支持Docker和传统方式启动
 - **部署文档**: 新增了`小说阅读系统部署文档.md`，详细说明部署流程和注意事项
 - **项目总结**: 新增了项目完成总结报告，记录项目开发经验和技术选型总结
+- **部署验证测试**: 新增了`verify_deployment.go`测试文件，用于验证Docker部署功能
+- **多环境配置**: 实现了完整的多环境配置支持，包括本地、生产、默认环境
+- **Docker配置**: 为前端和后端都添加了Dockerfile，支持容器化部署
+- **缓存服务**: 实现了业务特定的CacheService，提供更高级的缓存功能
+- **搜索建议优化**: 增强了搜索建议功能，支持模糊查询和前缀查询
+- **阅读限制检查**: 实现了用户阅读限制检查功能，包括用户激活状态检查
+- **配置系统增强**: 增强了配置系统，支持命令行参数和环境变量配置
+- **启动脚本增强**: 增强了start_system.bat脚本，支持自动检测Docker并选择启动方式

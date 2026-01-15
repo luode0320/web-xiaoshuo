@@ -296,7 +296,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
-import axios from 'axios'
+import apiClient from '@/utils/api'
 import dayjs from 'dayjs'
 
 export default {
@@ -360,7 +360,7 @@ export default {
       
       try {
         // 获取用户阅读进度
-        const response = await axios.get(`/api/v1/novels/${route.params.id}/progress`, {
+        const response = await apiClient.get(`/api/v1/novels/${route.params.id}/progress`, {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -392,7 +392,7 @@ export default {
     // 获取分类列表
     const fetchCategories = async () => {
       try {
-        const response = await axios.get('/api/v1/categories')
+        const response = await apiClient.get('/api/v1/categories')
         categories.value = response.data.data
       } catch (error) {
         console.error('获取分类列表失败:', error)
@@ -402,7 +402,7 @@ export default {
     // 获取小说详情
     const fetchNovelDetail = async () => {
       try {
-        const response = await axios.get(`/api/v1/novels/${route.params.id}`)
+        const response = await apiClient.get(`/api/v1/novels/${route.params.id}`)
         novel.value = response.data.data
         // 如果响应中包含评分信息，更新avgRating和ratingCount
         if (response.data.data.avg_rating !== undefined) {
@@ -420,7 +420,7 @@ export default {
     // 获取评论列表
     const fetchComments = async () => {
       try {
-        const response = await axios.get(`/api/v1/comments?novel_id=${route.params.id}`)
+        const response = await apiClient.get(`/api/v1/comments?novel_id=${route.params.id}`)
         comments.value = response.data.data.comments
       } catch (error) {
         console.error('获取评论失败:', error)
@@ -430,7 +430,7 @@ export default {
     // 获取评分列表
     const fetchRatings = async () => {
       try {
-        const response = await axios.get(`/api/v1/ratings/${route.params.id}`)
+        const response = await apiClient.get(`/api/v1/ratings/${route.params.id}`)
         ratings.value = response.data.data.ratings
       } catch (error) {
         console.error('获取评分失败:', error)
@@ -447,7 +447,7 @@ export default {
       try {
         commentLoading.value = true
         
-        await axios.post('/api/v1/comments', {
+        await apiClient.post('/api/v1/comments', {
           content: newComment.value,
           novel_id: parseInt(route.params.id)
         }, {
@@ -485,7 +485,7 @@ export default {
         
         ratingLoading.value = true
         
-        await axios.post('/api/v1/ratings', {
+        await apiClient.post('/api/v1/ratings', {
           score: ratingForm.score,
           comment: ratingForm.comment,
           novel_id: parseInt(route.params.id)
@@ -519,7 +519,7 @@ export default {
       try {
         if (isCommentLiked(commentId)) {
           // 取消点赞
-          await axios.delete(`/api/v1/comments/${commentId}/like`, {
+          await apiClient.delete(`/api/v1/comments/${commentId}/like`, {
             headers: {
               'Authorization': `Bearer ${userStore.token}`
             }
@@ -527,7 +527,7 @@ export default {
           likedComments.value.delete(commentId)
         } else {
           // 点赞
-          await axios.post(`/api/v1/comments/${commentId}/like`, {}, {
+          await apiClient.post(`/api/v1/comments/${commentId}/like`, {}, {
             headers: {
               'Authorization': `Bearer ${userStore.token}`
             }
@@ -553,7 +553,7 @@ export default {
       try {
         if (isRatingLiked(ratingId)) {
           // 取消点赞
-          await axios.delete(`/api/v1/ratings/${ratingId}/like`, {
+          await apiClient.delete(`/api/v1/ratings/${ratingId}/like`, {
             headers: {
               'Authorization': `Bearer ${userStore.token}`
             }
@@ -561,7 +561,7 @@ export default {
           likedRatings.value.delete(ratingId)
         } else {
           // 点赞
-          await axios.post(`/api/v1/ratings/${ratingId}/like`, {}, {
+          await apiClient.post(`/api/v1/ratings/${ratingId}/like`, {}, {
             headers: {
               'Authorization': `Bearer ${userStore.token}`
             }
@@ -635,7 +635,7 @@ export default {
           keywords: novel.value.keywords.map(kw => kw.keyword)
         }
         
-        await axios.post(`/api/v1/novels/${route.params.id}/classify`, payload, {
+        await apiClient.post(`/api/v1/novels/${route.params.id}/classify`, payload, {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -656,7 +656,7 @@ export default {
       if (!isAuthenticated.value) return
       
       try {
-        const response = await axios.get('/api/v1/users/upload-frequency', {
+        const response = await apiClient.get('/api/v1/users/upload-frequency', {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -672,7 +672,7 @@ export default {
       if (!isAuthenticated.value || !novel.value) return
       
       try {
-        const response = await axios.get(`/api/v1/novels/${route.params.id}/status`, {
+        const response = await apiClient.get(`/api/v1/novels/${route.params.id}/status`, {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -688,7 +688,7 @@ export default {
       if (!isAuthenticated.value || !novel.value) return
       
       try {
-        const response = await axios.get(`/api/v1/novels/${route.params.id}/history`, {
+        const response = await apiClient.get(`/api/v1/novels/${route.params.id}/history`, {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }

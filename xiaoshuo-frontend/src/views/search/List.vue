@@ -225,7 +225,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
-import axios from 'axios'
+import apiClient from '@/utils/api'
 import { useUserStore } from '@/stores/user'
 
 export default {
@@ -274,7 +274,7 @@ export default {
       }
 
       try {
-        const response = await axios.get(`/api/v1/search/suggestions?q=${queryString}`)
+        const response = await apiClient.get(`/api/v1/search/suggestions?q=${queryString}`)
         const suggestions = response.data.data.suggestions.map(item => ({
           value: item.text,
           text: item.text,
@@ -319,7 +319,7 @@ export default {
         }
         
         const queryString = new URLSearchParams(params).toString()
-        const response = await axios.get(`/api/v1/search/novels?${queryString}`)
+        const response = await apiClient.get(`/api/v1/search/novels?${queryString}`)
         
         searchResults.value = response.data.data.novels
         totalResults.value = response.data.data.pagination.total
@@ -342,7 +342,7 @@ export default {
     // 获取分类列表
     const fetchCategories = async () => {
       try {
-        const response = await axios.get('/api/v1/categories')
+        const response = await apiClient.get('/api/v1/categories')
         categories.value = response.data.data.categories
       } catch (error) {
         console.error('获取分类失败:', error)
@@ -352,7 +352,7 @@ export default {
     // 获取热门搜索关键词
     const fetchHotKeywords = async () => {
       try {
-        const response = await axios.get('/api/v1/search/hot-words')
+        const response = await apiClient.get('/api/v1/search/hot-words')
         hotKeywords.value = response.data.data.keywords
       } catch (error) {
         console.error('获取热门关键词失败:', error)
@@ -364,7 +364,7 @@ export default {
     // 获取推荐小说
     const fetchRecommendedNovels = async () => {
       try {
-        const response = await axios.get('/api/v1/novels?limit=8')
+        const response = await apiClient.get('/api/v1/novels?limit=8')
         recommendedNovels.value = response.data.data.novels
       } catch (error) {
         console.error('获取推荐小说失败:', error)
@@ -410,7 +410,7 @@ export default {
       if (!isAuthenticated.value) return
       
       try {
-        const response = await axios.get('/api/v1/users/search-history', {
+        const response = await apiClient.get('/api/v1/users/search-history', {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -438,7 +438,7 @@ export default {
         
         clearingHistory.value = true
         
-        await axios.delete('/api/v1/users/search-history', {
+        await apiClient.delete('/api/v1/users/search-history', {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }

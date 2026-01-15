@@ -300,7 +300,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import axios from 'axios'
+import apiClient from '@/utils/api'
 import dayjs from 'dayjs'
 
 export default {
@@ -375,7 +375,7 @@ export default {
     // 获取我的评论
     const fetchComments = async () => {
       try {
-        const response = await axios.get(`/api/v1/users/comments?page=${commentPagination.value.page}&limit=${commentPagination.value.limit}`, {
+        const response = await apiClient.get(`/api/v1/users/comments?page=${commentPagination.value.page}&limit=${commentPagination.value.limit}`, {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -391,7 +391,7 @@ export default {
     // 获取我的评分
     const fetchRatings = async () => {
       try {
-        const response = await axios.get(`/api/v1/users/ratings?page=${ratingPagination.value.page}&limit=${ratingPagination.value.limit}`, {
+        const response = await apiClient.get(`/api/v1/users/ratings?page=${ratingPagination.value.page}&limit=${ratingPagination.value.limit}`, {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -407,7 +407,7 @@ export default {
     // 获取点赞的评论
     const fetchLikedComments = async () => {
       try {
-        const response = await axios.get('/api/v1/users/liked-comments', {
+        const response = await apiClient.get('/api/v1/users/liked-comments', {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -422,7 +422,7 @@ export default {
     // 获取点赞的评分
     const fetchLikedRatings = async () => {
       try {
-        const response = await axios.get('/api/v1/users/liked-ratings', {
+        const response = await apiClient.get('/api/v1/users/liked-ratings', {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -437,7 +437,7 @@ export default {
     // 获取互动通知
     const fetchNotifications = async () => {
       try {
-        const response = await axios.get(`/api/v1/users/notifications?page=${notificationPagination.value.page}&limit=${notificationPagination.value.limit}`, {
+        const response = await apiClient.get(`/api/v1/users/notifications?page=${notificationPagination.value.page}&limit=${notificationPagination.value.limit}`, {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -459,7 +459,7 @@ export default {
           type: 'warning'
         })
         
-        await axios.delete(`/api/v1/comments/${commentId}`, {
+        await apiClient.delete(`/api/v1/comments/${commentId}`, {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -490,7 +490,7 @@ export default {
         
         commentSaving.value = true
         
-        await axios.put(`/api/v1/comments/${editingComment.value.id}`, {
+        await apiClient.put(`/api/v1/comments/${editingComment.value.id}`, {
           content: editingComment.value.content
         }, {
           headers: {
@@ -518,7 +518,7 @@ export default {
           type: 'warning'
         })
         
-        await axios.delete(`/api/v1/ratings/${ratingId}`, {
+        await apiClient.delete(`/api/v1/ratings/${ratingId}`, {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -549,7 +549,7 @@ export default {
         
         ratingSaving.value = true
         
-        await axios.put(`/api/v1/ratings/${editingRating.value.id}`, {
+        await apiClient.put(`/api/v1/ratings/${editingRating.value.id}`, {
           score: editingRating.value.score,
           comment: editingRating.value.comment
         }, {
@@ -572,7 +572,7 @@ export default {
     // 标记通知为已读
     const markAsRead = async (notificationId) => {
       try {
-        await axios.post(`/api/v1/users/notifications/${notificationId}/read`, {}, {
+        await apiClient.post(`/api/v1/users/notifications/${notificationId}/read`, {}, {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }

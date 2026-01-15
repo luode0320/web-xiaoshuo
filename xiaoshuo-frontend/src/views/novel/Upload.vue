@@ -105,7 +105,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload } from '@element-plus/icons-vue'
-import axios from 'axios'
+import apiClient from '@/utils/api'
 
 export default {
   name: 'Upload',
@@ -151,7 +151,7 @@ export default {
     // 获取分类列表
     const fetchCategories = async () => {
       try {
-        const response = await axios.get('/api/v1/categories')
+        const response = await apiClient.get('/api/v1/categories')
         categories.value = response.data.data.categories
       } catch (error) {
         console.error('获取分类失败:', error)
@@ -218,7 +218,7 @@ export default {
           })
         }
         
-        const response = await axios.post('/api/v1/novels/upload', formData, {
+        const response = await apiClient.post('/api/v1/novels/upload', formData, {
           headers: {
             'Authorization': `Bearer ${userStore.token}`,
             'Content-Type': 'multipart/form-data'

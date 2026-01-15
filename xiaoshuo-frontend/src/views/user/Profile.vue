@@ -217,7 +217,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import axios from 'axios'
+import apiClient from '@/utils/api'
 import dayjs from 'dayjs'
 import { 
   User, 
@@ -301,7 +301,7 @@ export default {
     // 获取用户上传的小说
     const fetchUploadHistory = async () => {
       try {
-        const response = await axios.get(`/api/v1/novels?upload_user_id=${userStore.user?.id}`)
+        const response = await apiClient.get(`/api/v1/novels?upload_user_id=${userStore.user?.id}`)
         uploadHistory.value = response.data.data.novels
       } catch (error) {
         console.error('获取上传历史失败:', error)
@@ -311,7 +311,7 @@ export default {
     // 获取用户评论
     const fetchUserComments = async () => {
       try {
-        const response = await axios.get(`/api/v1/users/comments`)
+        const response = await apiClient.get(`/api/v1/users/comments`)
         userComments.value = response.data.data.data || response.data.data
       } catch (error) {
         console.error('获取评论失败:', error)
@@ -321,7 +321,7 @@ export default {
     // 获取用户评分
     const fetchUserRatings = async () => {
       try {
-        const response = await axios.get(`/api/v1/users/ratings`)
+        const response = await apiClient.get(`/api/v1/users/ratings`)
         userRatings.value = response.data.data.data || response.data.data
       } catch (error) {
         console.error('获取评分失败:', error)
@@ -331,7 +331,7 @@ export default {
     // 获取社交统计
     const fetchSocialStats = async () => {
       try {
-        const response = await axios.get(`/api/v1/users/social-stats`, {
+        const response = await apiClient.get(`/api/v1/users/social-stats`, {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -378,7 +378,7 @@ export default {
           type: 'warning'
         })
         
-        await axios.delete(`/api/v1/novels/${novelId}`, {
+        await apiClient.delete(`/api/v1/novels/${novelId}`, {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }

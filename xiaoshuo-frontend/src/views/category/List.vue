@@ -84,7 +84,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import axios from 'axios'
+import apiClient from '@/utils/api'
 
 export default {
   name: 'CategoryList',
@@ -106,7 +106,7 @@ export default {
     // 获取所有分类
     const fetchCategories = async () => {
       try {
-        const response = await axios.get('/api/v1/categories?with_children=true')
+        const response = await apiClient.get('/api/v1/categories?with_children=true')
         categories.value = response.data.data.categories.map(cat => ({
           ...cat,
           novel_count: cat.novels ? cat.novels.length : 0
@@ -120,7 +120,7 @@ export default {
     // 获取分类下的小说
     const fetchCategoryNovels = async (categoryId) => {
       try {
-        const response = await axios.get(`/api/v1/novels?category_id=${categoryId}&page=${novelPagination.value.page}&limit=${novelPagination.value.limit}`)
+        const response = await apiClient.get(`/api/v1/novels?category_id=${categoryId}&page=${novelPagination.value.page}&limit=${novelPagination.value.limit}`)
         categoryNovels.value = response.data.data.novels
         novelPagination.value.total = response.data.data.pagination.total
       } catch (error) {
@@ -132,7 +132,7 @@ export default {
     // 查看分类详情
     const viewCategory = async (categoryId) => {
       try {
-        const response = await axios.get(`/api/v1/categories/${categoryId}`)
+        const response = await apiClient.get(`/api/v1/categories/${categoryId}`)
         selectedCategory.value = response.data.data.category
         
         // 获取该分类下的小说

@@ -105,7 +105,7 @@ import { ref, reactive, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
-import axios from 'axios'
+import apiClient from '@/utils/api'
 
 // 尝试导入epub库
 let ePub = null
@@ -201,7 +201,7 @@ export default {
     // 方法
     const loadNovel = async () => {
       try {
-        const response = await axios.get(`/api/v1/novels/${route.params.id}`)
+        const response = await apiClient.get(`/api/v1/novels/${route.params.id}`)
         novel.value = response.data.data
         
         // 检查是否为EPUB格式
@@ -219,7 +219,7 @@ export default {
           await loadEpubContent()
         } else {
           // 加载文本内容
-          const response = await axios.get(`/api/v1/novels/${route.params.id}/content`)
+          const response = await apiClient.get(`/api/v1/novels/${route.params.id}/content`)
           content.value = response.data.data.content
           
           // 简单解析章节（实际应用中可能需要更复杂的解析）
@@ -289,7 +289,7 @@ export default {
       } catch (error) {
         console.error('加载EPUB内容失败:', error)
         // 如果EPUB加载失败，尝试作为文本加载
-        const response = await axios.get(`/api/v1/novels/${route.params.id}/content`)
+        const response = await apiClient.get(`/api/v1/novels/${route.params.id}/content`)
         content.value = response.data.data.content
         parseChapters(content.value)
         isEpub.value = false
@@ -342,7 +342,7 @@ export default {
       if (!userStore.isAuthenticated) return
       
       try {
-        await axios.post(
+        await apiClient.post(
           `/api/v1/novels/${route.params.id}/progress`, 
           {
             chapter_id: currentChapterIndex.value + 1,
@@ -365,7 +365,7 @@ export default {
       if (!userStore.isAuthenticated) return
       
       try {
-        const response = await axios.get(`/api/v1/novels/${route.params.id}/progress`, {
+        const response = await apiClient.get(`/api/v1/novels/${route.params.id}/progress`, {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }

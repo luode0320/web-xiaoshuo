@@ -183,7 +183,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import axios from 'axios'
+import apiClient from '@/utils/api'
 import dayjs from 'dayjs'
 
 export default {
@@ -261,7 +261,7 @@ export default {
     const fetchStandards = async () => {
       loading.value.standards = true
       try {
-        const response = await axios.get('/api/v1/admin/review-criteria', {
+        const response = await apiClient.get('/api/v1/admin/review-criteria', {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -279,7 +279,7 @@ export default {
     const fetchMessages = async () => {
       loading.value.messages = true
       try {
-        const response = await axios.get('/api/v1/admin/system-messages', {
+        const response = await apiClient.get('/api/v1/admin/system-messages', {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -297,7 +297,7 @@ export default {
     const fetchUsers = async () => {
       loading.value.users = true
       try {
-        const response = await axios.get('/api/v1/admin/users', {
+        const response = await apiClient.get('/api/v1/admin/users', {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -333,7 +333,7 @@ export default {
       try {
         if (editingStandard.value.id) {
           // 更新标准
-          await axios.put(`/api/v1/admin/review-criteria/${editingStandard.value.id}`, editingStandard.value, {
+          await apiClient.put(`/api/v1/admin/review-criteria/${editingStandard.value.id}`, editingStandard.value, {
             headers: {
               'Authorization': `Bearer ${userStore.token}`
             }
@@ -341,7 +341,7 @@ export default {
           ElMessage.success('标准更新成功')
         } else {
           // 创建标准
-          await axios.post('/api/v1/admin/review-criteria', editingStandard.value, {
+          await apiClient.post('/api/v1/admin/review-criteria', editingStandard.value, {
             headers: {
               'Authorization': `Bearer ${userStore.token}`
             }
@@ -366,7 +366,7 @@ export default {
           type: 'danger'
         })
         
-        await axios.delete(`/api/v1/admin/review-criteria/${id}`, {
+        await apiClient.delete(`/api/v1/admin/review-criteria/${id}`, {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -405,7 +405,7 @@ export default {
       try {
         if (editingMessage.value.id) {
           // 更新消息
-          await axios.put(`/api/v1/admin/system-messages/${editingMessage.value.id}`, editingMessage.value, {
+          await apiClient.put(`/api/v1/admin/system-messages/${editingMessage.value.id}`, editingMessage.value, {
             headers: {
               'Authorization': `Bearer ${userStore.token}`
             }
@@ -413,7 +413,7 @@ export default {
           ElMessage.success('消息更新成功')
         } else {
           // 创建消息
-          await axios.post('/api/v1/admin/system-messages', editingMessage.value, {
+          await apiClient.post('/api/v1/admin/system-messages', editingMessage.value, {
             headers: {
               'Authorization': `Bearer ${userStore.token}`
             }
@@ -438,7 +438,7 @@ export default {
           type: 'success'
         })
         
-        await axios.post(`/api/v1/admin/system-messages/${id}/publish`, {}, {
+        await apiClient.post(`/api/v1/admin/system-messages/${id}/publish`, {}, {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -463,7 +463,7 @@ export default {
           type: 'danger'
         })
         
-        await axios.delete(`/api/v1/admin/system-messages/${id}`, {
+        await apiClient.delete(`/api/v1/admin/system-messages/${id}`, {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }

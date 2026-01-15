@@ -70,7 +70,7 @@
 <script>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
+import apiClient from '@/utils/api'
 
 export default {
   name: 'Home',
@@ -83,7 +83,7 @@ export default {
     // 获取推荐小说
     const fetchRecommendedNovels = async () => {
       try {
-        const response = await axios.get('/api/v1/novels?limit=8')
+        const response = await apiClient.get('/api/v1/novels?limit=8')
         recommendedNovels.value = response.data.data.novels
       } catch (error) {
         console.error('获取推荐小说失败:', error)
@@ -93,7 +93,7 @@ export default {
     // 获取分类
     const fetchCategories = async () => {
       try {
-        const response = await axios.get('/api/v1/categories')
+        const response = await apiClient.get('/api/v1/categories')
         categories.value = response.data.data.categories
       } catch (error) {
         console.error('获取分类失败:', error)
@@ -103,7 +103,7 @@ export default {
     // 获取热门小说
     const fetchHotNovels = async () => {
       try {
-        const response = await axios.get('/api/v1/rankings?type=total&limit=10')
+        const response = await apiClient.get('/api/v1/rankings?type=total&limit=10')
         hotNovels.value = response.data.data.novels
       } catch (error) {
         console.error('获取热门小说失败:', error)

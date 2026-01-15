@@ -66,7 +66,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import axios from 'axios'
+import apiClient from '@/utils/api'
 
 export default {
   name: 'RankingList',
@@ -91,7 +91,7 @@ export default {
         }
         
         const queryString = new URLSearchParams(params).toString()
-        const response = await axios.get(`/api/v1/rankings?${queryString}`)
+        const response = await apiClient.get(`/api/v1/rankings?${queryString}`)
         rankedNovels.value = response.data.data.novels
       } catch (error) {
         console.error('获取排行榜失败:', error)
@@ -102,7 +102,7 @@ export default {
     // 获取分类列表
     const fetchCategories = async () => {
       try {
-        const response = await axios.get('/api/v1/categories')
+        const response = await apiClient.get('/api/v1/categories')
         categories.value = response.data.data.categories
       } catch (error) {
         console.error('获取分类失败:', error)

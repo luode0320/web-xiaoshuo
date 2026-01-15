@@ -130,7 +130,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import axios from 'axios'
+import apiClient from '@/utils/api'
 import dayjs from 'dayjs'
 
 export default {
@@ -179,7 +179,7 @@ export default {
     const fetchPendingNovels = async () => {
       loading.value.pending = true
       try {
-        const response = await axios.get(`/api/v1/novels/pending?page=${pendingPagination.value.page}&limit=${pendingPagination.value.limit}`, {
+        const response = await apiClient.get(`/api/v1/novels/pending?page=${pendingPagination.value.page}&limit=${pendingPagination.value.limit}`, {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -198,7 +198,7 @@ export default {
     const fetchApprovedNovels = async () => {
       loading.value.approved = true
       try {
-        const response = await axios.get(`/api/v1/novels?page=${approvedPagination.value.page}&limit=${approvedPagination.value.limit}&status=approved`, {
+        const response = await apiClient.get(`/api/v1/novels?page=${approvedPagination.value.page}&limit=${approvedPagination.value.limit}&status=approved`, {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -217,7 +217,7 @@ export default {
     const fetchAdminLogs = async () => {
       loading.value.logs = true
       try {
-        const response = await axios.get(`/api/v1/admin/logs?page=${logsPagination.value.page}&limit=${logsPagination.value.limit}`, {
+        const response = await apiClient.get(`/api/v1/admin/logs?page=${logsPagination.value.page}&limit=${logsPagination.value.limit}`, {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -241,7 +241,7 @@ export default {
           type: 'success'
         })
         
-        await axios.post(`/api/v1/novels/${novelId}/approve`, {}, {
+        await apiClient.post(`/api/v1/novels/${novelId}/approve`, {}, {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -269,7 +269,7 @@ export default {
         
         // 实际应用中可能需要实现拒绝功能
         // 这里暂时使用删除功能模拟拒绝
-        await axios.delete(`/api/v1/novels/${novelId}`, {
+        await apiClient.delete(`/api/v1/novels/${novelId}`, {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
@@ -294,7 +294,7 @@ export default {
           type: 'danger'
         })
         
-        await axios.delete(`/api/v1/novels/${novelId}`, {
+        await apiClient.delete(`/api/v1/novels/${novelId}`, {
           headers: {
             'Authorization': `Bearer ${userStore.token}`
           }
