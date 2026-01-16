@@ -129,6 +129,9 @@ func InitRoutes(r *gin.Engine) {
 			// 内容管理路由
 			admin.POST("/admin/content/delete", controllers.DeleteContentByAdmin)
 			
+			// 用户管理路由
+			admin.DELETE("/admin/users/:id/pending-novels", controllers.DeleteFrozenUserPendingNovels)
+			
 			// 系统消息管理路由
 			admin.POST("/admin/system-messages", controllers.CreateSystemMessage)
 			admin.GET("/admin/system-messages", controllers.GetSystemMessages)

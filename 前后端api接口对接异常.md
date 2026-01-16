@@ -1,113 +1,53 @@
 # 前后端API接口对接异常记录
 
-## 1. 评分列表接口错误
+## 问题列表
 
-**问题描述**: 前端Detail.vue中获取小说评分列表的API路径错误
-- 前端调用: `/api/v1/ratings/${novelId}` 
-- 后端实际接口: `/api/v1/ratings/novel/:novel_id`
-- 问题原因: 前端路径参数命名不正确
-- 修复建议: 将前端API调用改为 `/api/v1/ratings/novel/${novelId}`
-- 修复状态：已修复 - 前端路径已更新为 `/api/v1/ratings/novel/${novelId}`
+### 1. 评分列表接口路径错误
+- 问题：前端调用的API路径 `/api/v1/ratings/${route.params.id}` 与后端定义的路径 `/api/v1/ratings/novel/:novel_id` 不一致
+- 修复状态：待修复
+- 影响文件：E:\web-xiaoshuo\xiaoshuo-frontend\src\views\novel\Detail.vue
 
-## 2. 上传频率接口错误
+### 2. 上传频率接口路径错误
+- 问题：前端调用 `/api/v1/users/upload-frequency`，但后端定义为 `/api/v1/novels/upload-frequency`
+- 修复状态：待修复
+- 影响文件：E:\web-xiaoshuo\xiaoshuo-frontend\src\views\novel\Detail.vue
 
-**问题描述**: 前端Detail.vue中获取上传频率的API路径错误
-- 前端调用: `/api/v1/users/upload-frequency`
-- 后端实际接口: `/api/v1/novels/upload-frequency` 
-- 问题原因: 前端路径不符合后端定义
-- 修复建议: 将前端API调用改为 `/api/v1/novels/upload-frequency`
-- 修复状态：已修复 - 前端路径已更新为 `/api/v1/novels/upload-frequency`
+### 3. 搜索建议接口返回结构问题
+- 问题：前端期望的搜索建议返回结构与后端实际返回结构可能不一致
+- 修复状态：待修复
+- 影响文件：E:\web-xiaoshuo\xiaoshuo-frontend\src\views\search\List.vue
 
-## 3. 搜索建议接口返回结构问题
+### 4. 拒绝小说审核接口缺失
+- 问题：后端缺少拒绝小说审核的接口
+- 修复状态：已修复（后端已添加POST /api/v1/novels/:id/reject）
+- 影响文件：E:\web-xiaoshuo\xiaoshuo-backend\routes\routes.go
 
-**问题描述**: Detail.vue中获取搜索建议的API返回结构处理不完整
-- 涉及API: `/api/v1/search/suggestions?q=${queryString}`
-- 问题原因: 代码中处理返回数据时使用了 `item.text` 和 `item.count`，但未验证后端实际返回字段
-- 修复建议: 验证后端返回的实际字段格式
-- 修复状态：已修复 - 后端返回结构已统一，确保所有建议项都包含text、count和type字段
-
-## 4. 拒绝小说审核接口缺失
-
-**问题描述**: Review.vue中缺少拒绝小说的专门API接口
-- 需要功能: 拒绝小说审核
-- 后端实际接口: 不存在专门的拒绝接口，可能需要使用删除接口替代
-- 问题原因: 前端使用删除接口模拟拒绝功能
-- 修复建议: 后端应添加专门的拒绝审核接口，如 `POST /api/v1/novels/:id/reject`
-- 修复状态：已修复 - 后端已添加 `POST /api/v1/novels/:id/reject` 接口，实现拒绝小说审核功能
-
-## 5. 系统消息发布接口缺失
-
-**问题描述**: Standard.vue中发布系统消息的API路径错误
-- 前端调用: `/api/v1/admin/system-messages/{id}/publish`
-- 后端实际接口: 不存在此路径
-- 问题原因: 后端没有定义发布系统消息的API
-- 修复建议: 后端应添加此接口，如 `POST /api/v1/admin/system-messages/:id/publish`
-- 修复状态：已修复 - 后端已添加 `POST /api/v1/admin/system-messages/:id/publish` 接口，实现系统消息发布功能
-
-## 6. 用户列表接口缺失
-
-**问题描述**: Standard.vue中获取用户列表的API接口不存在
-- 前端调用: `/api/v1/admin/users`
-- 后端实际接口: 不存在此路径
-- 问题原因: 后端没有定义获取用户列表的API
-- 修复建议: 后端应添加此接口，如 `GET /api/v1/admin/users`
-- 修复状态: 已修复
-  - 修复方案: 在 routes/routes.go 中修改管理员用户管理路由组，使用 `adminUser := apiV1.Group("/admin")` 创建 `/api/v1/admin/users` 路由
-  - 验证: 已通过 test_system.go 和 verify_fix.go 脚本验证接口正常工作
-  - 测试结果: 
-    - 新路由 `/api/v1/admin/users` 返回状态码 200，成功获取用户列表
-    - 旧路由 `/api/v1/users` 返回状态码 404，已正确移除
-    - 其他关键API接口继续正常工作
-
-## 7. 社交统计接口缺失
-
-**问题描述**: Profile.vue中获取社交统计的API接口不存在
-- 前端调用: `/api/v1/users/social-stats`
-- 后端实际接口: 不存在此路径
-- 问题原因: 后端没有定义获取用户社交统计的API
-- 修复建议: 后端应添加此接口，如 `GET /api/v1/users/social-stats`
+### 5. 系统消息发布接口问题
+- 问题：前端调用 `/api/v1/admin/system-messages/{id}/publish`，后端已实现此接口
 - 修复状态：已修复
-  - 修复方案: 
-    1. 在 controllers/user.go 中添加 GetUserSocialStats 函数，实现社交统计功能，返回用户评论数、评分数、点赞数、互动数
-    2. 在 routes/routes.go 中添加路由 `/api/v1/users/social-stats` 指向 GetUserSocialStats
-    3. 在 frontend/src/views/user/Profile.vue 中修复API响应处理，确保正确解析返回的统计数据
-  - 验证: 已通过 test_system.go 综合测试脚本验证接口正常工作
-  - 测试结果: 社交统计接口成功返回用户统计信息，前端能正确处理响应数据
+- 影响文件：E:\web-xiaoshuo\xiaoshuo-backend\controllers\admin.go
 
-## 8. 用户评论和评分接口路径错误
+### 6. 用户列表接口缺失
+- 问题：前端调用 `/api/v1/admin/users`，后端已实现此接口
+- 修复状态：已修复
+- 影响文件：E:\web-xiaoshuo\xiaoshuo-backend\controllers\user.go
 
-**问题描述**: Detail.vue中获取用户评论和评分的API路径错误
-- 前端调用: `/api/v1/users/comments` 和 `/api/v1/users/ratings`
-- 后端实际接口: 这些接口需要认证，但前端可能未正确传递认证信息
-- 问题原因: 用户评论和评分接口需要路径参数
-- 修复建议: 验证API调用是否正确传递了认证信息
-- 修复状态: 已修复
-  - 修复方案: 
-    1. 通过测试脚本验证了用户评论和评分接口 `/api/v1/users/comments` 和 `/api/v1/users/ratings` 正常工作
-    2. 确认了这些接口需要用户认证，前端通过Bearer token传递认证信息
-    3. 验证了API返回的数据结构与前端期望一致
-  - 测试结果: 
-    - 用户评论接口返回状态码 200，成功获取用户评论列表
-    - 用户评分接口返回状态码 200，成功获取用户评分列表
-    - 前后端接口对接正常，数据结构匹配
+### 7. 搜索统计接口问题
+- 问题：前端调用 `/api/v1/search/stats`，后端需要确保管理员权限
+- 修复状态：已修复（后端已添加到管理员路由组）
+- 影响文件：E:\web-xiaoshuo\xiaoshuo-backend\routes\routes.go
 
-### 9. 搜索统计接口返回结构问题
+### 8. 用户评论和评分接口路径问题
+- 问题：前端调用 `/api/v1/users/comments` 和 `/api/v1/users/ratings`，后端已实现这些接口
+- 修复状态：已修复
+- 影响文件：E:\web-xiaoshuo\xiaoshuo-backend\controllers\user.go
 
-- 问题描述：前端SearchList.vue组件中缺失fetchSearchStats函数，导致搜索统计数据无法获取和显示
-- 涉及API: `/api/v1/search/stats`
-- 涉及文件: `xiaoshuo-frontend/src/views/search/List.vue`
-- 问题状态: **已修复** - 2026-01-17
-- 修复内容:
-  - 在SearchList.vue组件中添加了fetchSearchStats函数
-  - 修复了路由配置，将搜索统计接口正确分配给需要管理员权限的路由组
-  - 更新了前端模板以正确显示搜索统计数据
-  - 修复了后端测试脚本中的权限问题
-- 修复优先级: 高
+### 9. 社交统计接口问题
+- 问题：前端调用 `/api/v1/users/social-stats`，后端已实现此接口
+- 修复状态：已修复
+- 影响文件：E:\web-xiaoshuo\xiaoshuo-backend\controllers\user.go
 
-## 10. 管理员用户管理接口缺失
-
-**问题描述**: Review.vue中缺少获取用户列表的API接口
-- 前端可能需要: `/api/v1/admin/users` 来获取用户列表
-- 后端实际接口: 不存在此路径
-- 问题原因: 后端没有定义管理员获取用户列表的API
-- 修复建议: 后端应添加此接口，如 `GET /api/v1/admin/users`
+### 10. 管理员用户管理接口缺失
+- 问题：后端缺少删除冻结用户的未审核小说接口 `/api/v1/admin/users/:id/pending-novels`
+- 修复状态：已修复（后端已添加DELETE /api/v1/admin/users/:id/pending-novels）
+- 影响文件：E:\web-xiaoshuo\xiaoshuo-backend\controllers\admin.go, E:\web-xiaoshuo\xiaoshuo-backend\routes\routes.go

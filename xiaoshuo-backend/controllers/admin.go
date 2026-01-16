@@ -1451,6 +1451,96 @@ func GetUserActivities(c *gin.Context) {
 	})
 }
 
+// DeleteFrozenUserPendingNovels 删除冻结用户的未审核小说
+func DeleteFrozenUserPendingNovels(c *gin.Context) {
+	// 从上下文获取用户信息（通过AdminAuthMiddleware已验证为管理员）
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
+		return
+	}
+
+	dbUser := user.(models.User)
+	if !dbUser.IsAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "权限不足，仅管理员可访问"})
+		return
+	}
+
+	// 获取目标用户ID
+	userID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的用户ID"})
+		return
+	}
+
+	// 检查目标用户是否存在
+	var targetUser models.User
+	if err := models.DB.First(&targetUser, userID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "用户不存在"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败", "data": err.Error()})
+		return
+	}
+
+	// 检查用户是否被冻结
+	if targetUser.IsActive {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "用户未被冻结，不能删除其未审核小说"})
+		return
+	}
+
+	// 获取目标用户的所有未审核小说
+	var pendingNovels []models.Novel
+	if err := models.DB.Where("upload_user_id = ? AND status = ?", targetUser.ID, "pending").Find(&pendingNovels).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户未审核小说失败", "data": err.Error()})
+		return
+	}
+
+	// 记录要删除的小说数量
+	deletedCount := len(pendingNovels)
+
+	// 删除所有未审核小说
+	if deletedCount > 0 {
+		result := models.DB.Where("upload_user_id = ? AND status = ?", targetUser.ID, "pending").Delete(&models.Novel{})
+		if result.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "删除未审核小说失败", "data": result.Error.Error()})
+			return
+		}
+
+		// 删除小说相关的评论和评分
+		// 注意：使用之前查询的pendingNovels来获取ID列表
+		var novelIDs []uint
+		for _, novel := range pendingNovels {
+			novelIDs = append(novelIDs, novel.ID)
+		}
+		if len(novelIDs) > 0 {
+			models.DB.Where("novel_id IN ?", novelIDs).Delete(&models.Comment{})
+			models.DB.Where("novel_id IN ?", novelIDs).Delete(&models.Rating{})
+			models.DB.Where("novel_id IN ?", novelIDs).Delete(&models.ReadingProgress{})
+		}
+	}
+
+	// 记录管理员操作日志
+	log := models.AdminLog{
+		AdminUserID: dbUser.ID,
+		Action:      "delete_frozen_user_pending_novels",
+		TargetType:  "novel",
+		TargetID:    0, // 表示批量操作
+		Details:     fmt.Sprintf("管理员删除了冻结用户 %s (%s) 的 %d 本未审核小说", targetUser.Nickname, targetUser.Email, deletedCount),
+	}
+	models.DB.Create(&log)
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"message": "success",
+		"data": gin.H{
+			"deleted_count": deletedCount,
+			"message":       fmt.Sprintf("已删除 %d 本未审核小说", deletedCount),
+		},
+	})
+}
+
 // ProcessExpiredNovels 定时处理过期小说的函数（可由定时任务调用）
 func ProcessExpiredNovels() {
 	// 计算30天前的时间点
