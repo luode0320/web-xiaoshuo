@@ -609,6 +609,68 @@ func DeleteSystemMessage(c *gin.Context) {
 	})
 }
 
+// PublishSystemMessage 管理员发布系统消息
+func PublishSystemMessage(c *gin.Context) {
+	// 从上下文获取用户信息（通过AdminAuthMiddleware已验证为管理员）
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
+		return
+	}
+
+	dbUser := user.(models.User)
+
+	messageID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的消息ID"})
+		return
+	}
+
+	var message models.SystemMessage
+	if err := models.DB.First(&message, messageID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "系统消息不存在"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取系统消息失败", "data": err.Error()})
+		return
+	}
+
+	// 检查消息是否已经发布
+	if message.IsPublished {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "系统消息已发布"})
+		return
+	}
+
+	// 更新消息状态为已发布
+	if err := models.DB.Model(&message).Updates(map[string]interface{}{
+		"is_published": true,
+		"published_at": time.Now(),
+	}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "发布系统消息失败", "data": err.Error()})
+		return
+	}
+
+	// 记录管理员操作日志
+	log := models.AdminLog{
+		AdminUserID: dbUser.ID,
+		Action:      "publish_system_message",
+		TargetType:  "system_message",
+		TargetID:    message.ID,
+		Details:     fmt.Sprintf("管理员发布了系统消息: %s", message.Title),
+	}
+	models.DB.Create(&log)
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"message": "success",
+		"data": gin.H{
+			"message": "系统消息发布成功",
+			"system_message": message,
+		},
+	})
+}
+
 // DeleteContentByAdmin 管理员删除内容（小说、评论、评分等）
 func DeleteContentByAdmin(c *gin.Context) {
 	// 从上下文获取用户信息（通过AdminAuthMiddleware已验证为管理员）

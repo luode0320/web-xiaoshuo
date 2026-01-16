@@ -133,6 +133,7 @@ func InitRoutes(r *gin.Engine) {
 			admin.GET("/admin/system-messages", controllers.GetSystemMessages)
 			admin.PUT("/admin/system-messages/:id", controllers.UpdateSystemMessage)
 			admin.DELETE("/admin/system-messages/:id", controllers.DeleteSystemMessage)
+			admin.POST("/admin/system-messages/:id/publish", controllers.PublishSystemMessage)
 			
 			// 审核标准管理路由
 			admin.GET("/admin/review-criteria", controllers.GetReviewCriteria)

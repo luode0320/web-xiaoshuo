@@ -42,6 +42,7 @@
 - 后端实际接口: 不存在此路径
 - 问题原因: 后端没有定义发布系统消息的API
 - 修复建议: 后端应添加此接口，如 `POST /api/v1/admin/system-messages/:id/publish`
+- 修复状态：已修复 - 后端已添加 `POST /api/v1/admin/system-messages/:id/publish` 接口，实现系统消息发布功能
 
 ## 6. 用户列表接口缺失
 
