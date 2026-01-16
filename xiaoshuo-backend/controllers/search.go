@@ -628,7 +628,7 @@ func SearchSuggestions(c *gin.Context) {
 	indexSuggestions, err := utils.GlobalSearchIndex.SearchSuggestions(keyword, 5)
 	if err == nil {
 		for _, suggestion := range indexSuggestions {
-			if sug, ok := suggestion.(gin.H); ok {
+			if sug, ok := suggestion.(map[string]interface{}); ok {
 				// 避免重复
 				isDuplicate := false
 				for _, existingSug := range allSuggestions {
@@ -638,7 +638,26 @@ func SearchSuggestions(c *gin.Context) {
 					}
 				}
 				if !isDuplicate {
-					allSuggestions = append(allSuggestions, sug)
+					// 确保count字段是数值类型
+					countValue := 0
+					if count, ok := sug["count"].(float64); ok {
+						countValue = int(count)
+					} else if count, ok := sug["count"].(int); ok {
+						countValue = count
+					} else if count, ok := sug["count"].(int64); ok {
+						countValue = int(count)
+					}
+					
+					textValue := ""
+					if text, ok := sug["text"].(string); ok {
+						textValue = text
+					}
+					
+					allSuggestions = append(allSuggestions, gin.H{
+						"text":  textValue,
+						"count": countValue,
+						"type":  "index", // 添加类型标识
+					})
 				}
 			}
 		}
@@ -713,6 +732,7 @@ func fallbackSearchSuggestions(keyword string, limit int) []gin.H {
 		suggestions = append(suggestions, gin.H{
 			"text":  novel.Title,
 			"count": novel.ClickCount,
+			"type":  "fallback", // 添加类型标识
 		})
 	}
 

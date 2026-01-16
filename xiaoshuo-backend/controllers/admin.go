@@ -125,6 +125,65 @@ func ApproveNovel(c *gin.Context) {
 	})
 }
 
+// RejectNovel 拒绝小说审核
+func RejectNovel(c *gin.Context) {
+	// 从上下文获取用户信息（通过AdminAuthMiddleware已验证为管理员）
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
+		return
+	}
+
+	dbUser := user.(models.User)
+
+	novelID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的小说ID"})
+		return
+	}
+
+	var novel models.Novel
+	if err := models.DB.First(&novel, novelID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "小说不存在"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取小说信息失败", "data": err.Error()})
+		return
+	}
+
+	// 检查小说是否是待审核状态
+	if novel.Status != "pending" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "小说不是待审核状态"})
+		return
+	}
+
+	// 更新小说状态为已拒绝
+	if err := models.DB.Model(&novel).Update("status", "rejected").Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "拒绝小说失败", "data": err.Error()})
+		return
+	}
+
+	// 记录管理员操作日志
+	log := models.AdminLog{
+		AdminUserID: dbUser.ID,
+		Action:      "reject_novel",
+		TargetType:  "novel",
+		TargetID:    uint(novelID),
+		Details:     "审核拒绝小说: " + novel.Title,
+	}
+	models.DB.Create(&log)
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"message": "success",
+		"data": gin.H{
+			"message": "小说审核已拒绝",
+			"novel":   novel,
+		},
+	})
+}
+
 // BatchApproveNovels 批量审核小说
 func BatchApproveNovels(c *gin.Context) {
 	// 从上下文获取用户信息（通过AdminAuthMiddleware已验证为管理员）

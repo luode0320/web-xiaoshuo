@@ -116,6 +116,7 @@ func InitRoutes(r *gin.Engine) {
 		{
 			admin.GET("/novels/pending", controllers.GetPendingNovels)
 			admin.POST("/novels/:id/approve", controllers.ApproveNovel)
+			admin.POST("/novels/:id/reject", controllers.RejectNovel)
 			admin.POST("/novels/batch-approve", controllers.BatchApproveNovels)
 			admin.GET("/admin/logs", controllers.GetAdminLogs)
 			
