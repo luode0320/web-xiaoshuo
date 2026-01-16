@@ -27,10 +27,11 @@ func InitRoutes(r *gin.Engine) {
 			protected.GET("/users/:id/activities", controllers.GetUserActivityLog)
 			protected.GET("/users/comments", controllers.GetUserComments)  // 获取用户评论列表
 			protected.GET("/users/ratings", controllers.GetUserRatings)   // 获取用户评分列表
+			protected.GET("/users/social-stats", controllers.GetUserSocialStats) // 获取用户社交统计
 		}
 		
 		// 管理员用户管理路由
-		adminUser := apiV1.Group("/")
+		adminUser := apiV1.Group("/admin")
 		adminUser.Use(middleware.AdminAuthMiddleware())
 		{
 			adminUser.GET("/users", controllers.GetUserList)

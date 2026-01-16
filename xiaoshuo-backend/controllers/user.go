@@ -759,3 +759,64 @@ func recordUserActivity(userID uint, action, ipAddress, userAgent, details strin
 		}
 	}()
 }
+
+// GetUserSocialStats 获取用户社交统计信息
+func GetUserSocialStats(c *gin.Context) {
+	// 从中间件获取用户信息
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
+		return
+	}
+
+	currentUser := user.(models.User)
+
+	// 统计用户评论总数
+	var totalComments int64
+	if err := models.DB.Model(&models.Comment{}).Where("user_id = ?", currentUser.ID).Count(&totalComments).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "统计评论数失败", "data": err.Error()})
+		return
+	}
+
+	// 统计用户评分总数
+	var totalRatings int64
+	if err := models.DB.Model(&models.Rating{}).Where("user_id = ?", currentUser.ID).Count(&totalRatings).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "统计评分数失败", "data": err.Error()})
+		return
+	}
+
+	// 统计用户评论获得的赞总数
+	var totalCommentLikes int64
+	if err := models.DB.Model(&models.Comment{}).Where("user_id = ?", currentUser.ID).Select("SUM(like_count)").Scan(&totalCommentLikes).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "统计评论获赞数失败", "data": err.Error()})
+		return
+	}
+
+	// 统计用户评分获得的赞总数
+	var totalRatingLikes int64
+	if err := models.DB.Model(&models.Rating{}).Where("user_id = ?", currentUser.ID).Select("SUM(like_count)").Scan(&totalRatingLikes).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "统计评分获赞数失败", "data": err.Error()})
+		return
+	}
+
+	// 计算总互动数（评论+评分）
+	totalInteractions := totalComments + totalRatings
+
+	// 统计用户评论被回复的数量（通过查找评论的回复）
+	var totalReplies int64
+	// 注意：当前Comment表中没有parent_id字段来表示回复关系，所以暂时返回0
+	// 如果需要实现回复功能，可以考虑添加parent_id字段
+	// 这里我们仅统计用户发布的评论被点赞的次数
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"message": "success",
+		"data": gin.H{
+			"total_comments":     totalComments,
+			"total_ratings":      totalRatings,
+			"total_likes":        totalCommentLikes + totalRatingLikes,
+			"total_interactions": totalInteractions,
+			"total_replies":      totalReplies, // 暂时为0，因为没有实现评论回复功能
+		},
+	})
+}

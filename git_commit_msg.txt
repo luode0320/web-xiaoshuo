@@ -1,0 +1,13 @@
+修复社交统计接口并完善系统测试
+
+- 实现了缺失的社交统计接口 GET /api/v1/users/social-stats
+- 修复了前端Profile.vue中API响应处理逻辑
+- 添加了完整的系统测试脚本，覆盖所有主要API端点
+- 更新了前后端api接口对接异常文档
+
+主要变更：
+1. 后端：在controllers/user.go中添加GetUserSocialStats函数
+2. 后端：在routes/routes.go中注册社交统计路由
+3. 前端：修复Profile.vue中API响应数据处理
+4. 测试：创建test_system.go综合测试脚本
+5. 文档：更新前后端api接口对接异常记录

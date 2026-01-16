@@ -51,6 +51,13 @@
 - 后端实际接口: 不存在此路径
 - 问题原因: 后端没有定义获取用户列表的API
 - 修复建议: 后端应添加此接口，如 `GET /api/v1/admin/users`
+- 修复状态: 已修复
+  - 修复方案: 在 routes/routes.go 中修改管理员用户管理路由组，使用 `adminUser := apiV1.Group("/admin")` 创建 `/api/v1/admin/users` 路由
+  - 验证: 已通过 test_system.go 和 verify_fix.go 脚本验证接口正常工作
+  - 测试结果: 
+    - 新路由 `/api/v1/admin/users` 返回状态码 200，成功获取用户列表
+    - 旧路由 `/api/v1/users` 返回状态码 404，已正确移除
+    - 其他关键API接口继续正常工作
 
 ## 7. 社交统计接口缺失
 
@@ -59,6 +66,13 @@
 - 后端实际接口: 不存在此路径
 - 问题原因: 后端没有定义获取用户社交统计的API
 - 修复建议: 后端应添加此接口，如 `GET /api/v1/users/social-stats`
+- 修复状态：已修复
+  - 修复方案: 
+    1. 在 controllers/user.go 中添加 GetUserSocialStats 函数，实现社交统计功能，返回用户评论数、评分数、点赞数、互动数
+    2. 在 routes/routes.go 中添加路由 `/api/v1/users/social-stats` 指向 GetUserSocialStats
+    3. 在 frontend/src/views/user/Profile.vue 中修复API响应处理，确保正确解析返回的统计数据
+  - 验证: 已通过 test_system.go 综合测试脚本验证接口正常工作
+  - 测试结果: 社交统计接口成功返回用户统计信息，前端能正确处理响应数据
 
 ## 8. 用户评论和评分接口路径错误
 

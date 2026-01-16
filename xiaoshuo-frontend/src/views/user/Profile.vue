@@ -336,9 +336,22 @@ export default {
             'Authorization': `Bearer ${userStore.token}`
           }
         })
-        socialStats.value = response.data.data
+        // 确保从正确的位置获取数据
+        socialStats.value = response.data.data || {
+          totalComments: 0,
+          totalRatings: 0,
+          totalLikes: 0,
+          totalInteractions: 0
+        }
       } catch (error) {
         console.error('获取社交统计失败:', error)
+        // 设置默认值以避免错误
+        socialStats.value = {
+          totalComments: 0,
+          totalRatings: 0,
+          totalLikes: 0,
+          totalInteractions: 0
+        }
       }
     }
     
