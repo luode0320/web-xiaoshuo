@@ -844,7 +844,7 @@ func testGetHotSearchWords(r *gin.Engine) APITestResult {
 
 // 测试函数：搜索统计
 func testGetSearchStats(r *gin.Engine) APITestResult {
-	return makeRequest(r, "GET", "/api/v1/search/stats", nil, "")
+	return makeRequest(r, "GET", "/api/v1/search/stats", nil, testAdmin.Token)
 }
 
 // 辅助函数：从响应中提取Token

@@ -74,7 +74,7 @@
                   class="keyword-tag"
                   @click="searchByKeyword(keyword.keyword || keyword.text)"
                 >
-                  {{ keyword.keyword || keyword.text }} ({{ keyword.count || keyword.Count }})
+                  {{ keyword.keyword || keyword.text }} ({{ keyword.count }})
                 </el-tag>
               </div>
             </div>
@@ -470,12 +470,34 @@ export default {
       }
     }
     
+    // 获取搜索统计
+    const fetchSearchStats = async () => {
+      if (!isAuthenticated.value) return
+      
+      try {
+        const response = await apiClient.get('/api/v1/search/stats', {
+          headers: {
+            'Authorization': `Bearer ${userStore.token}`
+          }
+        })
+        searchStats.value = response.data.data
+      } catch (error) {
+        console.error('获取搜索统计失败:', error)
+        // 注意：这个API可能需要管理员权限，如果用户不是管理员，可能会返回403错误
+        if (error.response?.status === 403) {
+          console.log('当前用户不是管理员，无法获取搜索统计')
+        }
+      }
+    }
+    
     onMounted(async () => {
       await fetchCategories()
       await fetchHotKeywords()
       await fetchRecommendedNovels()
       if (isAuthenticated.value) {
         await fetchSearchHistory()
+        // 尝试获取搜索统计，但不阻塞页面加载
+        await fetchSearchStats()
       }
     })
     

@@ -92,7 +92,6 @@ func InitRoutes(r *gin.Engine) {
 		apiV1.GET("/search/full-text", controllers.FullTextSearchNovels) // 新路径
 		apiV1.GET("/search/hot-words", controllers.GetHotSearchKeywords)
 		apiV1.GET("/search/suggestions", controllers.SearchSuggestions)
-		apiV1.GET("/search/stats", controllers.GetSearchStats)
 		
 		// 用户搜索历史相关路由
 		apiV1.GET("/users/search-history", middleware.AuthMiddleware(), controllers.GetUserSearchHistory)
@@ -102,6 +101,7 @@ func InitRoutes(r *gin.Engine) {
 		adminSearch := apiV1.Group("/")
 		adminSearch.Use(middleware.AdminAuthMiddleware())
 		{
+			adminSearch.GET("/search/stats", controllers.GetSearchStats)  // 搜索统计接口需要管理员权限
 			adminSearch.POST("/search/index/:id", controllers.IndexNovelForSearch)
 			adminSearch.POST("/search/rebuild-index", controllers.RebuildSearchIndex)
 		}
