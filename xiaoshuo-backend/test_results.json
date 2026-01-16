@@ -1,0 +1,387 @@
+[
+  {
+    "endpoint": "/api/v1/users/register",
+    "method": "POST",
+    "status": 400,
+    "success": false,
+    "error": "邮箱已存在",
+    "data": {
+      "code": 400,
+      "message": "邮箱已存在"
+    },
+    "latency": "1.9222ms"
+  },
+  {
+    "endpoint": "/api/v1/users/register",
+    "method": "POST",
+    "status": 400,
+    "success": false,
+    "error": "邮箱已存在",
+    "data": {
+      "code": 400,
+      "message": "邮箱已存在"
+    },
+    "latency": "1.4999ms"
+  },
+  {
+    "endpoint": "/api/v1/users/login",
+    "method": "POST",
+    "status": 401,
+    "success": false,
+    "error": "邮箱或密码错误",
+    "data": {
+      "code": 401,
+      "message": "邮箱或密码错误"
+    },
+    "latency": "51.5095ms"
+  },
+  {
+    "endpoint": "/api/v1/users/login",
+    "method": "POST",
+    "status": 200,
+    "success": true,
+    "data": {
+      "code": 200,
+      "data": {
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoyMSwiaXNfYWRtaW4iOnRydWUsImlzcyI6InhpYW9zaHVvLWJhY2tlbmQiLCJleHAiOjE3Njg1ODQzNjgsImlhdCI6MTc2ODU4MDc2OH0.M2n1Ix460qCehnQYS-cQG-kyP9C214T-Ahen3-4op1U",
+        "user": {
+          "email": "admin@example.com",
+          "id": 21,
+          "is_activated": true,
+          "is_active": true,
+          "is_admin": true,
+          "last_login_at": "2026-01-17T00:25:52.002+08:00",
+          "nickname": "管理员"
+        }
+      },
+      "message": "success"
+    },
+    "latency": "63.011ms"
+  },
+  {
+    "endpoint": "/api/v1/novels",
+    "method": "GET",
+    "status": 200,
+    "success": true,
+    "data": {
+      "code": 200,
+      "data": {
+        "novels": [],
+        "pagination": {
+          "limit": 10,
+          "page": 1,
+          "total": 0
+        }
+      },
+      "message": "success"
+    },
+    "latency": "2.1536ms"
+  },
+  {
+    "endpoint": "/api/v1/search/novels?q=测试\u0026page=1\u0026limit=10",
+    "method": "GET",
+    "status": 200,
+    "success": true,
+    "data": {
+      "code": 200,
+      "data": {
+        "novels": [],
+        "pagination": {
+          "limit": 10,
+          "page": 1,
+          "total": 0
+        }
+      },
+      "message": "success"
+    },
+    "latency": "2.8477ms"
+  },
+  {
+    "endpoint": "/api/v1/categories",
+    "method": "GET",
+    "status": 200,
+    "success": true,
+    "data": {
+      "code": 200,
+      "data": {
+        "categories": []
+      },
+      "message": "success"
+    },
+    "latency": "999.6µs"
+  },
+  {
+    "endpoint": "/api/v1/rankings",
+    "method": "GET",
+    "status": 200,
+    "success": true,
+    "data": {
+      "code": 200,
+      "data": {
+        "limit": 10,
+        "novels": [],
+        "type": ""
+      },
+      "message": "success"
+    },
+    "latency": "2.0003ms"
+  },
+  {
+    "endpoint": "/api/v1/recommendations",
+    "method": "GET",
+    "status": 500,
+    "success": false,
+    "error": "HTTP 500",
+    "data": null,
+    "latency": "6.0012ms"
+  },
+  {
+    "endpoint": "/api/v1/admin/users",
+    "method": "GET",
+    "status": 200,
+    "success": true,
+    "data": {
+      "code": 200,
+      "data": {
+        "pagination": {
+          "limit": 10,
+          "page": 1,
+          "total": 21
+        },
+        "users": [
+          {
+            "CreatedAt": "2026-01-17T00:25:25.483+08:00",
+            "DeletedAt": null,
+            "ID": 21,
+            "UpdatedAt": "2026-01-17T00:26:08.653+08:00",
+            "email": "admin@example.com",
+            "is_activated": true,
+            "is_active": true,
+            "is_admin": true,
+            "last_login_at": "2026-01-17T00:25:52.002+08:00",
+            "last_read_novel_id": null,
+            "nickname": "管理员",
+            "password": ""
+          },
+          {
+            "CreatedAt": "2026-01-16T00:59:29.897+08:00",
+            "DeletedAt": null,
+            "ID": 20,
+            "UpdatedAt": "2026-01-16T00:59:29.954+08:00",
+            "email": "test@example.com",
+            "is_activated": true,
+            "is_active": true,
+            "is_admin": false,
+            "last_login_at": "2026-01-16T00:59:29.897+08:00",
+            "last_read_novel_id": null,
+            "nickname": "TestUser",
+            "password": ""
+          },
+          {
+            "CreatedAt": "2026-01-14T23:35:47.598+08:00",
+            "DeletedAt": null,
+            "ID": 19,
+            "UpdatedAt": "2026-01-14T23:35:47.598+08:00",
+            "email": "test1768404947@example.com",
+            "is_activated": true,
+            "is_active": true,
+            "is_admin": false,
+            "last_login_at": null,
+            "last_read_novel_id": null,
+            "nickname": "TestUser",
+            "password": ""
+          },
+          {
+            "CreatedAt": "2026-01-14T23:34:42.645+08:00",
+            "DeletedAt": null,
+            "ID": 18,
+            "UpdatedAt": "2026-01-14T23:34:42.645+08:00",
+            "email": "test1768404882@example.com",
+            "is_activated": true,
+            "is_active": true,
+            "is_admin": false,
+            "last_login_at": null,
+            "last_read_novel_id": null,
+            "nickname": "TestUser",
+            "password": ""
+          },
+          {
+            "CreatedAt": "2026-01-14T23:34:41.858+08:00",
+            "DeletedAt": null,
+            "ID": 17,
+            "UpdatedAt": "2026-01-14T23:34:41.858+08:00",
+            "email": "test1768404881@example.com",
+            "is_activated": true,
+            "is_active": true,
+            "is_admin": false,
+            "last_login_at": null,
+            "last_read_novel_id": null,
+            "nickname": "TestUser",
+            "password": ""
+          },
+          {
+            "CreatedAt": "2026-01-14T23:28:22.942+08:00",
+            "DeletedAt": null,
+            "ID": 16,
+            "UpdatedAt": "2026-01-14T23:28:22.942+08:00",
+            "email": "test1768404502@example.com",
+            "is_activated": true,
+            "is_active": true,
+            "is_admin": false,
+            "last_login_at": null,
+            "last_read_novel_id": null,
+            "nickname": "TestUser",
+            "password": ""
+          },
+          {
+            "CreatedAt": "2026-01-14T23:28:21.662+08:00",
+            "DeletedAt": null,
+            "ID": 15,
+            "UpdatedAt": "2026-01-14T23:28:21.662+08:00",
+            "email": "test1768404501@example.com",
+            "is_activated": true,
+            "is_active": true,
+            "is_admin": false,
+            "last_login_at": null,
+            "last_read_novel_id": null,
+            "nickname": "TestUser",
+            "password": ""
+          },
+          {
+            "CreatedAt": "2026-01-14T23:27:41.412+08:00",
+            "DeletedAt": null,
+            "ID": 14,
+            "UpdatedAt": "2026-01-14T23:27:41.412+08:00",
+            "email": "test1768404461@example.com",
+            "is_activated": true,
+            "is_active": true,
+            "is_admin": false,
+            "last_login_at": null,
+            "last_read_novel_id": null,
+            "nickname": "TestUser",
+            "password": ""
+          },
+          {
+            "CreatedAt": "2026-01-14T23:27:16.109+08:00",
+            "DeletedAt": null,
+            "ID": 13,
+            "UpdatedAt": "2026-01-14T23:27:16.109+08:00",
+            "email": "test1768404436@example.com",
+            "is_activated": true,
+            "is_active": true,
+            "is_admin": false,
+            "last_login_at": null,
+            "last_read_novel_id": null,
+            "nickname": "TestUser",
+            "password": ""
+          },
+          {
+            "CreatedAt": "2026-01-14T23:22:59.352+08:00",
+            "DeletedAt": null,
+            "ID": 12,
+            "UpdatedAt": "2026-01-14T23:22:59.352+08:00",
+            "email": "test1768404179@example.com",
+            "is_activated": true,
+            "is_active": true,
+            "is_admin": false,
+            "last_login_at": null,
+            "last_read_novel_id": null,
+            "nickname": "TestUser",
+            "password": ""
+          }
+        ]
+      },
+      "message": "success"
+    },
+    "latency": "4.0174ms"
+  },
+  {
+    "endpoint": "/api/v1/admin/logs",
+    "method": "GET",
+    "status": 200,
+    "success": true,
+    "data": {
+      "code": 200,
+      "data": {
+        "logs": [],
+        "pagination": {
+          "limit": 10,
+          "page": 1,
+          "total": 0
+        }
+      },
+      "message": "success"
+    },
+    "latency": "2.9838ms"
+  },
+  {
+    "endpoint": "/api/v1/search/suggestions?q=测试",
+    "method": "GET",
+    "status": 200,
+    "success": true,
+    "data": {
+      "code": 200,
+      "data": {
+        "suggestions": [
+          {
+            "count": 0,
+            "text": "玄幻",
+            "type": "hot"
+          },
+          {
+            "count": 0,
+            "text": "都市",
+            "type": "hot"
+          },
+          {
+            "count": 0,
+            "text": "科幻",
+            "type": "hot"
+          },
+          {
+            "count": 0,
+            "text": "言情",
+            "type": "hot"
+          }
+        ]
+      },
+      "message": "success"
+    },
+    "latency": "2ms"
+  },
+  {
+    "endpoint": "/api/v1/search/hot-words",
+    "method": "GET",
+    "status": 200,
+    "success": true,
+    "data": {
+      "code": 200,
+      "data": {
+        "keywords": [
+          "玄幻",
+          "都市",
+          "科幻",
+          "言情",
+          "武侠",
+          "历史",
+          "军事",
+          "悬疑"
+        ]
+      },
+      "message": "success"
+    },
+    "latency": "1.0003ms"
+  },
+  {
+    "endpoint": "/api/v1/search/stats",
+    "method": "GET",
+    "status": 401,
+    "success": false,
+    "error": "未授权访问",
+    "data": {
+      "code": 401,
+      "message": "未授权访问"
+    },
+    "latency": "0s"
+  }
+]
