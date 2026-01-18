@@ -64,8 +64,9 @@
           </el-menu-item>
         </el-menu>
       </div>
-
-
+      <div class="content-area">
+        <router-view />
+      </div>
     </div>
   </div>
 </template>
@@ -153,9 +154,9 @@ export default {
   display: flex;
   flex-direction: column;
   flex: 1;
-  min-height: calc(100vh - 140px);
-  /* 减去顶部可能的导航栏和底部导航栏的高度 */
   height: 100%;
+  min-height: 100%;
+  overflow: hidden;
 }
 
 .profile-header {
@@ -201,6 +202,7 @@ export default {
   min-height: 0;
   min-width: 0;
   /* 防止内容溢出 */
+  overflow: hidden;
 }
 
 .sidebar {
@@ -208,6 +210,7 @@ export default {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .sidebar-menu {
@@ -218,12 +221,18 @@ export default {
   flex-direction: column;
 }
 
+.content-area {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  min-width: 0;
+}
+
 /* 移动端适配 */
 @media (max-width: 768px) {
   .profile-container {
     padding: 15px;
-    min-height: calc(100vh - 100px);
-    /* 移动端底部导航栏高度 */
+    min-height: calc(100vh - 60px); /* 减去底部导航栏高度 */
   }
 
   .profile-content {
@@ -233,6 +242,12 @@ export default {
   .sidebar {
     width: 100%;
     margin-bottom: 20px;
+  }
+
+  .content-area {
+    width: 100%;
+    flex: 1;
+    min-height: 0;
   }
 
   .profile-header {

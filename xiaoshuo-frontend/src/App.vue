@@ -38,12 +38,12 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
   color: #2c3e50;
   height: 100%;
-  padding-bottom: 60px; /* 为底部导航栏预留空间 */
 }
 
-@media (min-width: 769px) {
+/* 为底部导航栏预留空间，但只在移动设备上 */
+@media (max-width: 768px) {
   #app {
-    padding-bottom: 0;
+    padding-bottom: 60px;
   }
 }
 </style>

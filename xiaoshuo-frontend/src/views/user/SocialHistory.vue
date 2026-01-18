@@ -222,7 +222,11 @@ export default {
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  min-height: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0; /* 防止内容溢出父容器 */
 }
 
 .header {
@@ -231,6 +235,7 @@ export default {
   margin-bottom: 20px;
   padding-bottom: 15px;
   border-bottom: 1px solid #eee;
+  flex-shrink: 0;
 }
 
 .header h2 {
@@ -243,6 +248,9 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .tabs {
@@ -253,11 +261,15 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .pagination {
   margin-top: 20px;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 /* 移动端适配 */
