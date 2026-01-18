@@ -444,7 +444,7 @@ export default {
     
     // 检查是否允许删除小说
     const isAllowedToDelete = (novel) => {
-      return novel.upload_user_id === userStore.user?.id || userStore.isAdmin
+      return novel.upload_user_id === user.value?.id || userStore.isAdmin
     }
     
     onMounted(() => {

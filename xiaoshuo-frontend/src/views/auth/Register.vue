@@ -2,49 +2,21 @@
   <div class="register-container">
     <div class="register-form">
       <h2>用户注册</h2>
-      <el-form 
-        :model="registerForm" 
-        :rules="registerRules" 
-        ref="registerFormRef"
-        @submit.prevent="handleRegister"
-      >
+      <el-form :model="registerForm" :rules="registerRules" ref="registerFormRef" @submit.prevent="handleRegister">
         <el-form-item prop="email">
-          <el-input 
-            v-model="registerForm.email" 
-            placeholder="邮箱"
-            prefix-icon="User"
-          />
+          <el-input v-model="registerForm.email" placeholder="邮箱" prefix-icon="User" />
         </el-form-item>
         <el-form-item prop="password">
-          <el-input 
-            v-model="registerForm.password" 
-            type="password" 
-            placeholder="密码"
-            prefix-icon="Lock"
-          />
+          <el-input v-model="registerForm.password" type="password" placeholder="密码" prefix-icon="Lock" />
         </el-form-item>
         <el-form-item prop="confirmPassword">
-          <el-input 
-            v-model="registerForm.confirmPassword" 
-            type="password" 
-            placeholder="确认密码"
-            prefix-icon="Lock"
-          />
+          <el-input v-model="registerForm.confirmPassword" type="password" placeholder="确认密码" prefix-icon="Lock" />
         </el-form-item>
         <el-form-item prop="nickname">
-          <el-input 
-            v-model="registerForm.nickname" 
-            placeholder="昵称（可选）"
-            prefix-icon="UserFilled"
-          />
+          <el-input v-model="registerForm.nickname" placeholder="昵称（可选）" prefix-icon="UserFilled" />
         </el-form-item>
         <el-form-item>
-          <el-button 
-            type="primary" 
-            @click="handleRegister" 
-            :loading="loading"
-            style="width: 100%"
-          >
+          <el-button type="primary" @click="handleRegister" :loading="loading" style="width: 100%">
             注册
           </el-button>
         </el-form-item>
@@ -67,17 +39,17 @@ export default {
   setup() {
     const router = useRouter()
     const userStore = useUserStore()
-    
+
     const loading = ref(false)
     const registerFormRef = ref(null)
-    
+
     const registerForm = reactive({
       email: '',
       password: '',
       confirmPassword: '',
       nickname: ''
     })
-    
+
     // 自定义验证规则
     const validatePassword = (rule, value, callback) => {
       if (value !== registerForm.password) {
@@ -86,7 +58,7 @@ export default {
         callback()
       }
     }
-    
+
     const registerRules = {
       email: [
         { required: true, message: '请输入邮箱', trigger: 'blur' },
@@ -104,25 +76,25 @@ export default {
         { max: 20, message: '昵称长度不能超过20个字符', trigger: 'blur' }
       ]
     }
-    
+
     const handleRegister = async () => {
       if (!registerFormRef.value) return
-      
+
       try {
         await registerFormRef.value.validate()
-        
+
         loading.value = true
-        
+
         const result = await userStore.register(
-          registerForm.email, 
-          registerForm.password, 
+          registerForm.email,
+          registerForm.password,
           registerForm.nickname
         )
-        
+
         if (result.success) {
-          ElMessage.success(result.message || '注册成功')
-          // 注册成功后自动跳转到首页，不管是否激活
-          router.push('/')
+          ElMessage.success(result.message || '注册成功，请登录')
+          // 注册成功后跳转到登录页面
+          router.push('/login')
         } else {
           ElMessage.error(result.message || result.error?.message || '注册失败')
         }
@@ -133,7 +105,7 @@ export default {
         loading.value = false
       }
     }
-    
+
     return {
       registerForm,
       registerRules,

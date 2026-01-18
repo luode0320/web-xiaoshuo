@@ -84,9 +84,8 @@ export default {
         
         if (result.success) {
           ElMessage.success('登录成功')
-          // 跳转到首页或之前的页面
-          const redirect = router.currentRoute.value.query.redirect || '/'
-          router.push(redirect)
+          // 登录成功后跳转到用户资料页面
+          router.push('/profile')
         } else {
           ElMessage.error(result.error?.message || '登录失败')
         }

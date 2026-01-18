@@ -8,6 +8,12 @@ export const useUserStore = defineStore('user', {
     isAuthenticated: false,
   }),
 
+  getters: {
+    isAdmin: (state) => {
+      return state.user && state.user.is_admin === true
+    }
+  },
+
   actions: {
     async login(email, password) {
       try {
@@ -24,9 +30,17 @@ export const useUserStore = defineStore('user', {
           
           // 保存token到localStorage
           localStorage.setItem('token', token)
+          
+          return {
+            ...response.data,
+            success: true
+          }
+        } else {
+          return {
+            ...response.data,
+            success: false
+          }
         }
-        
-        return response.data
       } catch (error) {
         console.error('Login error:', error)
         throw error
