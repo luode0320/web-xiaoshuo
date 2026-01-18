@@ -18,4 +18,4 @@ redis:
 
 jwt:
   secret: "xiaoshuo_secret_key"
-  expires: 3600
+  expires: 31536000 # 一年
