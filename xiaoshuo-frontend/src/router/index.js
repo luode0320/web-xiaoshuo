@@ -21,7 +21,39 @@ const routes = [
     path: '/profile',
     name: 'Profile',
     component: () => import('@/views/user/Profile.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: 'basic',
+        name: 'BasicInfo',
+        component: () => import('@/views/user/BasicInfo.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
+        path: 'uploads',
+        name: 'Uploads',
+        component: () => import('@/views/user/Uploads.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
+        path: 'comments',
+        name: 'Comments',
+        component: () => import('@/views/user/Comments.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
+        path: 'ratings',
+        name: 'Ratings',
+        component: () => import('@/views/user/Ratings.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
+        path: 'social',
+        name: 'SocialHistoryPage',
+        component: () => import('@/views/user/SocialHistory.vue'),
+        meta: { requiresAuth: true }
+      }
+    ]
   },
   {
     path: '/novel/:id',
