@@ -147,3 +147,4 @@ export default {
 .register-link a:hover {
   text-decoration: underline;
 }
+</style>

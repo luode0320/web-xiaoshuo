@@ -183,3 +183,4 @@ export default {
 .login-link a:hover {
   text-decoration: underline;
 }
+</style>

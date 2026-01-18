@@ -255,3 +255,4 @@ export default {
     grid-template-columns: 1fr;
   }
 }
+</style>
