@@ -7,6 +7,7 @@ import (
 
 	"xiaoshuo-backend/config"
 	"xiaoshuo-backend/controllers"
+	"xiaoshuo-backend/middleware"
 	"xiaoshuo-backend/models"
 	"xiaoshuo-backend/routes"
 	"xiaoshuo-backend/utils"
@@ -67,6 +68,9 @@ func main() {
 
 	// 创建路由实例
 	r := gin.Default()
+
+	// 添加CORS中间件
+	r.Use(middleware.CORSMiddleware())
 
 	// 初始化路由
 	routes.InitRoutes(r)
