@@ -10,12 +10,13 @@
 - **语言**: Go (1.24.0+)
 - **Web框架**: Gin v1.11.0
 - **数据库**: MySQL 5.7+ (使用 GORM v1.31.1 ORM)
-- **缓存**: Redis (使用 go-redis/v8 v8.11.5)
+- **缓存**: Redis (使用 go-redis/redis/v8 v8.11.5)
 - **认证**: JWT (golang-jwt/jwt/v4 v4.5.2)
 - **配置管理**: Viper v1.21.0 (支持 YAML 配置文件)
 - **密码加密**: golang.org/x/crypto/bcrypt
 - **文件类型检测**: filetype库
 - **EPUB处理**: golang-epub库
+- **速率限制**: golang.org/x/time/rate
 - **数据验证**: github.com/go-playground/validator/v10
 - **XSS防护**: bluemonday库
 - **定时任务**: gocron库
@@ -112,6 +113,7 @@ web-xiaoshuo/
 │   │   ├── response.go       # 响应格式工具
 │   │   ├── search.go         # 搜索工具
 │   │   └── upload.go         # 上传工具
+│   ├── Dockerfile            # 后端Docker配置
 │   └── migrations/           # 数据库迁移
 ├── xiaoshuo-frontend/                 # Vue.js前端项目
 │   ├── package.json          # 前端依赖和脚本配置
@@ -159,12 +161,12 @@ web-xiaoshuo/
 │           └── user/         # 用户相关页面
 │               └── Profile.vue   # 个人资料页面
 ├── 启动文档.md               # 项目启动说明
-├── 小说阅读系统后端需求文档.md   # 后端需求文档
-├── 小说阅读系统前端需求文档.md   # 前端需求文档
-├── 小说阅读系统功能设计文档.md   # 功能设计文档
-├── 小说阅读系统开发周期计划.md   # 开发计划文档
+├── 小说阅读系统部署文档.md   # 部署文档
 ├── 小说阅读系统测试指南.md       # 测试指南文档
-├── 小说阅读系统部署文档.md       # 部署文档
+├── 小说阅读系统功能设计文档.md   # 功能设计文档
+├── 小说阅读系统后端需求文档.md   # 后端需求文档
+├── 小说阅读系统开发周期计划.md   # 开发计划文档
+├── 小说阅读系统前端需求文档.md   # 前端需求文档
 ├── 小说阅读系统项目完成总结报告.md # 项目完成总结
 ├── 小说阅读系统项目完成总结报告2.md # 项目完成总结2
 ├── 多环境配置使用指南.md       # 多环境配置使用指南
@@ -385,9 +387,9 @@ VITE_API_BASE_URL=https://xs.luode.vip
 - `GET /api/v1/novels` - 获取小说列表
 - `GET /api/v1/novels/:id` - 获取小说详情
 - `GET /api/v1/novels/:id/content` - 获取小说内容
-- `GET /api/v1/novels/:id/content-stream` - 流式获取小说内容
+- `GET /api/v1/novels/:id/content-stream` - 流式获取小说内容（支持Range请求）
 - `GET /api/v1/novels/:id/chapters` - 获取小说章节列表 (需要认证)
-- `GET /chapters/:id` - 获取章节内容 (需要认证)
+- `GET /api/v1/chapters/:id` - 获取章节内容 (需要认证)
 - `POST /api/v1/novels/:id/click` - 记录小说点击量
 - `DELETE /api/v1/novels/:id` - 删除小说 (需要认证，上传者或管理员)
 - `GET /api/v1/novels/:id/status` - 获取小说状态 (需要认证)
@@ -425,7 +427,7 @@ VITE_API_BASE_URL=https://xs.luode.vip
 
 ### 搜索相关路由
 - `GET /api/v1/search/novels` - 搜索小说
-- `GET /api/v1/search/fulltext` - 全文搜索小说 (修正后的路由)
+- `GET /api/v1/search/fulltext` - 全文搜索小说
 - `GET /api/v1/search/hot-words` - 获取热门搜索词
 - `GET /api/v1/search/suggestions` - 获取搜索建议
 - `GET /api/v1/search/stats` - 获取搜索统计
@@ -844,6 +846,8 @@ func (UserActivity) TableName() string {
 - **多层次缓存**: 实现了基于Redis的缓存策略，包括用户信息、小说信息、小说列表等
 - **缓存预热机制**: 实现GetOrSet方法，当缓存不存在时自动加载数据并设置缓存
 - **搜索建议优化**: 增强了模糊搜索和前缀查询的搜索建议功能，使用fuzzyQuery和prefixQuery
+- **全文搜索优化**: 使用bleve库实现高性能全文搜索引擎，支持元数据和内容搜索
+- **推荐系统优化**: 基于内容相似度、热门度、新书、个性化等多维度推荐算法
 
 ## 开发约定
 
@@ -1052,7 +1056,7 @@ func (UserActivity) TableName() string {
 - **小说状态API**: 添加了小说状态查询API，用于获取小说审核状态等信息
 - **小说活动历史**: 实现了小说操作历史查看功能，便于追踪小说的审核和修改记录
 - **全文搜索API**: 使用`/api/v1/search/fulltext`进行全文搜索
-- **章节内容获取**: 实现了专门的章节内容获取API，通过`/chapters/:id`获取单个章节内容
+- **章节内容获取**: 实现了专门的章节内容获取API，通过`/api/v1/chapters/:id`获取单个章节内容
 - **分类关键词设置**: 实现了用户对小说分类和关键词的设置功能
 - **用户阅读统计**: 实现了用户阅读统计功能，包括阅读时长和进度记录
 - **小说分类API**: 添加了`/api/v1/novels/:id/classify` API，用于设置小说的分类和关键词
