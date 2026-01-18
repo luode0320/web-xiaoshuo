@@ -321,3 +321,4 @@ export default {
     grid-template-columns: repeat(3, 1fr);
   }
 }
+</style>
