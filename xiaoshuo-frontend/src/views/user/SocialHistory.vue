@@ -127,7 +127,7 @@ export default {
     const fetchRatings = async () => {
       loading.value.ratings = true
       try {
-        const response = await apiClient.get('/api/v1/ratings', {
+        const response = await apiClient.get('/api/v1/users/ratings', {
           params: {
             page: ratingsPage.value,
             limit: pageSize.value
