@@ -1,12 +1,17 @@
 <template>
   <div id="app">
-    <router-view />
+    <BottomNavigation />
   </div>
 </template>
 
 <script>
+import BottomNavigation from './components/BottomNavigation.vue'
+
 export default {
-  name: 'App'
+  name: 'App',
+  components: {
+    BottomNavigation
+  }
 }
 </script>
 
@@ -16,5 +21,12 @@ export default {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color: #2c3e50;
+  padding-bottom: 60px; /* 为底部导航栏预留空间 */
+}
+
+@media (min-width: 769px) {
+  #app {
+    padding-bottom: 0;
+  }
 }
 </style>
