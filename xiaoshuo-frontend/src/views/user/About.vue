@@ -6,105 +6,11 @@
           <ArrowLeft />
         </el-icon>
       </el-button>
-      <h2>关于小说阅读系统</h2>
     </div>
 
     <div class="about-content">
       <div class="section">
-        <h2>项目简介</h2>
-        <p>
-          小说阅读系统是一个全栈Web应用，旨在为用户提供一个方便、高效的小说阅读和分享平台。
-          系统支持多种格式的小说上传、在线阅读、评论评分、分类管理等功能。
-        </p>
-      </div>
-
-      <div class="section">
-        <h2>技术栈</h2>
-        <div class="tech-stack">
-          <div class="tech-item">
-            <h4>后端技术</h4>
-            <ul>
-              <li>Go语言</li>
-              <li>Gin Web框架</li>
-              <li>GORM ORM</li>
-              <li>MySQL数据库</li>
-              <li>Redis缓存</li>
-              <li>JWT认证</li>
-            </ul>
-          </div>
-          <div class="tech-item">
-            <h4>前端技术</h4>
-            <ul>
-              <li>Vue.js 3</li>
-              <li>Vue Router</li>
-              <li>Pinia状态管理</li>
-              <li>Element Plus UI组件库</li>
-              <li>Vite构建工具</li>
-              <li>Axios HTTP客户端</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <div class="section">
-        <h2>主要功能</h2>
-        <div class="features">
-          <div class="feature-item">
-            <div class="feature-icon">📚</div>
-            <div class="feature-content">
-              <h3>小说管理</h3>
-              <p>支持多种格式小说上传，分类管理，审核机制</p>
-            </div>
-          </div>
-          <div class="feature-item">
-            <div class="feature-icon">📖</div>
-            <div class="feature-content">
-              <h3>在线阅读</h3>
-              <p>支持在线阅读，个性化阅读设置，进度保存</p>
-            </div>
-          </div>
-          <div class="feature-item">
-            <div class="feature-icon">💬</div>
-            <div class="feature-content">
-              <h3>社交互动</h3>
-              <p>评论系统，评分功能，点赞机制</p>
-            </div>
-          </div>
-          <div class="feature-item">
-            <div class="feature-icon">🔍</div>
-            <div class="feature-content">
-              <h3>智能搜索</h3>
-              <p>全文搜索，分类筛选，高级搜索</p>
-            </div>
-          </div>
-          <div class="feature-item">
-            <div class="feature-icon">🏆</div>
-            <div class="feature-content">
-              <h3>排行榜</h3>
-              <p>多种排行榜，发现热门小说</p>
-            </div>
-          </div>
-          <div class="feature-item">
-            <div class="feature-icon">🔒</div>
-            <div class="feature-content">
-              <h3>用户系统</h3>
-              <p>用户注册登录，个人中心，权限管理</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="section">
-        <h2>系统架构</h2>
-        <p>
-          本系统采用前后端分离架构，后端提供RESTful API接口，前端通过Vue.js构建单页面应用。
-          系统包含用户管理、小说管理、评论评分、分类管理、搜索推荐等多个模块。
-        </p>
-      </div>
-
-      <div class="section">
         <h2>联系我们</h2>
-        <p>如果您有任何问题或建议，欢迎通过以下方式联系我们：</p>
         <ul>
           <li>邮箱: support@example.com</li>
           <li>GitHub: <a href="https://github.com/your-repo" target="_blank">项目地址</a></li>
@@ -143,7 +49,7 @@ export default {
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  min-height: 100%;
+  min-height: calc(100vh - 60px);
 }
 
 .header {

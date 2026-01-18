@@ -51,6 +51,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import apiClient from '@/utils/api'
+import { useUserStore } from '@/stores/user'
 import dayjs from 'dayjs'
 
 export default {
@@ -77,8 +78,8 @@ export default {
       }
 
       try {
-        // 尝试从API获取系统消息，如果失败则使用模拟数据
-        const response = await apiClient.get('/api/v1/users/search-history', { // 使用一个可能存在的API作为示例
+        // 尝试从API获取系统消息
+        const response = await apiClient.get('/api/v1/users/system-messages', {
           params: {
             page: currentPage.value,
             limit: pageSize.value
@@ -86,8 +87,8 @@ export default {
         })
 
         if (response.data.code === 200) {
-          const newMessages = response.data.data.search_history || response.data.data.messages || []
-          const total = response.data.data.pagination?.total || response.data.data.total || 0
+          const newMessages = response.data.data.messages || []
+          const total = response.data.data.pagination?.total || 0
 
           if (newMessages && newMessages.length > 0) {
             if (isLoadMore) {
@@ -102,12 +103,16 @@ export default {
             hasMore.value = false
           }
         } else {
-          ElMessage.error('获取系统消息失败: ' + response.data.message)
           hasMore.value = false
         }
       } catch (error) {
         console.error('获取系统消息失败:', error)
-        // 如果API不存在，使用模拟数据（仅首次加载）
+        // 如果是401或403错误（认证错误），重新抛出，让路由守卫处理跳转
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          throw error;
+        }
+
+        // 如果系统消息API失败，使用模拟数据
         if (!isLoadMore && messages.value.length === 0) {
           messages.value = [
             {
@@ -183,25 +188,11 @@ export default {
 
     // 标记为已读
     const markAsRead = async (id) => {
-      try {
-        // 这里需要根据实际API调整
-        // 假设有一个标记消息为已读的API
-        const response = await apiClient.put(`/api/v1/admin/system-messages/${id}/read`, {
-          is_read: true
-        })
-
-        if (response.data.code === 200) {
-          const message = messages.value.find(m => m.id === id)
-          if (message) {
-            message.is_read = true
-          }
-          ElMessage.success('已标记为已读')
-        } else {
-          ElMessage.error('标记失败: ' + response.data.message)
-        }
-      } catch (error) {
-        console.error('标记消息为已读失败:', error)
-        ElMessage.error('标记失败: ' + error.message)
+      // 目前没有专门的API来标记消息为已读，只是在前端更新状态
+      const message = messages.value.find(m => m.id === id)
+      if (message) {
+        message.is_read = true
+        ElMessage.success('已标记为已读')
       }
     }
 
@@ -211,8 +202,29 @@ export default {
     }
 
     onMounted(async () => {
-      // 初始加载数据
-      await fetchMessages()
+      // 设置页面标题
+      document.title = '消息 - 小说阅读系统'
+
+      // 页面加载时获取系统消息
+      // 检查用户是否已登录
+      const userStore = useUserStore()
+      if (!userStore.user || !userStore.isAuthenticated) {
+        // 如果用户未登录，显示提示信息
+        messages.value = [
+          {
+            id: 1,
+            title: '请登录',
+            content: '请先登录以查看您的个人消息。',
+            type: 'notification',
+            is_read: false,
+            created_at: new Date().toISOString()
+          }
+        ];
+        hasMore.value = false;
+        loading.value = false;
+      } else {
+        await fetchMessages()
+      }
 
       // 添加滚动事件监听
       if (contentRef.value) {
@@ -253,8 +265,7 @@ export default {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-height: 0;
-  /* 防止内容溢出父容器 */
+  min-height: calc(100vh - 60px);
 }
 
 .header {

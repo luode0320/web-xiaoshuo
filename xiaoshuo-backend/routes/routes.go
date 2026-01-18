@@ -28,6 +28,7 @@ func InitRoutes(r *gin.Engine) {
 			protected.GET("/users/comments", controllers.GetUserComments)  // 获取用户评论列表
 			protected.GET("/users/ratings", controllers.GetUserRatings)   // 获取用户评分列表
 			protected.GET("/users/social-stats", controllers.GetUserSocialStats) // 获取用户社交统计
+			protected.GET("/users/system-messages", controllers.GetUserSystemMessages)
 		}
 		
 		// 管理员用户管理路由

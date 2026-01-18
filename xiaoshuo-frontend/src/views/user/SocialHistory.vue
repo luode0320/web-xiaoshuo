@@ -331,8 +331,7 @@ export default {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-height: 0;
-  /* 防止内容溢出父容器 */
+  min-height: calc(100vh - 60px);
 }
 
 .header {

@@ -891,3 +891,52 @@ func GetUserSocialStats(c *gin.Context) {
 		},
 	})
 }
+
+// GetUserSystemMessages 获取系统消息列表（普通用户可访问，仅返回已发布的消息）
+func GetUserSystemMessages(c *gin.Context) {
+	// 从中间件获取用户信息（验证用户是否已登录）
+	_, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	messageType := c.Query("type")
+
+	var messages []models.SystemMessage
+	var count int64
+
+	// 构建查询，只获取已发布的系统消息
+	query := models.DB.Where("is_published = ?", true)
+
+	if messageType != "" {
+		query = query.Where("type = ?", messageType)
+	}
+
+	// 获取总数
+	query.Model(&models.SystemMessage{}).Count(&count)
+
+	// 分页查询
+	offset := (page - 1) * limit
+	if err := query.Offset(offset).Limit(limit).
+		Order("created_at DESC").
+		Find(&messages).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取系统消息失败", "data": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"message": "success",
+		"data": gin.H{
+			"messages": messages,
+			"pagination": gin.H{
+				"page":  page,
+				"limit": limit,
+				"total": count,
+			},
+		},
+	})
+}
