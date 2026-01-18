@@ -28,9 +28,10 @@ xiaoshuo-backend/search_index/
 # 上传文件
 uploads/
 
-# 临时文件
+# 临时文件 
 temp_*.txt
-*.tmp
+*.tmp 
 
 # 环境变量
 .env
+xiaoshuo-frontend/node_modules/

@@ -33,10 +33,10 @@
     "element-plus": "^2.4.2",
     "dayjs": "^1.11.10",
     "fuse.js": "^7.0.0",
-    "vue3-tree-chart": "^1.0.11",
-    "vue-content-loader": "^2.0.3",
-    "vue3-lazy": "^1.0.0",
-    "vue-toastification": "^3.1.0",
+
+    "vue-content-loader": "^2.0.1",
+    "vue3-lazy": "^1.0.0-alpha.1",
+    "vue3-toastify": "^0.2.8",
     "nprogress": "^0.2.0",
     "crypto-js": "^4.2.0"
   },
