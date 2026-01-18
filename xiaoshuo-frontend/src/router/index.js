@@ -134,8 +134,13 @@ const router = createRouter({
 })
 
 // 全局路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore()
+  
+  // 初始化用户状态（如果尚未初始化）
+  if (!userStore.isAuthenticated && userStore.token) {
+    await userStore.initializeUser()
+  }
   
   if (to.meta.requiresAuth && !userStore.isAuthenticated) {
     next('/login')

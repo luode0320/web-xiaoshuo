@@ -5,12 +5,22 @@
 </template>
 
 <script>
+import { onMounted } from 'vue'
+import { useUserStore } from '@/stores/user'
 import BottomNavigation from './components/BottomNavigation.vue'
 
 export default {
   name: 'App',
   components: {
     BottomNavigation
+  },
+  setup() {
+    const userStore = useUserStore()
+    
+    onMounted(async () => {
+      // 在应用启动时初始化用户状态
+      await userStore.initializeUser()
+    })
   }
 }
 </script>

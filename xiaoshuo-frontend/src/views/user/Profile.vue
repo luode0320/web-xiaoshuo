@@ -111,7 +111,10 @@ export default {
       return dayjs(date).format('YYYY-MM-DD HH:mm')
     }
     
-    onMounted(() => {
+    onMounted(async () => {
+      // 初始化用户状态，检查本地存储的token并获取用户信息
+      await userStore.initializeUser()
+      
       if (!userStore.isAuthenticated) {
         router.push('/login')
         return

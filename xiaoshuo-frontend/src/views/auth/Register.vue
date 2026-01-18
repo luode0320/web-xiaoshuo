@@ -29,7 +29,7 @@
 </template>
 
 <script>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
@@ -105,6 +105,16 @@ export default {
         loading.value = false
       }
     }
+
+    onMounted(async () => {
+      // 在页面加载时初始化用户状态
+      await userStore.initializeUser()
+      
+      // 如果用户已经登录，跳转到首页
+      if (userStore.isAuthenticated) {
+        router.push('/')
+      }
+    })
 
     return {
       registerForm,

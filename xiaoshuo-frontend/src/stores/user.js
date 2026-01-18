@@ -97,7 +97,7 @@ export const useUserStore = defineStore('user', {
         const response = await apiClient.get('/api/v1/users/profile')
         
         if (response.data.code === 200) {
-          this.user = response.data.data.user
+          this.user = response.data.data
           this.isAuthenticated = true
         }
         
@@ -113,7 +113,7 @@ export const useUserStore = defineStore('user', {
         const response = await apiClient.put('/api/v1/users/profile', profileData)
         
         if (response.data.code === 200) {
-          this.user = response.data.data.user
+          this.user = response.data.data
         }
         
         return response.data
@@ -130,6 +130,33 @@ export const useUserStore = defineStore('user', {
       
       // 清除localStorage中的token
       localStorage.removeItem('token')
+    },
+
+    // 初始化用户状态，检查本地存储的token并获取用户信息
+    async initializeUser() {
+      if (this.token) {
+        try {
+          const response = await apiClient.get('/api/v1/users/profile')
+          if (response.data.code === 200) {
+            this.user = response.data.data
+            this.isAuthenticated = true
+          } else {
+            // 如果token无效，清除本地存储的token
+            this.logout()
+          }
+        } catch (error) {
+          console.error('Failed to fetch user profile:', error)
+          // 如果获取用户信息失败，清除本地存储的token
+          this.logout()
+        }
+      }
     }
+  },
+
+  // 添加持久化配置
+  persist: {
+    key: 'user-store', // 存储的键名
+    storage: localStorage, // 使用localStorage
+    paths: ['user', 'token', 'isAuthenticated'] // 只持久化这些状态
   }
 })
