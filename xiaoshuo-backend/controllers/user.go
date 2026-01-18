@@ -801,6 +801,11 @@ func recordUserActivity(userID uint, action, ipAddress, userAgent, details strin
 
 // recordUserActivitySync 记录用户活动（同步版本）
 func recordUserActivitySync(userID uint, action, ipAddress, userAgent, details string, isSuccess bool) {
+	// 如果用户ID为0（表示用户不存在），则不记录活动日志
+	if userID == 0 {
+		return
+	}
+	
 	activity := models.UserActivity{
 		UserID:    userID,
 		Action:    action,

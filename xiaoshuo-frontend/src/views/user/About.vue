@@ -1,6 +1,14 @@
 <template>
   <div class="about-container">
     <div class="about-header">
+      <el-button 
+        class="back-button" 
+        @click="goBack"
+        icon="ArrowLeft"
+        :plain="true"
+      >
+        返回
+      </el-button>
       <h1>关于小说阅读系统</h1>
       <p>一个专注于提供优质阅读体验的平台</p>
     </div>
@@ -111,8 +119,37 @@
 </template>
 
 <script>
+import { useRouter } from 'vue-router'
+import { ArrowLeft } from '@element-plus/icons-vue'
+
 export default {
-  name: 'About'
+  name: 'About',
+  setup() {
+    const router = useRouter()
+    
+    const goBack = () => {
+      // 检查是否存在历史记录，并判断来源页面
+      if (window.history.length > 1) {
+        // 如果来自 profile 相关页面，则返回 profile 页面，否则返回上一页
+        const prevRoute = history.state?.back
+        if (prevRoute && (prevRoute.includes('/profile') || prevRoute === '/profile')) {
+          router.push('/profile')
+        } else {
+          router.go(-1)
+        }
+      } else {
+        // 如果没有历史记录，则返回首页
+        router.push('/')
+      }
+    }
+    
+    return {
+      goBack
+    }
+  },
+  components: {
+    ArrowLeft
+  }
 }
 </script>
 
@@ -124,6 +161,21 @@ export default {
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+.about-header {
+  position: relative;
+  text-align: center;
+  padding-bottom: 30px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 30px;
+}
+
+.back-button {
+  position: absolute;
+  left: 0;
+  top: 0;
+  margin: 0;
 }
 
 .about-header {

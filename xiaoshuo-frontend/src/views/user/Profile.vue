@@ -17,49 +17,48 @@
           :default-active="activeRoute"
           class="sidebar-menu"
           @select="handleMenuSelect"
-          :router="false"
+          :router="true"
         >
-          <el-menu-item index="/profile/basic">
+          <el-menu-item index="/profile/basic" :route="true">
             <el-icon><User /></el-icon>
             <span>基本信息</span>
           </el-menu-item>
-          <el-menu-item index="/profile/uploads">
+          <el-menu-item index="/profile/uploads" :route="true">
             <el-icon><Upload /></el-icon>
             <span>上传历史</span>
           </el-menu-item>
-          <el-menu-item index="/profile/comments">
+          <el-menu-item index="/profile/comments" :route="true">
             <el-icon><ChatLineRound /></el-icon>
             <span>我的评论</span>
           </el-menu-item>
-          <el-menu-item index="/profile/ratings">
+          <el-menu-item index="/profile/ratings" :route="true">
             <el-icon><Star /></el-icon>
             <span>我的评分</span>
           </el-menu-item>
-          <el-menu-item index="/profile/social">
+          <el-menu-item index="/profile/social" :route="true">
             <el-icon><ChatDotSquare /></el-icon>
             <span>社交历史</span>
           </el-menu-item>
-          <el-menu-item index="/profile/messages">
+          <el-menu-item index="/profile/messages" :route="true">
             <el-icon><Message /></el-icon>
             <span>系统消息</span>
           </el-menu-item>
           <el-menu-item 
             v-if="userStore.isAdmin" 
             index="/admin/review"
+            :route="true"
           >
             <el-icon><Setting /></el-icon>
             <span>管理后台</span>
           </el-menu-item>
-          <el-menu-item index="/about">
+          <el-menu-item index="/about" :route="true">
             <el-icon><InfoFilled /></el-icon>
             <span>关于我们</span>
           </el-menu-item>
         </el-menu>
       </div>
       
-      <div class="main-content">
-        <router-view />
-      </div>
+
     </div>
   </div>
 </template>
@@ -203,14 +202,6 @@ export default {
   border-right: none;
   flex: 1;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-
-.main-content {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
