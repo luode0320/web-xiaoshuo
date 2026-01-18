@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // 根据环境变量设置基础URL
-const baseURL = process.env.VUE_APP_API_BASE_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:8888';
+const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8888';
 
 // 创建axios实例
 const apiClient = axios.create({
