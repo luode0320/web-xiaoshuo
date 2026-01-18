@@ -12,7 +12,7 @@
     <div class="content">
       <el-tabs v-model="activeTab" class="tabs">
         <el-tab-pane label="我的评论" name="comments">
-          <div class="tab-content">
+          <div class="tab-content" ref="commentsContentRef">
             <el-table :data="comments" style="width: 100%" v-loading="loading.comments">
               <el-table-column prop="novel.title" label="小说标题" />
               <el-table-column prop="content" label="评论内容" show-overflow-tooltip />
@@ -31,13 +31,20 @@
               </el-table-column>
             </el-table>
 
-            <el-pagination v-model:current-page="commentsPage" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]" :total="commentsTotal" layout="total, sizes, prev, pager, next, jumper"
-              @size-change="handleCommentsSizeChange" @current-change="handleCommentsCurrentChange" class="pagination" />
+            <!-- 加载更多提示 -->
+            <div v-if="commentsHasMore" class="loading-more">
+              <el-skeleton v-if="loading.comments" :rows="2" />
+            </div>
+
+            <!-- 没有更多数据提示 -->
+            <div v-if="!commentsHasMore && comments.length > 0" class="no-more">
+              <el-divider>没有更多数据了</el-divider>
+            </div>
           </div>
         </el-tab-pane>
 
         <el-tab-pane label="我的评分" name="ratings">
-          <div class="tab-content">
+          <div class="tab-content" ref="ratingsContentRef">
             <el-table :data="ratings" style="width: 100%" v-loading="loading.ratings">
               <el-table-column prop="novel.title" label="小说标题" />
               <el-table-column prop="score" label="评分" width="80">
@@ -61,8 +68,15 @@
               </el-table-column>
             </el-table>
 
-            <el-pagination v-model:current-page="ratingsPage" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]" :total="ratingsTotal" layout="total, sizes, prev, pager, next, jumper"
-              @size-change="handleRatingsSizeChange" @current-change="handleRatingsCurrentChange" class="pagination" />
+            <!-- 加载更多提示 -->
+            <div v-if="ratingsHasMore" class="loading-more">
+              <el-skeleton v-if="loading.ratings" :rows="2" />
+            </div>
+
+            <!-- 没有更多数据提示 -->
+            <div v-if="!ratingsHasMore && ratings.length > 0" class="no-more">
+              <el-divider>没有更多数据了</el-divider>
+            </div>
           </div>
         </el-tab-pane>
       </el-tabs>
@@ -71,7 +85,7 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
@@ -86,21 +100,36 @@ export default {
   setup() {
     const router = useRouter()
     const activeTab = ref('comments')
+
+    // 评论相关
     const comments = ref([])
+    const commentsPage = ref(1)
+    const commentsHasMore = ref(true)
+    const commentsContentRef = ref(null)
+
+    // 评分相关
     const ratings = ref([])
+    const ratingsPage = ref(1)
+    const ratingsHasMore = ref(true)
+    const ratingsContentRef = ref(null)
+
+    // 全局加载状态
     const loading = ref({
       comments: false,
       ratings: false
     })
-    const commentsPage = ref(1)
-    const ratingsPage = ref(1)
+
     const pageSize = ref(10)
-    const commentsTotal = ref(0)
-    const ratingsTotal = ref(0)
 
     // 获取评论历史
-    const fetchComments = async () => {
-      loading.value.comments = true
+    const fetchComments = async (isLoadMore = false) => {
+      if (isLoadMore) {
+        loading.value.comments = true
+      } else {
+        commentsPage.value = 1
+        loading.value.comments = true
+      }
+
       try {
         const response = await apiClient.get('/api/v1/comments', {
           params: {
@@ -110,22 +139,43 @@ export default {
         })
 
         if (response.data.code === 200) {
-          comments.value = response.data.data.comments
-          commentsTotal.value = response.data.data.pagination.total
+          const newComments = response.data.data.comments
+          const total = response.data.data.pagination.total || 0
+
+          if (newComments && newComments.length > 0) {
+            if (isLoadMore && commentsPage.value > 1) {
+              comments.value = [...comments.value, ...newComments]
+            } else {
+              comments.value = newComments
+            }
+
+            // 检查是否还有更多数据
+            commentsHasMore.value = comments.value.length < total
+          } else {
+            commentsHasMore.value = false
+          }
         } else {
           ElMessage.error('获取评论历史失败: ' + response.data.message)
+          commentsHasMore.value = false
         }
       } catch (error) {
         console.error('获取评论历史失败:', error)
         ElMessage.error('获取评论历史失败: ' + error.message)
+        commentsHasMore.value = false
       } finally {
         loading.value.comments = false
       }
     }
 
     // 获取评分历史
-    const fetchRatings = async () => {
-      loading.value.ratings = true
+    const fetchRatings = async (isLoadMore = false) => {
+      if (isLoadMore) {
+        loading.value.ratings = true
+      } else {
+        ratingsPage.value = 1
+        loading.value.ratings = true
+      }
+
       try {
         const response = await apiClient.get('/api/v1/users/ratings', {
           params: {
@@ -135,16 +185,68 @@ export default {
         })
 
         if (response.data.code === 200) {
-          ratings.value = response.data.data.ratings
-          ratingsTotal.value = response.data.data.pagination.total
+          const newRatings = response.data.data.ratings
+          const total = response.data.data.pagination.total || 0
+
+          if (newRatings && newRatings.length > 0) {
+            if (isLoadMore && ratingsPage.value > 1) {
+              ratings.value = [...ratings.value, ...newRatings]
+            } else {
+              ratings.value = newRatings
+            }
+
+            // 检查是否还有更多数据
+            ratingsHasMore.value = ratings.value.length < total
+          } else {
+            ratingsHasMore.value = false
+          }
         } else {
           ElMessage.error('获取评分历史失败: ' + response.data.message)
+          ratingsHasMore.value = false
         }
       } catch (error) {
         console.error('获取评分历史失败:', error)
         ElMessage.error('获取评分历史失败: ' + error.message)
+        ratingsHasMore.value = false
       } finally {
         loading.value.ratings = false
+      }
+    }
+
+    // 评论加载更多数据
+    const loadMoreComments = async () => {
+      if (loading.value.comments || !commentsHasMore.value) return
+
+      commentsPage.value += 1
+      await fetchComments(true)
+    }
+
+    // 评分加载更多数据
+    const loadMoreRatings = async () => {
+      if (loading.value.ratings || !ratingsHasMore.value) return
+
+      ratingsPage.value += 1
+      await fetchRatings(true)
+    }
+
+    // 滚动事件监听
+    const handleCommentsScroll = () => {
+      if (!commentsContentRef.value || loading.value.comments || !commentsHasMore.value) return
+
+      const element = commentsContentRef.value
+      // 检查是否滚动到底部
+      if (element.scrollHeight - element.scrollTop <= element.clientHeight + 100) {
+        loadMoreComments()
+      }
+    }
+
+    const handleRatingsScroll = () => {
+      if (!ratingsContentRef.value || loading.value.ratings || !ratingsHasMore.value) return
+
+      const element = ratingsContentRef.value
+      // 检查是否滚动到底部
+      if (element.scrollHeight - element.scrollTop <= element.clientHeight + 100) {
+        loadMoreRatings()
       }
     }
 
@@ -163,35 +265,43 @@ export default {
       router.push('/profile')
     }
 
-    // 处理评论页面大小变化
-    const handleCommentsSizeChange = (size) => {
-      pageSize.value = size
-      commentsPage.value = 1
-      fetchComments()
-    }
-
-    // 处理评论当前页变化
-    const handleCommentsCurrentChange = (page) => {
-      commentsPage.value = page
-      fetchComments()
-    }
-
-    // 处理评分页面大小变化
-    const handleRatingsSizeChange = (size) => {
-      pageSize.value = size
-      ratingsPage.value = 1
-      fetchRatings()
-    }
-
-    // 处理评分当前页变化
-    const handleRatingsCurrentChange = (page) => {
-      ratingsPage.value = page
-      fetchRatings()
+    // 标签切换时的处理
+    const handleTabChange = (tabName) => {
+      if (tabName === 'comments' && comments.value.length === 0) {
+        fetchComments()
+      } else if (tabName === 'ratings' && ratings.value.length === 0) {
+        fetchRatings()
+      }
     }
 
     onMounted(() => {
+      // 初始加载评论数据
       fetchComments()
-      fetchRatings()
+
+      // 为两个内容区域添加滚动事件监听
+      if (commentsContentRef.value) {
+        commentsContentRef.value.addEventListener('scroll', handleCommentsScroll)
+      }
+
+      if (ratingsContentRef.value) {
+        ratingsContentRef.value.addEventListener('scroll', handleRatingsScroll)
+      }
+    })
+
+    // 监听标签变化
+    watch(activeTab, (newTab) => {
+      handleTabChange(newTab)
+    })
+
+    // 组件卸载时移除事件监听
+    onUnmounted(() => {
+      if (commentsContentRef.value) {
+        commentsContentRef.value.removeEventListener('scroll', handleCommentsScroll)
+      }
+
+      if (ratingsContentRef.value) {
+        ratingsContentRef.value.removeEventListener('scroll', handleRatingsScroll)
+      }
     })
 
     return {
@@ -199,18 +309,13 @@ export default {
       comments,
       ratings,
       loading,
-      commentsPage,
-      ratingsPage,
-      pageSize,
-      commentsTotal,
-      ratingsTotal,
+      commentsHasMore,
+      ratingsHasMore,
+      commentsContentRef,
+      ratingsContentRef,
       formatDate,
       viewNovel,
-      goBack,
-      handleCommentsSizeChange,
-      handleCommentsCurrentChange,
-      handleRatingsSizeChange,
-      handleRatingsCurrentChange
+      goBack
     }
   }
 }
@@ -226,7 +331,8 @@ export default {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-height: 0; /* 防止内容溢出父容器 */
+  min-height: 0;
+  /* 防止内容溢出父容器 */
 }
 
 .header {
@@ -266,10 +372,15 @@ export default {
   overflow-y: auto;
 }
 
-.pagination {
-  margin-top: 20px;
-  justify-content: center;
-  flex-shrink: 0;
+.loading-more {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.no-more {
+  text-align: center;
+  padding: 20px 0;
+  color: #999;
 }
 
 /* 移动端适配 */

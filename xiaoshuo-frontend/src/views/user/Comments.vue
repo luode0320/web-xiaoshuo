@@ -9,7 +9,7 @@
       <h2>我的评论</h2>
     </div>
 
-    <div class="content">
+    <div class="content" ref="contentRef">
       <el-table :data="comments" style="width: 100%" v-loading="loading">
         <el-table-column prop="novel.title" label="小说标题" />
         <el-table-column prop="content" label="评论内容" show-overflow-tooltip />
@@ -28,14 +28,21 @@
         </el-table-column>
       </el-table>
 
-      <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]" :total="total" layout="total, sizes, prev, pager, next, jumper"
-        @size-change="handleSizeChange" @current-change="handleCurrentChange" class="pagination" />
+      <!-- 加载更多提示 -->
+      <div v-if="hasMore" class="loading-more">
+        <el-skeleton v-if="loadingMore" :rows="2" />
+      </div>
+
+      <!-- 没有更多数据提示 -->
+      <div v-if="!hasMore && comments.length > 0" class="no-more">
+        <el-divider>没有更多数据了</el-divider>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
@@ -51,15 +58,21 @@ export default {
     const router = useRouter()
     const comments = ref([])
     const loading = ref(false)
+    const loadingMore = ref(false)
+    const hasMore = ref(true)
     const currentPage = ref(1)
     const pageSize = ref(10)
-    const total = ref(0)
+    const contentRef = ref(null) // 用于滚动监听
 
     // 获取评论历史
-    const fetchComments = async () => {
-      loading.value = true
+    const fetchComments = async (isLoadMore = false) => {
+      if (isLoadMore) {
+        loadingMore.value = true
+      } else {
+        loading.value = true
+      }
+
       try {
-        // 这里需要根据实际API调整，假设有一个获取用户评论的接口
         const response = await apiClient.get('/api/v1/comments', {
           params: {
             page: currentPage.value,
@@ -68,16 +81,51 @@ export default {
         })
 
         if (response.data.code === 200) {
-          comments.value = response.data.data.comments
-          total.value = response.data.data.pagination.total
+          const newComments = response.data.data.comments
+          const total = response.data.data.pagination.total || 0
+
+          if (newComments && newComments.length > 0) {
+            if (isLoadMore) {
+              comments.value = [...comments.value, ...newComments]
+            } else {
+              comments.value = newComments
+            }
+
+            // 检查是否还有更多数据
+            hasMore.value = comments.value.length < total
+          } else {
+            hasMore.value = false
+          }
         } else {
           ElMessage.error('获取评论历史失败: ' + response.data.message)
+          hasMore.value = false
         }
       } catch (error) {
         console.error('获取评论历史失败:', error)
         ElMessage.error('获取评论历史失败: ' + error.message)
+        hasMore.value = false
       } finally {
         loading.value = false
+        loadingMore.value = false
+      }
+    }
+
+    // 加载更多数据
+    const loadMore = async () => {
+      if (loading.value || loadingMore.value || !hasMore.value) return
+
+      currentPage.value += 1
+      await fetchComments(true)
+    }
+
+    // 滚动事件监听
+    const handleScroll = () => {
+      if (!contentRef.value || loading.value || loadingMore.value || !hasMore.value) return
+
+      const element = contentRef.value
+      // 检查是否滚动到底部
+      if (element.scrollHeight - element.scrollTop <= element.clientHeight + 100) {
+        loadMore()
       }
     }
 
@@ -96,34 +144,32 @@ export default {
       router.push('/profile')
     }
 
-    // 处理页面大小变化
-    const handleSizeChange = (size) => {
-      pageSize.value = size
-      currentPage.value = 1
-      fetchComments()
-    }
+    onMounted(async () => {
+      // 初始加载数据
+      await fetchComments()
 
-    // 处理当前页变化
-    const handleCurrentChange = (page) => {
-      currentPage.value = page
-      fetchComments()
-    }
+      // 添加滚动事件监听
+      if (contentRef.value) {
+        contentRef.value.addEventListener('scroll', handleScroll)
+      }
+    })
 
-    onMounted(() => {
-      fetchComments()
+    // 组件卸载时移除事件监听
+    onUnmounted(() => {
+      if (contentRef.value) {
+        contentRef.value.removeEventListener('scroll', handleScroll)
+      }
     })
 
     return {
       comments,
       loading,
-      currentPage,
-      pageSize,
-      total,
+      loadingMore,
+      hasMore,
+      contentRef,
       formatDate,
       viewNovel,
-      goBack,
-      handleSizeChange,
-      handleCurrentChange
+      goBack
     }
   }
 }
@@ -139,7 +185,8 @@ export default {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-height: 0; /* 防止内容溢出父容器 */
+  min-height: 0;
+  /* 防止内容溢出父容器 */
 }
 
 .header {
@@ -166,10 +213,15 @@ export default {
   min-height: 0;
 }
 
-.pagination {
-  margin-top: 20px;
-  justify-content: center;
-  flex-shrink: 0;
+.loading-more {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.no-more {
+  text-align: center;
+  padding: 20px 0;
+  color: #999;
 }
 
 /* 移动端适配 */

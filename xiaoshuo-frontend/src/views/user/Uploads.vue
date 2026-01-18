@@ -9,7 +9,7 @@
       <h2>上传历史</h2>
     </div>
 
-    <div class="content">
+    <div class="content" ref="contentRef">
       <el-table :data="uploads" style="width: 100%" v-loading="loading">
         <el-table-column prop="title" label="小说标题" />
         <el-table-column prop="author" label="作者" width="120" />
@@ -36,14 +36,21 @@
         </el-table-column>
       </el-table>
 
-      <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]" :total="total" layout="total, sizes, prev, pager, next, jumper"
-        @size-change="handleSizeChange" @current-change="handleCurrentChange" class="pagination" />
+      <!-- 加载更多提示 -->
+      <div v-if="hasMore" class="loading-more">
+        <el-skeleton v-if="loadingMore" :rows="2" />
+      </div>
+
+      <!-- 没有更多数据提示 -->
+      <div v-if="!hasMore && uploads.length > 0" class="no-more">
+        <el-divider>没有更多数据了</el-divider>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
@@ -59,13 +66,20 @@ export default {
     const router = useRouter()
     const uploads = ref([])
     const loading = ref(false)
+    const loadingMore = ref(false)
+    const hasMore = ref(true)
     const currentPage = ref(1)
     const pageSize = ref(10)
-    const total = ref(0)
+    const contentRef = ref(null) // 用于滚动监听
 
     // 获取上传历史
-    const fetchUploads = async () => {
-      loading.value = true
+    const fetchUploads = async (isLoadMore = false) => {
+      if (isLoadMore) {
+        loadingMore.value = true
+      } else {
+        loading.value = true
+      }
+
       try {
         const response = await apiClient.get('/api/v1/novels', {
           params: {
@@ -76,16 +90,51 @@ export default {
         })
 
         if (response.data.code === 200) {
-          uploads.value = response.data.data.novels
-          total.value = response.data.data.pagination.total
+          const newUploads = response.data.data.novels
+          const total = response.data.data.pagination.total || 0
+
+          if (newUploads && newUploads.length > 0) {
+            if (isLoadMore) {
+              uploads.value = [...uploads.value, ...newUploads]
+            } else {
+              uploads.value = newUploads
+            }
+
+            // 检查是否还有更多数据
+            hasMore.value = uploads.value.length < total
+          } else {
+            hasMore.value = false
+          }
         } else {
           ElMessage.error('获取上传历史失败: ' + response.data.message)
+          hasMore.value = false
         }
       } catch (error) {
         console.error('获取上传历史失败:', error)
         ElMessage.error('获取上传历史失败: ' + error.message)
+        hasMore.value = false
       } finally {
         loading.value = false
+        loadingMore.value = false
+      }
+    }
+
+    // 加载更多数据
+    const loadMore = async () => {
+      if (loading.value || loadingMore.value || !hasMore.value) return
+
+      currentPage.value += 1
+      await fetchUploads(true)
+    }
+
+    // 滚动事件监听
+    const handleScroll = () => {
+      if (!contentRef.value || loading.value || loadingMore.value || !hasMore.value) return
+
+      const element = contentRef.value
+      // 检查是否滚动到底部
+      if (element.scrollHeight - element.scrollTop <= element.clientHeight + 100) {
+        loadMore()
       }
     }
 
@@ -124,36 +173,34 @@ export default {
       router.push('/profile')
     }
 
-    // 处理页面大小变化
-    const handleSizeChange = (size) => {
-      pageSize.value = size
-      currentPage.value = 1
-      fetchUploads()
-    }
+    onMounted(async () => {
+      // 初始加载数据
+      await fetchUploads()
 
-    // 处理当前页变化
-    const handleCurrentChange = (page) => {
-      currentPage.value = page
-      fetchUploads()
-    }
+      // 添加滚动事件监听
+      if (contentRef.value) {
+        contentRef.value.addEventListener('scroll', handleScroll)
+      }
+    })
 
-    onMounted(() => {
-      fetchUploads()
+    // 组件卸载时移除事件监听
+    onUnmounted(() => {
+      if (contentRef.value) {
+        contentRef.value.removeEventListener('scroll', handleScroll)
+      }
     })
 
     return {
       uploads,
       loading,
-      currentPage,
-      pageSize,
-      total,
+      loadingMore,
+      hasMore,
+      contentRef,
       formatDate,
       getStatusType,
       getStatusText,
       viewNovel,
-      goBack,
-      handleSizeChange,
-      handleCurrentChange
+      goBack
     }
   }
 }
@@ -169,7 +216,8 @@ export default {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-height: 0; /* 防止内容溢出父容器 */
+  min-height: 0;
+  /* 防止内容溢出父容器 */
 }
 
 .header {
@@ -196,10 +244,15 @@ export default {
   min-height: 0;
 }
 
-.pagination {
-  margin-top: 20px;
-  justify-content: center;
-  flex-shrink: 0;
+.loading-more {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.no-more {
+  text-align: center;
+  padding: 20px 0;
+  color: #999;
 }
 
 /* 移动端适配 */

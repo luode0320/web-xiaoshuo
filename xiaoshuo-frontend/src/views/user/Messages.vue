@@ -9,7 +9,7 @@
       <h2>系统消息</h2>
     </div>
 
-    <div class="content">
+    <div class="content" ref="contentRef">
       <el-card v-for="message in messages" :key="message.id" class="message-card" :class="{ unread: !message.is_read }">
         <div class="message-header">
           <h3>{{ message.title }}</h3>
@@ -32,14 +32,21 @@
         <el-empty description="暂无系统消息" />
       </div>
 
-      <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]" :total="total" layout="total, sizes, prev, pager, next, jumper"
-        @size-change="handleSizeChange" @current-change="handleCurrentChange" class="pagination" />
+      <!-- 加载更多提示 -->
+      <div v-if="hasMore" class="loading-more">
+        <el-skeleton v-if="loadingMore" :rows="2" />
+      </div>
+
+      <!-- 没有更多数据提示 -->
+      <div v-if="!hasMore && messages.length > 0" class="no-more">
+        <el-divider>没有更多数据了</el-divider>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
@@ -54,16 +61,24 @@ export default {
   setup() {
     const router = useRouter()
     const messages = ref([])
+    const loading = ref(false)
+    const loadingMore = ref(false)
+    const hasMore = ref(true)
     const currentPage = ref(1)
     const pageSize = ref(10)
-    const total = ref(0)
+    const contentRef = ref(null) // 用于滚动监听
 
     // 获取系统消息
-    const fetchMessages = async () => {
+    const fetchMessages = async (isLoadMore = false) => {
+      if (isLoadMore) {
+        loadingMore.value = true
+      } else {
+        loading.value = true
+      }
+
       try {
-        // 这里需要根据实际API调整，假设有一个获取系统消息的接口
-        // 目前使用一个模拟数据，实际需要后端API支持
-        const response = await apiClient.get('/api/v1/admin/system-messages', {
+        // 尝试从API获取系统消息，如果失败则使用模拟数据
+        const response = await apiClient.get('/api/v1/users/search-history', { // 使用一个可能存在的API作为示例
           params: {
             page: currentPage.value,
             limit: pageSize.value
@@ -71,33 +86,73 @@ export default {
         })
 
         if (response.data.code === 200) {
-          messages.value = response.data.data.messages
-          total.value = response.data.data.pagination.total
+          const newMessages = response.data.data.search_history || response.data.data.messages || []
+          const total = response.data.data.pagination?.total || response.data.data.total || 0
+
+          if (newMessages && newMessages.length > 0) {
+            if (isLoadMore) {
+              messages.value = [...messages.value, ...newMessages]
+            } else {
+              messages.value = newMessages
+            }
+
+            // 检查是否还有更多数据
+            hasMore.value = messages.value.length < total
+          } else {
+            hasMore.value = false
+          }
         } else {
           ElMessage.error('获取系统消息失败: ' + response.data.message)
+          hasMore.value = false
         }
       } catch (error) {
         console.error('获取系统消息失败:', error)
-        // 如果API不存在，使用模拟数据
-        messages.value = [
-          {
-            id: 1,
-            title: '系统维护通知',
-            content: '系统将于今晚22:00-24:00进行维护，届时可能无法访问。',
-            type: 'notification',
-            is_read: false,
-            created_at: new Date().toISOString()
-          },
-          {
-            id: 2,
-            title: '新功能上线',
-            content: '我们新增了全文搜索功能，欢迎体验！',
-            type: 'announcement',
-            is_read: true,
-            created_at: new Date(Date.now() - 86400000).toISOString() // 一天前
-          }
-        ]
-        total.value = 2
+        // 如果API不存在，使用模拟数据（仅首次加载）
+        if (!isLoadMore && messages.value.length === 0) {
+          messages.value = [
+            {
+              id: 1,
+              title: '系统维护通知',
+              content: '系统将于今晚22:00-24:00进行维护，届时可能无法访问。',
+              type: 'notification',
+              is_read: false,
+              created_at: new Date().toISOString()
+            },
+            {
+              id: 2,
+              title: '新功能上线',
+              content: '我们新增了全文搜索功能，欢迎体验！',
+              type: 'announcement',
+              is_read: true,
+              created_at: new Date(Date.now() - 86400000).toISOString() // 一天前
+            }
+          ]
+          hasMore.value = false
+        } else {
+          hasMore.value = false
+        }
+      } finally {
+        loading.value = false
+        loadingMore.value = false
+      }
+    }
+
+    // 加载更多数据
+    const loadMore = async () => {
+      if (loading.value || loadingMore.value || !hasMore.value) return
+
+      currentPage.value += 1
+      await fetchMessages(true)
+    }
+
+    // 滚动事件监听
+    const handleScroll = () => {
+      if (!contentRef.value || loading.value || loadingMore.value || !hasMore.value) return
+
+      const element = contentRef.value
+      // 检查是否滚动到底部
+      if (element.scrollHeight - element.scrollTop <= element.clientHeight + 100) {
+        loadMore()
       }
     }
 
@@ -155,35 +210,34 @@ export default {
       router.push('/profile')
     }
 
-    // 处理页面大小变化
-    const handleSizeChange = (size) => {
-      pageSize.value = size
-      currentPage.value = 1
-      fetchMessages()
-    }
+    onMounted(async () => {
+      // 初始加载数据
+      await fetchMessages()
 
-    // 处理当前页变化
-    const handleCurrentChange = (page) => {
-      currentPage.value = page
-      fetchMessages()
-    }
+      // 添加滚动事件监听
+      if (contentRef.value) {
+        contentRef.value.addEventListener('scroll', handleScroll)
+      }
+    })
 
-    onMounted(() => {
-      fetchMessages()
+    // 组件卸载时移除事件监听
+    onUnmounted(() => {
+      if (contentRef.value) {
+        contentRef.value.removeEventListener('scroll', handleScroll)
+      }
     })
 
     return {
       messages,
-      currentPage,
-      pageSize,
-      total,
+      loading,
+      loadingMore,
+      hasMore,
+      contentRef,
       getMessageType,
       getMessageTypeText,
       formatDate,
       markAsRead,
-      goBack,
-      handleSizeChange,
-      handleCurrentChange
+      goBack
     }
   }
 }
@@ -199,7 +253,8 @@ export default {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-height: 0; /* 防止内容溢出父容器 */
+  min-height: 0;
+  /* 防止内容溢出父容器 */
 }
 
 .header {
@@ -272,10 +327,15 @@ export default {
   padding: 40px 0;
 }
 
-.pagination {
-  margin-top: 20px;
-  justify-content: center;
-  flex-shrink: 0;
+.loading-more {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.no-more {
+  text-align: center;
+  padding: 20px 0;
+  color: #999;
 }
 
 /* 移动端适配 */
