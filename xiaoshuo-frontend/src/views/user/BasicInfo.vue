@@ -1,18 +1,14 @@
 <template>
   <div class="basic-info-container">
     <div class="header">
-      <el-button 
-        type="primary" 
-        link 
-        @click="goBack"
-        class="back-button"
-      >
-        <el-icon><ArrowLeft /></el-icon>
-        返回
+      <el-button type="primary" link @click="goBack" class="back-button">
+        <el-icon>
+          <ArrowLeft />
+        </el-icon>
       </el-button>
       <h2>基本信息</h2>
     </div>
-    
+
     <div class="content">
       <el-card class="info-card">
         <div class="info-item">
@@ -40,22 +36,14 @@
           <span class="value">是</span>
         </div>
       </el-card>
-      
-      <el-button 
-        type="primary" 
-        @click="showEditDialog = true"
-        class="edit-button"
-      >
+
+      <el-button type="primary" @click="showEditDialog = true" class="edit-button">
         编辑信息
       </el-button>
     </div>
-    
+
     <!-- 编辑信息对话框 -->
-    <el-dialog 
-      v-model="showEditDialog" 
-      title="编辑信息" 
-      width="400px"
-    >
+    <el-dialog v-model="showEditDialog" title="编辑信息" width="400px">
       <el-form :model="editForm" label-width="80px">
         <el-form-item label="昵称">
           <el-input v-model="editForm.nickname" placeholder="请输入昵称" />
@@ -92,26 +80,26 @@ export default {
     const editForm = ref({
       nickname: ''
     })
-    
+
     const user = computed(() => userStore.user)
-    
+
     // 格式化日期
     const formatDate = (date) => {
       return dayjs(date).format('YYYY-MM-DD HH:mm')
     }
-    
+
     // 返回上一页
     const goBack = () => {
       router.push('/profile')
     }
-    
+
     // 编辑用户信息
     const updateUserInfo = async () => {
       try {
         const response = await apiClient.put('/api/v1/users/profile', {
           nickname: editForm.value.nickname
         })
-        
+
         if (response.data.code === 200) {
           ElMessage.success('信息更新成功')
           await userStore.fetchUserInfo()
@@ -124,13 +112,13 @@ export default {
         ElMessage.error('更新失败: ' + error.message)
       }
     }
-    
+
     onMounted(() => {
       if (user.value) {
         editForm.value.nickname = user.value.nickname
       }
     })
-    
+
     return {
       user,
       userStore,
@@ -216,17 +204,17 @@ export default {
   .basic-info-container {
     padding: 15px;
   }
-  
+
   .header {
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .header h2 {
     margin-left: 0;
     margin-top: 10px;
   }
-  
+
   .label {
     width: 80px;
     font-size: 14px;

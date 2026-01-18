@@ -1,24 +1,16 @@
 <template>
   <div class="comments-container">
     <div class="header">
-      <el-button 
-        type="primary" 
-        link 
-        @click="goBack"
-        class="back-button"
-      >
-        <el-icon><ArrowLeft /></el-icon>
-        返回
+      <el-button type="primary" link @click="goBack" class="back-button">
+        <el-icon>
+          <ArrowLeft />
+        </el-icon>
       </el-button>
       <h2>我的评论</h2>
     </div>
-    
+
     <div class="content">
-      <el-table 
-        :data="comments" 
-        style="width: 100%"
-        v-loading="loading"
-      >
+      <el-table :data="comments" style="width: 100%" v-loading="loading">
         <el-table-column prop="novel.title" label="小说标题" />
         <el-table-column prop="content" label="评论内容" show-overflow-tooltip />
         <el-table-column prop="like_count" label="点赞数" width="80" />
@@ -29,27 +21,15 @@
         </el-table-column>
         <el-table-column label="操作" width="150">
           <template #default="{ row }">
-            <el-button 
-              size="small" 
-              @click="viewNovel(row.novel_id)"
-              type="primary"
-            >
+            <el-button size="small" @click="viewNovel(row.novel_id)" type="primary">
               查看小说
             </el-button>
           </template>
         </el-table-column>
       </el-table>
-      
-      <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="total"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-        class="pagination"
-      />
+
+      <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]" :total="total" layout="total, sizes, prev, pager, next, jumper"
+        @size-change="handleSizeChange" @current-change="handleCurrentChange" class="pagination" />
     </div>
   </div>
 </template>
@@ -74,7 +54,7 @@ export default {
     const currentPage = ref(1)
     const pageSize = ref(10)
     const total = ref(0)
-    
+
     // 获取评论历史
     const fetchComments = async () => {
       loading.value = true
@@ -86,7 +66,7 @@ export default {
             limit: pageSize.value
           }
         })
-        
+
         if (response.data.code === 200) {
           comments.value = response.data.data.comments
           total.value = response.data.data.pagination.total
@@ -100,39 +80,39 @@ export default {
         loading.value = false
       }
     }
-    
+
     // 格式化日期
     const formatDate = (date) => {
       return dayjs(date).format('YYYY-MM-DD HH:mm')
     }
-    
+
     // 查看小说
     const viewNovel = (id) => {
       router.push(`/novel/${id}`)
     }
-    
+
     // 返回上一页
     const goBack = () => {
       router.push('/profile')
     }
-    
+
     // 处理页面大小变化
     const handleSizeChange = (size) => {
       pageSize.value = size
       currentPage.value = 1
       fetchComments()
     }
-    
+
     // 处理当前页变化
     const handleCurrentChange = (page) => {
       currentPage.value = page
       fetchComments()
     }
-    
+
     onMounted(() => {
       fetchComments()
     })
-    
+
     return {
       comments,
       loading,
@@ -188,21 +168,21 @@ export default {
   .comments-container {
     padding: 15px;
   }
-  
+
   .header {
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .header h2 {
     margin-left: 0;
     margin-top: 10px;
   }
-  
+
   .el-table {
     font-size: 12px;
   }
-  
+
   .el-table .el-table__cell {
     padding: 6px 0;
   }

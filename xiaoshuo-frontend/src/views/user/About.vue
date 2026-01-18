@@ -1,18 +1,14 @@
 <template>
   <div class="about-container">
-    <div class="about-header">
-      <el-button 
-        class="back-button" 
-        @click="goBack"
-        icon="ArrowLeft"
-        :plain="true"
-      >
-        返回
+    <div class="header">
+      <el-button type="primary" link @click="goBack" class="back-button">
+        <el-icon>
+          <ArrowLeft />
+        </el-icon>
       </el-button>
-      <h1>关于小说阅读系统</h1>
-      <p>一个专注于提供优质阅读体验的平台</p>
+      <h2>关于小说阅读系统</h2>
     </div>
-    
+
     <div class="about-content">
       <div class="section">
         <h2>项目简介</h2>
@@ -21,7 +17,7 @@
           系统支持多种格式的小说上传、在线阅读、评论评分、分类管理等功能。
         </p>
       </div>
-      
+
       <div class="section">
         <h2>技术栈</h2>
         <div class="tech-stack">
@@ -49,7 +45,7 @@
           </div>
         </div>
       </div>
-      
+
       <div class="section">
         <h2>主要功能</h2>
         <div class="features">
@@ -97,7 +93,7 @@
           </div>
         </div>
       </div>
-      
+
       <div class="section">
         <h2>系统架构</h2>
         <p>
@@ -105,7 +101,7 @@
           系统包含用户管理、小说管理、评论评分、分类管理、搜索推荐等多个模块。
         </p>
       </div>
-      
+
       <div class="section">
         <h2>联系我们</h2>
         <p>如果您有任何问题或建议，欢迎通过以下方式联系我们：</p>
@@ -124,75 +120,50 @@ import { ArrowLeft } from '@element-plus/icons-vue'
 
 export default {
   name: 'About',
+  components: {
+    ArrowLeft
+  },
   setup() {
     const router = useRouter()
-    
+
     const goBack = () => {
-      // 检查是否存在历史记录，并判断来源页面
-      if (window.history.length > 1) {
-        // 如果来自 profile 相关页面，则返回 profile 页面，否则返回上一页
-        const prevRoute = history.state?.back
-        if (prevRoute && (prevRoute.includes('/profile') || prevRoute === '/profile')) {
-          router.push('/profile')
-        } else {
-          router.go(-1)
-        }
-      } else {
-        // 如果没有历史记录，则返回首页
-        router.push('/')
-      }
+      router.push('/profile')
     }
-    
+
     return {
       goBack
     }
-  },
-  components: {
-    ArrowLeft
   }
 }
 </script>
 
 <style scoped>
 .about-container {
-  max-width: 1000px;
-  margin: 0 auto;
   padding: 20px;
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  min-height: 100%;
 }
 
-.about-header {
-  position: relative;
-  text-align: center;
-  padding-bottom: 30px;
+.header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
   border-bottom: 1px solid #eee;
-  margin-bottom: 30px;
 }
 
-.back-button {
-  position: absolute;
-  left: 0;
-  top: 0;
+.header h2 {
   margin: 0;
-}
-
-.about-header {
-  text-align: center;
-  padding-bottom: 30px;
-  border-bottom: 1px solid #eee;
-  margin-bottom: 30px;
-}
-
-.about-header h1 {
-  font-size: 2rem;
+  margin-left: 15px;
   color: #333;
-  margin-bottom: 10px;
 }
 
-.about-header p {
-  color: #666;
+.about-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .section {
@@ -290,19 +261,26 @@ export default {
   text-decoration: underline;
 }
 
+/* 移动端适配 */
 @media (max-width: 768px) {
   .about-container {
     padding: 15px;
   }
-  
-  .about-header h1 {
-    font-size: 1.5rem;
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
   }
-  
+
+  .header h2 {
+    margin-left: 0;
+    margin-top: 10px;
+  }
+
   .tech-stack {
     grid-template-columns: 1fr;
   }
-  
+
   .features {
     grid-template-columns: 1fr;
   }

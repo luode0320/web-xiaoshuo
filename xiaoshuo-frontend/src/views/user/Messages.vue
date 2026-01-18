@@ -1,31 +1,19 @@
 <template>
   <div class="messages-container">
     <div class="header">
-      <el-button 
-        type="primary" 
-        link 
-        @click="goBack"
-        class="back-button"
-      >
-        <el-icon><ArrowLeft /></el-icon>
-        返回
+      <el-button type="primary" link @click="goBack" class="back-button">
+        <el-icon>
+          <ArrowLeft />
+        </el-icon>
       </el-button>
       <h2>系统消息</h2>
     </div>
-    
+
     <div class="content">
-      <el-card 
-        v-for="message in messages" 
-        :key="message.id"
-        class="message-card"
-        :class="{ unread: !message.is_read }"
-      >
+      <el-card v-for="message in messages" :key="message.id" class="message-card" :class="{ unread: !message.is_read }">
         <div class="message-header">
           <h3>{{ message.title }}</h3>
-          <el-tag 
-            :type="getMessageType(message.type)"
-            size="small"
-          >
+          <el-tag :type="getMessageType(message.type)" size="small">
             {{ getMessageTypeText(message.type) }}
           </el-tag>
         </div>
@@ -34,31 +22,18 @@
         </div>
         <div class="message-footer">
           <span class="time">{{ formatDate(message.created_at) }}</span>
-          <el-button 
-            size="small" 
-            @click="markAsRead(message.id)"
-            :disabled="message.is_read"
-            type="primary"
-          >
+          <el-button size="small" @click="markAsRead(message.id)" :disabled="message.is_read" type="primary">
             {{ message.is_read ? '已读' : '标记为已读' }}
           </el-button>
         </div>
       </el-card>
-      
+
       <div v-if="messages.length === 0" class="empty-state">
         <el-empty description="暂无系统消息" />
       </div>
-      
-      <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="total"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-        class="pagination"
-      />
+
+      <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]" :total="total" layout="total, sizes, prev, pager, next, jumper"
+        @size-change="handleSizeChange" @current-change="handleCurrentChange" class="pagination" />
     </div>
   </div>
 </template>
@@ -82,7 +57,7 @@ export default {
     const currentPage = ref(1)
     const pageSize = ref(10)
     const total = ref(0)
-    
+
     // 获取系统消息
     const fetchMessages = async () => {
       try {
@@ -94,7 +69,7 @@ export default {
             limit: pageSize.value
           }
         })
-        
+
         if (response.data.code === 200) {
           messages.value = response.data.data.messages
           total.value = response.data.data.pagination.total
@@ -125,7 +100,7 @@ export default {
         total.value = 2
       }
     }
-    
+
     // 获取消息类型
     const getMessageType = (type) => {
       switch (type) {
@@ -135,7 +110,7 @@ export default {
         default: return 'info'
       }
     }
-    
+
     // 获取消息类型文本
     const getMessageTypeText = (type) => {
       switch (type) {
@@ -145,12 +120,12 @@ export default {
         default: return type
       }
     }
-    
+
     // 格式化日期
     const formatDate = (date) => {
       return dayjs(date).format('YYYY-MM-DD HH:mm')
     }
-    
+
     // 标记为已读
     const markAsRead = async (id) => {
       try {
@@ -159,7 +134,7 @@ export default {
         const response = await apiClient.put(`/api/v1/admin/system-messages/${id}/read`, {
           is_read: true
         })
-        
+
         if (response.data.code === 200) {
           const message = messages.value.find(m => m.id === id)
           if (message) {
@@ -174,29 +149,29 @@ export default {
         ElMessage.error('标记失败: ' + error.message)
       }
     }
-    
+
     // 返回上一页
     const goBack = () => {
       router.push('/profile')
     }
-    
+
     // 处理页面大小变化
     const handleSizeChange = (size) => {
       pageSize.value = size
       currentPage.value = 1
       fetchMessages()
     }
-    
+
     // 处理当前页变化
     const handleCurrentChange = (page) => {
       currentPage.value = page
       fetchMessages()
     }
-    
+
     onMounted(() => {
       fetchMessages()
     })
-    
+
     return {
       messages,
       currentPage,
@@ -299,23 +274,23 @@ export default {
   .messages-container {
     padding: 15px;
   }
-  
+
   .header {
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .header h2 {
     margin-left: 0;
     margin-top: 10px;
   }
-  
+
   .message-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
   }
-  
+
   .message-footer {
     flex-direction: column;
     gap: 10px;

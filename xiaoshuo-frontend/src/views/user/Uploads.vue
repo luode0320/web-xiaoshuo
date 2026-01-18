@@ -1,34 +1,23 @@
 <template>
   <div class="uploads-container">
     <div class="header">
-      <el-button 
-        type="primary" 
-        link 
-        @click="goBack"
-        class="back-button"
-      >
-        <el-icon><ArrowLeft /></el-icon>
-        返回
+      <el-button type="primary" link @click="goBack" class="back-button">
+        <el-icon>
+          <ArrowLeft />
+        </el-icon>
       </el-button>
       <h2>上传历史</h2>
     </div>
-    
+
     <div class="content">
-      <el-table 
-        :data="uploads" 
-        style="width: 100%"
-        v-loading="loading"
-      >
+      <el-table :data="uploads" style="width: 100%" v-loading="loading">
         <el-table-column prop="title" label="小说标题" />
         <el-table-column prop="author" label="作者" width="120" />
         <el-table-column prop="word_count" label="字数" width="100" />
         <el-table-column prop="click_count" label="点击量" width="100" />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag 
-              :type="getStatusType(row.status)"
-              size="small"
-            >
+            <el-tag :type="getStatusType(row.status)" size="small">
               {{ getStatusText(row.status) }}
             </el-tag>
           </template>
@@ -40,27 +29,15 @@
         </el-table-column>
         <el-table-column label="操作" width="150">
           <template #default="{ row }">
-            <el-button 
-              size="small" 
-              @click="viewNovel(row.id)"
-              type="primary"
-            >
+            <el-button size="small" @click="viewNovel(row.id)" type="primary">
               查看
             </el-button>
           </template>
         </el-table-column>
       </el-table>
-      
-      <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="total"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-        class="pagination"
-      />
+
+      <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]" :total="total" layout="total, sizes, prev, pager, next, jumper"
+        @size-change="handleSizeChange" @current-change="handleCurrentChange" class="pagination" />
     </div>
   </div>
 </template>
@@ -85,7 +62,7 @@ export default {
     const currentPage = ref(1)
     const pageSize = ref(10)
     const total = ref(0)
-    
+
     // 获取上传历史
     const fetchUploads = async () => {
       loading.value = true
@@ -97,7 +74,7 @@ export default {
             upload_user_id: 'current' // 这里需要根据实际API调整
           }
         })
-        
+
         if (response.data.code === 200) {
           uploads.value = response.data.data.novels
           total.value = response.data.data.pagination.total
@@ -111,12 +88,12 @@ export default {
         loading.value = false
       }
     }
-    
+
     // 格式化日期
     const formatDate = (date) => {
       return dayjs(date).format('YYYY-MM-DD HH:mm')
     }
-    
+
     // 获取状态类型
     const getStatusType = (status) => {
       switch (status) {
@@ -126,7 +103,7 @@ export default {
         default: return 'info'
       }
     }
-    
+
     // 获取状态文本
     const getStatusText = (status) => {
       switch (status) {
@@ -136,34 +113,34 @@ export default {
         default: return status
       }
     }
-    
+
     // 查看小说
     const viewNovel = (id) => {
       router.push(`/novel/${id}`)
     }
-    
+
     // 返回上一页
     const goBack = () => {
       router.push('/profile')
     }
-    
+
     // 处理页面大小变化
     const handleSizeChange = (size) => {
       pageSize.value = size
       currentPage.value = 1
       fetchUploads()
     }
-    
+
     // 处理当前页变化
     const handleCurrentChange = (page) => {
       currentPage.value = page
       fetchUploads()
     }
-    
+
     onMounted(() => {
       fetchUploads()
     })
-    
+
     return {
       uploads,
       loading,
@@ -221,21 +198,21 @@ export default {
   .uploads-container {
     padding: 15px;
   }
-  
+
   .header {
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .header h2 {
     margin-left: 0;
     margin-top: 10px;
   }
-  
+
   .el-table {
     font-size: 12px;
   }
-  
+
   .el-table .el-table__cell {
     padding: 6px 0;
   }

@@ -1,27 +1,19 @@
 <template>
   <div class="social-container">
     <div class="header">
-      <el-button 
-        type="primary" 
-        link 
-        @click="goBack"
-        class="back-button"
-      >
-        <el-icon><ArrowLeft /></el-icon>
-        返回
+      <el-button type="primary" link @click="goBack" class="back-button">
+        <el-icon>
+          <ArrowLeft />
+        </el-icon>
       </el-button>
       <h2>社交历史</h2>
     </div>
-    
+
     <div class="content">
       <el-tabs v-model="activeTab" class="tabs">
         <el-tab-pane label="我的评论" name="comments">
           <div class="tab-content">
-            <el-table 
-              :data="comments" 
-              style="width: 100%"
-              v-loading="loading.comments"
-            >
+            <el-table :data="comments" style="width: 100%" v-loading="loading.comments">
               <el-table-column prop="novel.title" label="小说标题" />
               <el-table-column prop="content" label="评论内容" show-overflow-tooltip />
               <el-table-column prop="like_count" label="点赞数" width="80" />
@@ -32,46 +24,25 @@
               </el-table-column>
               <el-table-column label="操作" width="150">
                 <template #default="{ row }">
-                  <el-button 
-                    size="small" 
-                    @click="viewNovel(row.novel_id)"
-                    type="primary"
-                  >
+                  <el-button size="small" @click="viewNovel(row.novel_id)" type="primary">
                     查看小说
                   </el-button>
                 </template>
               </el-table-column>
             </el-table>
-            
-            <el-pagination
-              v-model:current-page="commentsPage"
-              v-model:page-size="pageSize"
-              :page-sizes="[10, 20, 50, 100]"
-              :total="commentsTotal"
-              layout="total, sizes, prev, pager, next, jumper"
-              @size-change="handleCommentsSizeChange"
-              @current-change="handleCommentsCurrentChange"
-              class="pagination"
-            />
+
+            <el-pagination v-model:current-page="commentsPage" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]" :total="commentsTotal" layout="total, sizes, prev, pager, next, jumper"
+              @size-change="handleCommentsSizeChange" @current-change="handleCommentsCurrentChange" class="pagination" />
           </div>
         </el-tab-pane>
-        
+
         <el-tab-pane label="我的评分" name="ratings">
           <div class="tab-content">
-            <el-table 
-              :data="ratings" 
-              style="width: 100%"
-              v-loading="loading.ratings"
-            >
+            <el-table :data="ratings" style="width: 100%" v-loading="loading.ratings">
               <el-table-column prop="novel.title" label="小说标题" />
               <el-table-column prop="score" label="评分" width="80">
                 <template #default="{ row }">
-                  <el-rate 
-                    v-model="row.score" 
-                    disabled 
-                    :max="5"
-                    allow-half
-                  />
+                  <el-rate v-model="row.score" disabled :max="5" allow-half />
                 </template>
               </el-table-column>
               <el-table-column prop="comment" label="评分说明" show-overflow-tooltip />
@@ -83,27 +54,15 @@
               </el-table-column>
               <el-table-column label="操作" width="150">
                 <template #default="{ row }">
-                  <el-button 
-                    size="small" 
-                    @click="viewNovel(row.novel_id)"
-                    type="primary"
-                  >
+                  <el-button size="small" @click="viewNovel(row.novel_id)" type="primary">
                     查看小说
                   </el-button>
                 </template>
               </el-table-column>
             </el-table>
-            
-            <el-pagination
-              v-model:current-page="ratingsPage"
-              v-model:page-size="pageSize"
-              :page-sizes="[10, 20, 50, 100]"
-              :total="ratingsTotal"
-              layout="total, sizes, prev, pager, next, jumper"
-              @size-change="handleRatingsSizeChange"
-              @current-change="handleRatingsCurrentChange"
-              class="pagination"
-            />
+
+            <el-pagination v-model:current-page="ratingsPage" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]" :total="ratingsTotal" layout="total, sizes, prev, pager, next, jumper"
+              @size-change="handleRatingsSizeChange" @current-change="handleRatingsCurrentChange" class="pagination" />
           </div>
         </el-tab-pane>
       </el-tabs>
@@ -138,7 +97,7 @@ export default {
     const pageSize = ref(10)
     const commentsTotal = ref(0)
     const ratingsTotal = ref(0)
-    
+
     // 获取评论历史
     const fetchComments = async () => {
       loading.value.comments = true
@@ -149,7 +108,7 @@ export default {
             limit: pageSize.value
           }
         })
-        
+
         if (response.data.code === 200) {
           comments.value = response.data.data.comments
           commentsTotal.value = response.data.data.pagination.total
@@ -163,7 +122,7 @@ export default {
         loading.value.comments = false
       }
     }
-    
+
     // 获取评分历史
     const fetchRatings = async () => {
       loading.value.ratings = true
@@ -174,7 +133,7 @@ export default {
             limit: pageSize.value
           }
         })
-        
+
         if (response.data.code === 200) {
           ratings.value = response.data.data.ratings
           ratingsTotal.value = response.data.data.pagination.total
@@ -188,53 +147,53 @@ export default {
         loading.value.ratings = false
       }
     }
-    
+
     // 格式化日期
     const formatDate = (date) => {
       return dayjs(date).format('YYYY-MM-DD HH:mm')
     }
-    
+
     // 查看小说
     const viewNovel = (id) => {
       router.push(`/novel/${id}`)
     }
-    
+
     // 返回上一页
     const goBack = () => {
       router.push('/profile')
     }
-    
+
     // 处理评论页面大小变化
     const handleCommentsSizeChange = (size) => {
       pageSize.value = size
       commentsPage.value = 1
       fetchComments()
     }
-    
+
     // 处理评论当前页变化
     const handleCommentsCurrentChange = (page) => {
       commentsPage.value = page
       fetchComments()
     }
-    
+
     // 处理评分页面大小变化
     const handleRatingsSizeChange = (size) => {
       pageSize.value = size
       ratingsPage.value = 1
       fetchRatings()
     }
-    
+
     // 处理评分当前页变化
     const handleRatingsCurrentChange = (page) => {
       ratingsPage.value = page
       fetchRatings()
     }
-    
+
     onMounted(() => {
       fetchComments()
       fetchRatings()
     })
-    
+
     return {
       activeTab,
       comments,
@@ -306,21 +265,21 @@ export default {
   .social-container {
     padding: 15px;
   }
-  
+
   .header {
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .header h2 {
     margin-left: 0;
     margin-top: 10px;
   }
-  
+
   .el-table {
     font-size: 12px;
   }
-  
+
   .el-table .el-table__cell {
     padding: 6px 0;
   }
