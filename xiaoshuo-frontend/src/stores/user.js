@@ -63,7 +63,8 @@ export const useUserStore = defineStore('user', {
           return {
             ...response.data,
             success: true,
-            message: message
+            message: message,
+            user: user // 确保user信息也被返回
           }
         }
         
