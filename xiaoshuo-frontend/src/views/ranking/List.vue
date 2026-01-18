@@ -25,7 +25,7 @@
           :key="category.id"
           :label="category.name"
           :value="category.id"
-        />
+        ></el-option>
       </el-select>
     </div>
     
@@ -316,3 +316,4 @@ export default {
     margin-top: 10px;
   }
 }
+</style>
