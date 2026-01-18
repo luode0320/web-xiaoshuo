@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -65,7 +66,9 @@ func UserRegister(c *gin.Context) {
 	}
 
 	// 记录用户活动日志
-	go recordUserActivity(user.ID, "user_register", c.ClientIP(), c.GetHeader("User-Agent"), "用户注册", true)
+	go func() {
+		recordUserActivitySync(user.ID, "user_register", c.ClientIP(), c.GetHeader("User-Agent"), "用户注册", true)
+	}()
 
 	// 为新注册用户生成JWT token（对于新用户自动登录的情况）
 	token, err := utils.GenerateToken(user.ID, user.IsAdmin)
@@ -128,12 +131,16 @@ func UserLogin(c *gin.Context) {
 	if err := models.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			// 记录失败的登录尝试
-			go recordUserActivity(0, "user_login_failed", c.ClientIP(), c.GetHeader("User-Agent"), "邮箱不存在: "+input.Email, false)
+			go func() {
+				recordUserActivitySync(0, "user_login_failed", c.ClientIP(), c.GetHeader("User-Agent"), "邮箱不存在: "+input.Email, false)
+			}()
 			c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "邮箱或密码错误"})
 			return
 		}
 		// 记录数据库错误
-		go recordUserActivity(0, "user_login_error", c.ClientIP(), c.GetHeader("User-Agent"), "数据库查询错误: "+err.Error(), false)
+		go func() {
+			recordUserActivitySync(0, "user_login_error", c.ClientIP(), c.GetHeader("User-Agent"), "数据库查询错误: "+err.Error(), false)
+		}()
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "数据库查询错误"})
 		return
 	}
@@ -141,7 +148,9 @@ func UserLogin(c *gin.Context) {
 	// 检查用户是否被冻结
 	if !user.IsActive {
 		// 记录被冻结账户的登录尝试
-		go recordUserActivity(user.ID, "user_login_failed", c.ClientIP(), c.GetHeader("User-Agent"), "账户已被冻结", false)
+		go func() {
+			recordUserActivitySync(user.ID, "user_login_failed", c.ClientIP(), c.GetHeader("User-Agent"), "账户已被冻结", false)
+		}()
 		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "账户已被冻结"})
 		return
 	}
@@ -150,7 +159,9 @@ func UserLogin(c *gin.Context) {
 	// 为测试目的，暂时移除检查，但在生产环境中应启用
 	// if !user.IsActivated {
 	// 	// 记录未激活账户的登录尝试
-	// 	go recordUserActivity(user.ID, "user_login_failed", c.ClientIP(), c.GetHeader("User-Agent"), "账户未激活", false)
+	// 	go func() {
+	// 		recordUserActivitySync(user.ID, "user_login_failed", c.ClientIP(), c.GetHeader("User-Agent"), "账户未激活", false)
+	// 	}()
 	// 	c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "账户未激活，请先完成激活"})
 	// 	return
 	// }
@@ -158,28 +169,39 @@ func UserLogin(c *gin.Context) {
 	// 验证密码
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
 		// 记录密码错误
-		go recordUserActivity(user.ID, "user_login_failed", c.ClientIP(), c.GetHeader("User-Agent"), "密码错误", false)
+		go func() {
+			recordUserActivitySync(user.ID, "user_login_failed", c.ClientIP(), c.GetHeader("User-Agent"), "密码错误", false)
+		}()
 		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "邮箱或密码错误"})
 		return
 	}
 
 	// 更新最后登录时间
-	models.DB.Model(&user).Update("last_login_at", user.UpdatedAt)
+	if err := models.DB.Model(&user).Update("last_login_at", time.Now()).Error; err != nil {
+		// 即使更新登录时间失败，也继续登录流程
+		fmt.Printf("更新最后登录时间失败: %v\n", err)
+	}
 
 	// 生成JWT token
 	token, err := utils.GenerateToken(user.ID, user.IsAdmin)
 	if err != nil {
 		// 记录token生成错误
-		go recordUserActivity(user.ID, "user_login_error", c.ClientIP(), c.GetHeader("User-Agent"), "生成token失败: "+err.Error(), false)
+		go func() {
+			recordUserActivitySync(user.ID, "user_login_error", c.ClientIP(), c.GetHeader("User-Agent"), "生成token失败: "+err.Error(), false)
+		}()
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "生成token失败"})
 		return
 	}
 
 	// 记录成功的登录
-	go recordUserActivity(user.ID, "user_login", c.ClientIP(), c.GetHeader("User-Agent"), "用户成功登录", true)
+	go func() {
+		recordUserActivitySync(user.ID, "user_login", c.ClientIP(), c.GetHeader("User-Agent"), "用户成功登录", true)
+	}()
 
 	// 使用户缓存失效以更新登录时间
-	go utils.GlobalCacheService.InvalidateUserCache(user.ID)
+	go func() {
+		utils.GlobalCacheService.InvalidateUserCache(user.ID)
+	}()
 
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
@@ -531,7 +553,9 @@ func ActivateUser(c *gin.Context) {
 	}
 
 	// 记录激活活动
-	go recordUserActivity(user.ID, "user_activated", c.ClientIP(), c.GetHeader("User-Agent"), "用户完成账户激活", true)
+	go func() {
+		recordUserActivitySync(user.ID, "user_activated", c.ClientIP(), c.GetHeader("User-Agent"), "用户完成账户激活", true)
+	}()
 
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
@@ -590,7 +614,9 @@ func ResendActivationCode(c *gin.Context) {
 	// sendActivationEmail(user.Email, newActivationCode)
 
 	// 记录重新发送激活码的活动
-	go recordUserActivity(user.ID, "resend_activation", c.ClientIP(), c.GetHeader("User-Agent"), "用户请求重新发送激活码", true)
+	go func() {
+		recordUserActivitySync(user.ID, "resend_activation", c.ClientIP(), c.GetHeader("User-Agent"), "用户请求重新发送激活码", true)
+	}()
 
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
@@ -765,8 +791,16 @@ func GetUserRatings(c *gin.Context) {
 	})
 }
 
-// recordUserActivity 记录用户活动
+// recordUserActivity 记录用户活动（异步版本）
 func recordUserActivity(userID uint, action, ipAddress, userAgent, details string, isSuccess bool) {
+	// 异步保存，避免影响主流程
+	go func() {
+		recordUserActivitySync(userID, action, ipAddress, userAgent, details, isSuccess)
+	}()
+}
+
+// recordUserActivitySync 记录用户活动（同步版本）
+func recordUserActivitySync(userID uint, action, ipAddress, userAgent, details string, isSuccess bool) {
 	activity := models.UserActivity{
 		UserID:    userID,
 		Action:    action,
@@ -776,12 +810,9 @@ func recordUserActivity(userID uint, action, ipAddress, userAgent, details strin
 		IsSuccess: isSuccess,
 	}
 
-	// 异步保存，避免影响主流程
-	go func() {
-		if err := models.DB.Create(&activity).Error; err != nil {
-			fmt.Printf("记录用户活动日志失败: %v\n", err)
-		}
-	}()
+	if err := models.DB.Create(&activity).Error; err != nil {
+		fmt.Printf("记录用户活动日志失败: %v\n", err)
+	}
 }
 
 // GetUserSocialStats 获取用户社交统计信息
@@ -809,18 +840,29 @@ func GetUserSocialStats(c *gin.Context) {
 		return
 	}
 
-	// 统计用户评论获得的赞总数
-	var totalCommentLikes int64
+	// 统计用户评论获得的赞总数（处理NULL值）
+	var totalCommentLikes sql.NullInt64
 	if err := models.DB.Model(&models.Comment{}).Where("user_id = ?", currentUser.ID).Select("SUM(like_count)").Scan(&totalCommentLikes).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "统计评论获赞数失败", "data": err.Error()})
 		return
 	}
 
-	// 统计用户评分获得的赞总数
-	var totalRatingLikes int64
+	// 统计用户评分获得的赞总数（处理NULL值）
+	var totalRatingLikes sql.NullInt64
 	if err := models.DB.Model(&models.Rating{}).Where("user_id = ?", currentUser.ID).Select("SUM(like_count)").Scan(&totalRatingLikes).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "统计评分获赞数失败", "data": err.Error()})
 		return
+	}
+
+	// 使用0代替NULL值
+	commentLikes := int64(0)
+	if totalCommentLikes.Valid {
+		commentLikes = totalCommentLikes.Int64
+	}
+
+	ratingLikes := int64(0)
+	if totalRatingLikes.Valid {
+		ratingLikes = totalRatingLikes.Int64
 	}
 
 	// 计算总互动数（评论+评分）
@@ -838,7 +880,7 @@ func GetUserSocialStats(c *gin.Context) {
 		"data": gin.H{
 			"total_comments":     totalComments,
 			"total_ratings":      totalRatings,
-			"total_likes":        totalCommentLikes + totalRatingLikes,
+			"total_likes":        commentLikes + ratingLikes,
 			"total_interactions": totalInteractions,
 			"total_replies":      totalReplies, // 暂时为0，因为没有实现评论回复功能
 		},

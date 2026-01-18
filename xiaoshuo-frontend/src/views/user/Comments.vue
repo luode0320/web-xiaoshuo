@@ -1,8 +1,9 @@
 <template>
   <div class="comments-container">
-    <div class="page-header">
+    <div class="header">
       <el-button 
-        type="text" 
+        type="primary" 
+        link 
         @click="goBack"
         class="back-button"
       >
@@ -13,145 +14,91 @@
     </div>
     
     <div class="content">
-      <div class="comments-stats">
-        <div class="stat-item">
-          <div class="stat-number">{{ userComments.length }}</div>
-          <div class="stat-label">总评论数</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-number">{{ recentComments.length }}</div>
-          <div class="stat-label">近期评论</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-number">{{ novelsCommentedOn.length }}</div>
-          <div class="stat-label">评论过的小说</div>
-        </div>
-      </div>
+      <el-table 
+        :data="comments" 
+        style="width: 100%"
+        v-loading="loading"
+      >
+        <el-table-column prop="novel.title" label="小说标题" />
+        <el-table-column prop="content" label="评论内容" show-overflow-tooltip />
+        <el-table-column prop="like_count" label="点赞数" width="80" />
+        <el-table-column prop="created_at" label="评论时间" width="180">
+          <template #default="{ row }">
+            {{ formatDate(row.created_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="150">
+          <template #default="{ row }">
+            <el-button 
+              size="small" 
+              @click="viewNovel(row.novel_id)"
+              type="primary"
+            >
+              查看小说
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
       
-      <div class="comments-list">
-        <div 
-          v-for="comment in userComments" 
-          :key="comment.id" 
-          class="comment-item"
-        >
-          <div class="comment-main">
-            <div class="comment-header">
-              <div class="novel-info">
-                <el-tag type="info" size="small" class="novel-tag">
-                  {{ comment.novel?.title || '未知小说' }}
-                </el-tag>
-                <span class="time">{{ formatDate(comment.created_at) }}</span>
-              </div>
-              <div class="comment-actions">
-                <el-button 
-                  size="small" 
-                  @click="viewNovel(comment.novel_id)"
-                >
-                  <el-icon><View /></el-icon>
-                  查看小说
-                </el-button>
-                <el-button 
-                  size="small" 
-                  type="danger"
-                  @click="deleteComment(comment.id)"
-                >
-                  <el-icon><Delete /></el-icon>
-                  删除
-                </el-button>
-              </div>
-            </div>
-            <div class="comment-content">
-              {{ comment.content }}
-            </div>
-          </div>
-        </div>
-        
-        <div v-if="userComments.length === 0" class="no-comments">
-          <el-empty description="暂无评论" />
-        </div>
-      </div>
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        :page-sizes="[10, 20, 50, 100]"
+        :total="total"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="handleSizeChange"
+        @current-change="handleCurrentChange"
+        class="pagination"
+      />
     </div>
   </div>
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useUserStore } from '@/stores/user'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { ArrowLeft } from '@element-plus/icons-vue'
 import apiClient from '@/utils/api'
 import dayjs from 'dayjs'
-import { 
-  ArrowLeft,
-  View,
-  Delete
-} from '@element-plus/icons-vue'
 
 export default {
   name: 'Comments',
   components: {
-    ArrowLeft,
-    View,
-    Delete
+    ArrowLeft
   },
   setup() {
     const router = useRouter()
-    const userStore = useUserStore()
+    const comments = ref([])
+    const loading = ref(false)
+    const currentPage = ref(1)
+    const pageSize = ref(10)
+    const total = ref(0)
     
-    const userComments = ref([])
-    
-    const goBack = () => {
-      router.go(-1) // 返回上一页
-    }
-    
-    // 获取用户评论
-    const fetchUserComments = async () => {
+    // 获取评论历史
+    const fetchComments = async () => {
+      loading.value = true
       try {
-        const response = await apiClient.get(`/api/v1/users/comments`, {
-          headers: {
-            'Authorization': `Bearer ${userStore.token}`
-          }
-        })
-        userComments.value = response.data.data.data || response.data.data || []
-      } catch (error) {
-        console.error('获取评论失败:', error)
-        ElMessage.error('获取评论失败')
-        userComments.value = []
-      }
-    }
-    
-    // 删除评论
-    const deleteComment = async (commentId) => {
-      try {
-        await ElMessageBox.confirm(
-          '确定要删除这条评论吗？此操作不可恢复。', 
-          '删除评论', 
-          {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning'
-          }
-        )
-        
-        await apiClient.delete(`/api/v1/comments/${commentId}`, {
-          headers: {
-            'Authorization': `Bearer ${userStore.token}`
+        // 这里需要根据实际API调整，假设有一个获取用户评论的接口
+        const response = await apiClient.get('/api/v1/comments', {
+          params: {
+            page: currentPage.value,
+            limit: pageSize.value
           }
         })
         
-        ElMessage.success('评论删除成功')
-        fetchUserComments() // 刷新评论列表
-      } catch (error) {
-        if (error !== 'cancel') {
-          console.error('删除评论失败:', error)
-          ElMessage.error('删除评论失败')
+        if (response.data.code === 200) {
+          comments.value = response.data.data.comments
+          total.value = response.data.data.pagination.total
+        } else {
+          ElMessage.error('获取评论历史失败: ' + response.data.message)
         }
+      } catch (error) {
+        console.error('获取评论历史失败:', error)
+        ElMessage.error('获取评论历史失败: ' + error.message)
+      } finally {
+        loading.value = false
       }
-    }
-    
-    // 查看小说
-    const viewNovel = (novelId) => {
-      router.push(`/novel/${novelId}`)
     }
     
     // 格式化日期
@@ -159,42 +106,44 @@ export default {
       return dayjs(date).format('YYYY-MM-DD HH:mm')
     }
     
-    // 计算最近的评论（最近30天）
-    const recentComments = computed(() => {
-      const thirtyDaysAgo = dayjs().subtract(30, 'day')
-      return userComments.value.filter(comment => 
-        dayjs(comment.created_at).isAfter(thirtyDaysAgo)
-      )
-    })
+    // 查看小说
+    const viewNovel = (id) => {
+      router.push(`/novel/${id}`)
+    }
     
-    // 计算评论过的小说数量
-    const novelsCommentedOn = computed(() => {
-      const novelIds = new Set()
-      userComments.value.forEach(comment => {
-        if (comment.novel_id) {
-          novelIds.add(comment.novel_id)
-        }
-      })
-      return Array.from(novelIds)
-    })
+    // 返回上一页
+    const goBack = () => {
+      router.push('/profile')
+    }
+    
+    // 处理页面大小变化
+    const handleSizeChange = (size) => {
+      pageSize.value = size
+      currentPage.value = 1
+      fetchComments()
+    }
+    
+    // 处理当前页变化
+    const handleCurrentChange = (page) => {
+      currentPage.value = page
+      fetchComments()
+    }
     
     onMounted(() => {
-      if (!userStore.isAuthenticated) {
-        router.push('/login')
-        return
-      }
-      
-      fetchUserComments()
+      fetchComments()
     })
     
     return {
-      userComments,
-      goBack,
-      deleteComment,
-      viewNovel,
+      comments,
+      loading,
+      currentPage,
+      pageSize,
+      total,
       formatDate,
-      recentComments,
-      novelsCommentedOn
+      viewNovel,
+      goBack,
+      handleSizeChange,
+      handleCurrentChange
     }
   }
 }
@@ -202,162 +151,60 @@ export default {
 
 <style scoped>
 .comments-container {
-  max-width: 1000px;
-  margin: 0 auto;
   padding: 20px;
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  min-height: 100%;
 }
 
-.page-header {
+.header {
   display: flex;
   align-items: center;
-  margin-bottom: 30px;
-  padding-bottom: 20px;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
   border-bottom: 1px solid #eee;
 }
 
-.back-button {
-  margin-right: 15px;
-  font-size: 16px;
-}
-
-.page-header h2 {
+.header h2 {
   margin: 0;
+  margin-left: 15px;
   color: #333;
 }
 
 .content {
-  flex: 1;
-}
-
-.comments-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 20px;
-  margin-bottom: 30px;
 }
 
-.stat-item {
-  text-align: center;
-  padding: 20px;
-  background: #f5f7fa;
-  border-radius: 8px;
-  border: 1px solid #e4e7ed;
+.pagination {
+  margin-top: 20px;
+  justify-content: center;
 }
 
-.stat-number {
-  font-size: 28px;
-  font-weight: bold;
-  color: #e6a23c;
-  margin-bottom: 5px;
-}
-
-.stat-label {
-  font-size: 14px;
-  color: #666;
-}
-
-.comments-list {
-  max-width: 100%;
-}
-
-.comment-item {
-  padding: 20px;
-  border: 1px solid #eee;
-  border-radius: 8px;
-  margin-bottom: 15px;
-  transition: box-shadow 0.3s ease;
-}
-
-.comment-item:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.comment-main {
-  width: 100%;
-}
-
-.comment-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 15px;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.novel-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.novel-tag {
-  font-size: 0.9em;
-}
-
-.time {
-  color: #999;
-  font-size: 0.9rem;
-}
-
-.comment-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.comment-content {
-  padding: 15px;
-  background: #f8f9fa;
-  border-radius: 6px;
-  line-height: 1.6;
-  color: #333;
-  border-left: 4px solid #409eff;
-}
-
-.no-comments {
-  text-align: center;
-  padding: 40px 0;
-  color: #999;
-}
-
+/* 移动端适配 */
 @media (max-width: 768px) {
   .comments-container {
     padding: 15px;
-    margin: 10px;
   }
   
-  .page-header {
+  .header {
     flex-direction: column;
     align-items: flex-start;
   }
   
-  .back-button {
-    align-self: flex-start;
-    margin-bottom: 15px;
+  .header h2 {
+    margin-left: 0;
+    margin-top: 10px;
   }
   
-  .comments-stats {
-    grid-template-columns: 1fr;
+  .el-table {
+    font-size: 12px;
   }
   
-  .comment-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 15px;
-  }
-  
-  .novel-info {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  
-  .comment-actions {
-    align-self: flex-start;
+  .el-table .el-table__cell {
+    padding: 6px 0;
   }
 }
 </style>

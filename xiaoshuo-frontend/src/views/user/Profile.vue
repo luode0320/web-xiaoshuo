@@ -104,12 +104,7 @@ export default {
     
     // 处理菜单选择
     const handleMenuSelect = (index) => {
-      if (index === '/profile/messages') {
-        // 暂时显示提示，因为消息页面还没创建
-        ElMessage.info('系统消息功能正在开发中')
-      } else {
-        router.push(index)
-      }
+      router.push(index)
     }
     
     // 格式化日期
@@ -148,6 +143,9 @@ export default {
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: calc(100vh - 140px); /* 减去顶部可能的导航栏和底部导航栏的高度 */
+  height: 100%;
 }
 
 .profile-header {
@@ -187,26 +185,41 @@ export default {
 
 .profile-content {
   display: flex;
+  flex: 1;
   flex-direction: row;
   gap: 30px;
+  min-height: 0;
+  min-width: 0; /* 防止内容溢出 */
 }
 
 .sidebar {
   width: 220px;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .sidebar-menu {
   border-right: none;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .main-content {
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
+/* 移动端适配 */
 @media (max-width: 768px) {
   .profile-container {
     padding: 15px;
+    min-height: calc(100vh - 100px); /* 移动端底部导航栏高度 */
   }
   
   .profile-content {

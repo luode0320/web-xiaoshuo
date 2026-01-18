@@ -52,6 +52,12 @@ const routes = [
         name: 'SocialHistoryPage',
         component: () => import('@/views/user/SocialHistory.vue'),
         meta: { requiresAuth: true }
+      },
+      {
+        path: 'messages',
+        name: 'Messages',
+        component: () => import('@/views/user/Messages.vue'),
+        meta: { requiresAuth: true }
       }
     ]
   },

@@ -1,8 +1,9 @@
 <template>
   <div class="social-container">
-    <div class="page-header">
+    <div class="header">
       <el-button 
-        type="text" 
+        type="primary" 
+        link 
         @click="goBack"
         class="back-button"
       >
@@ -13,92 +14,99 @@
     </div>
     
     <div class="content">
-      <div class="social-summary">
-        <h3>社交活动概览</h3>
-        <div class="summary-stats">
-          <div class="stat-item">
-            <div class="stat-number">{{ socialStats.totalComments }}</div>
-            <div class="stat-label">总评论数</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-number">{{ socialStats.totalRatings }}</div>
-            <div class="stat-label">总评分次</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-number">{{ socialStats.totalLikes }}</div>
-            <div class="stat-label">获赞总数</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-number">{{ socialStats.totalInteractions }}</div>
-            <div class="stat-label">互动数</div>
-          </div>
-        </div>
-      </div>
-      
-      <div class="social-timeline">
-        <h3>活动时间线</h3>
-        
-        <div class="timeline-filters">
-          <el-radio-group v-model="activeFilter" @change="filterActivities">
-            <el-radio-button label="all">全部</el-radio-button>
-            <el-radio-button label="comments">评论</el-radio-button>
-            <el-radio-button label="ratings">评分</el-radio-button>
-            <el-radio-button label="likes">点赞</el-radio-button>
-          </el-radio-group>
-        </div>
-        
-        <div class="timeline">
-          <div 
-            v-for="activity in filteredActivities" 
-            :key="activity.id" 
-            class="timeline-item"
-          >
-            <div class="timeline-dot"></div>
-            <div class="timeline-content">
-              <div class="activity-header">
-                <div class="activity-type">
-                  <el-tag 
-                    :type="getActivityType(activity.type).tagType" 
-                    size="small"
+      <el-tabs v-model="activeTab" class="tabs">
+        <el-tab-pane label="我的评论" name="comments">
+          <div class="tab-content">
+            <el-table 
+              :data="comments" 
+              style="width: 100%"
+              v-loading="loading.comments"
+            >
+              <el-table-column prop="novel.title" label="小说标题" />
+              <el-table-column prop="content" label="评论内容" show-overflow-tooltip />
+              <el-table-column prop="like_count" label="点赞数" width="80" />
+              <el-table-column prop="created_at" label="评论时间" width="180">
+                <template #default="{ row }">
+                  {{ formatDate(row.created_at) }}
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="150">
+                <template #default="{ row }">
+                  <el-button 
+                    size="small" 
+                    @click="viewNovel(row.novel_id)"
+                    type="primary"
                   >
-                    {{ getActivityType(activity.type).label }}
-                  </el-tag>
-                  <span class="activity-time">{{ formatDate(activity.created_at) }}</span>
-                </div>
-                            <el-button 
-                              size="small" 
-                              @click="viewNovel(activity.novel_id)"
-                              :disabled="!activity.novel_id"
-                            >
-                              <el-icon><View /></el-icon>
-                              查看小说
-                            </el-button>              </div>
-              <div class="activity-content">
-                <div v-if="activity.type === 'comment'">
-                  <strong>评论内容:</strong> {{ activity.content }}
-                </div>
-                <div v-else-if="activity.type === 'rating'">
-                  <strong>评分:</strong> 
+                    查看小说
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            
+            <el-pagination
+              v-model:current-page="commentsPage"
+              v-model:page-size="pageSize"
+              :page-sizes="[10, 20, 50, 100]"
+              :total="commentsTotal"
+              layout="total, sizes, prev, pager, next, jumper"
+              @size-change="handleCommentsSizeChange"
+              @current-change="handleCommentsCurrentChange"
+              class="pagination"
+            />
+          </div>
+        </el-tab-pane>
+        
+        <el-tab-pane label="我的评分" name="ratings">
+          <div class="tab-content">
+            <el-table 
+              :data="ratings" 
+              style="width: 100%"
+              v-loading="loading.ratings"
+            >
+              <el-table-column prop="novel.title" label="小说标题" />
+              <el-table-column prop="score" label="评分" width="80">
+                <template #default="{ row }">
                   <el-rate 
-                    v-model="activity.score" 
+                    v-model="row.score" 
                     disabled 
-                    :max="10" 
-                    show-text
+                    :max="5"
+                    allow-half
                   />
-                  <div v-if="activity.comment">评价: {{ activity.comment }}</div>
-                </div>
-                <div v-else-if="activity.type === 'like'">
-                  <strong>点赞了{{ activity.target_type === 'comment' ? '评论' : '评分' }}</strong>
-                </div>
-              </div>
-            </div>
+                </template>
+              </el-table-column>
+              <el-table-column prop="comment" label="评分说明" show-overflow-tooltip />
+              <el-table-column prop="like_count" label="点赞数" width="80" />
+              <el-table-column prop="created_at" label="评分时间" width="180">
+                <template #default="{ row }">
+                  {{ formatDate(row.created_at) }}
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="150">
+                <template #default="{ row }">
+                  <el-button 
+                    size="small" 
+                    @click="viewNovel(row.novel_id)"
+                    type="primary"
+                  >
+                    查看小说
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            
+            <el-pagination
+              v-model:current-page="ratingsPage"
+              v-model:page-size="pageSize"
+              :page-sizes="[10, 20, 50, 100]"
+              :total="ratingsTotal"
+              layout="total, sizes, prev, pager, next, jumper"
+              @size-change="handleRatingsSizeChange"
+              @current-change="handleRatingsCurrentChange"
+              class="pagination"
+            />
           </div>
-          
-          <div v-if="filteredActivities.length === 0" class="no-activities">
-            <el-empty description="暂无社交活动" />
-          </div>
-        </div>
-      </div>
+        </el-tab-pane>
+      </el-tabs>
     </div>
   </div>
 </template>
@@ -106,158 +114,78 @@
 <script>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
+import { ArrowLeft } from '@element-plus/icons-vue'
 import apiClient from '@/utils/api'
 import dayjs from 'dayjs'
-import { 
-  ArrowLeft,
-  View
-} from '@element-plus/icons-vue'
 
 export default {
   name: 'SocialHistory',
   components: {
-    ArrowLeft,
-    View
+    ArrowLeft
   },
   setup() {
     const router = useRouter()
-    const userStore = useUserStore()
-    
-    const socialStats = ref({
-      totalComments: 0,
-      totalRatings: 0,
-      totalLikes: 0,
-      totalInteractions: 0
+    const activeTab = ref('comments')
+    const comments = ref([])
+    const ratings = ref([])
+    const loading = ref({
+      comments: false,
+      ratings: false
     })
+    const commentsPage = ref(1)
+    const ratingsPage = ref(1)
+    const pageSize = ref(10)
+    const commentsTotal = ref(0)
+    const ratingsTotal = ref(0)
     
-    const allActivities = ref([])
-    const filteredActivities = ref([])
-    const activeFilter = ref('all')
-    
-    const goBack = () => {
-      router.go(-1) // 返回上一页
-    }
-    
-    // 获取社交统计
-    const fetchSocialStats = async () => {
+    // 获取评论历史
+    const fetchComments = async () => {
+      loading.value.comments = true
       try {
-        const response = await apiClient.get(`/api/v1/users/social-stats`, {
-          headers: {
-            'Authorization': `Bearer ${userStore.token}`
+        const response = await apiClient.get('/api/v1/comments', {
+          params: {
+            page: commentsPage.value,
+            limit: pageSize.value
           }
         })
-        socialStats.value = response.data.data || {
-          totalComments: 0,
-          totalRatings: 0,
-          totalLikes: 0,
-          totalInteractions: 0
+        
+        if (response.data.code === 200) {
+          comments.value = response.data.data.comments
+          commentsTotal.value = response.data.data.pagination.total
+        } else {
+          ElMessage.error('获取评论历史失败: ' + response.data.message)
         }
       } catch (error) {
-        console.error('获取社交统计失败:', error)
-        ElMessage.error('获取社交统计失败')
-        // 设置默认值
-        socialStats.value = {
-          totalComments: 0,
-          totalRatings: 0,
-          totalLikes: 0,
-          totalInteractions: 0
-        }
+        console.error('获取评论历史失败:', error)
+        ElMessage.error('获取评论历史失败: ' + error.message)
+      } finally {
+        loading.value.comments = false
       }
     }
     
-    // 获取社交活动
-    const fetchSocialActivities = async () => {
+    // 获取评分历史
+    const fetchRatings = async () => {
+      loading.value.ratings = true
       try {
-        // 这里需要从多个API获取不同类型的数据
-        const [commentsRes, ratingsRes] = await Promise.allSettled([
-          apiClient.get(`/api/v1/users/comments`, {
-            headers: {
-              'Authorization': `Bearer ${userStore.token}`
-            }
-          }),
-          apiClient.get(`/api/v1/users/ratings`, {
-            headers: {
-              'Authorization': `Bearer ${userStore.token}`
-            }
-          })
-        ]);
+        const response = await apiClient.get('/api/v1/ratings', {
+          params: {
+            page: ratingsPage.value,
+            limit: pageSize.value
+          }
+        })
         
-        const comments = commentsRes.status === 'fulfilled' ? 
-          (commentsRes.value.data.data.data || commentsRes.value.data.data || []) : [];
-        const ratings = ratingsRes.status === 'fulfilled' ? 
-          (ratingsRes.value.data.data.data || ratingsRes.value.data.data || []) : [];
-        
-        // 将评论和评分合并为统一的活动列表
-        const activities = [];
-        
-        comments.forEach(comment => {
-          activities.push({
-            id: `comment-${comment.id}`,
-            type: 'comment',
-            content: comment.content,
-            novel_id: comment.novel_id,
-            created_at: comment.created_at,
-            novel: comment.novel
-          });
-        });
-        
-        ratings.forEach(rating => {
-          activities.push({
-            id: `rating-${rating.id}`,
-            type: 'rating',
-            score: rating.score,
-            comment: rating.comment,
-            novel_id: rating.novel_id,
-            created_at: rating.created_at,
-            novel: rating.novel
-          });
-        });
-        
-        // 按时间倒序排列
-        allActivities.value = activities.sort((a, b) => 
-          new Date(b.created_at) - new Date(a.created_at)
-        );
-        
-        filteredActivities.value = [...allActivities.value];
+        if (response.data.code === 200) {
+          ratings.value = response.data.data.ratings
+          ratingsTotal.value = response.data.data.pagination.total
+        } else {
+          ElMessage.error('获取评分历史失败: ' + response.data.message)
+        }
       } catch (error) {
-        console.error('获取社交活动失败:', error)
-        ElMessage.error('获取社交活动失败')
-        allActivities.value = []
-        filteredActivities.value = []
-      }
-    }
-    
-    // 获取活动类型信息
-    const getActivityType = (type) => {
-      switch (type) {
-        case 'comment':
-          return { label: '评论', tagType: 'primary' };
-        case 'rating':
-          return { label: '评分', tagType: 'warning' };
-        case 'like':
-          return { label: '点赞', tagType: 'danger' };
-        default:
-          return { label: type, tagType: 'info' };
-      }
-    }
-    
-    // 过滤活动
-    const filterActivities = () => {
-      if (activeFilter.value === 'all') {
-        filteredActivities.value = [...allActivities.value];
-      } else {
-        filteredActivities.value = allActivities.value.filter(activity => 
-          activity.type === activeFilter.value
-        );
-      }
-    }
-    
-    // 查看小说
-    const viewNovel = (novelId) => {
-      if (novelId) {
-        router.push(`/novel/${novelId}`)
+        console.error('获取评分历史失败:', error)
+        ElMessage.error('获取评分历史失败: ' + error.message)
+      } finally {
+        loading.value.ratings = false
       }
     }
     
@@ -266,26 +194,64 @@ export default {
       return dayjs(date).format('YYYY-MM-DD HH:mm')
     }
     
+    // 查看小说
+    const viewNovel = (id) => {
+      router.push(`/novel/${id}`)
+    }
+    
+    // 返回上一页
+    const goBack = () => {
+      router.push('/profile')
+    }
+    
+    // 处理评论页面大小变化
+    const handleCommentsSizeChange = (size) => {
+      pageSize.value = size
+      commentsPage.value = 1
+      fetchComments()
+    }
+    
+    // 处理评论当前页变化
+    const handleCommentsCurrentChange = (page) => {
+      commentsPage.value = page
+      fetchComments()
+    }
+    
+    // 处理评分页面大小变化
+    const handleRatingsSizeChange = (size) => {
+      pageSize.value = size
+      ratingsPage.value = 1
+      fetchRatings()
+    }
+    
+    // 处理评分当前页变化
+    const handleRatingsCurrentChange = (page) => {
+      ratingsPage.value = page
+      fetchRatings()
+    }
+    
     onMounted(() => {
-      if (!userStore.isAuthenticated) {
-        router.push('/login')
-        return
-      }
-      
-      fetchSocialStats()
-      fetchSocialActivities()
+      fetchComments()
+      fetchRatings()
     })
     
     return {
-      socialStats,
-      allActivities,
-      filteredActivities,
-      activeFilter,
-      goBack,
-      getActivityType,
-      filterActivities,
+      activeTab,
+      comments,
+      ratings,
+      loading,
+      commentsPage,
+      ratingsPage,
+      pageSize,
+      commentsTotal,
+      ratingsTotal,
+      formatDate,
       viewNovel,
-      formatDate
+      goBack,
+      handleCommentsSizeChange,
+      handleCommentsCurrentChange,
+      handleRatingsSizeChange,
+      handleRatingsCurrentChange
     }
   }
 }
@@ -293,198 +259,70 @@ export default {
 
 <style scoped>
 .social-container {
-  max-width: 1000px;
-  margin: 0 auto;
   padding: 20px;
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  min-height: 100%;
 }
 
-.page-header {
+.header {
   display: flex;
   align-items: center;
-  margin-bottom: 30px;
-  padding-bottom: 20px;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
   border-bottom: 1px solid #eee;
 }
 
-.back-button {
-  margin-right: 15px;
-  font-size: 16px;
-}
-
-.page-header h2 {
+.header h2 {
   margin: 0;
+  margin-left: 15px;
   color: #333;
 }
 
 .content {
-  flex: 1;
-}
-
-.social-summary {
-  margin-bottom: 30px;
-  padding: 20px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border: 1px solid #e4e7ed;
-}
-
-.social-summary h3 {
-  margin-top: 0;
-  color: #333;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 15px;
-}
-
-.summary-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 20px;
+}
+
+.tabs {
+  width: 100%;
+}
+
+.tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.pagination {
   margin-top: 20px;
+  justify-content: center;
 }
 
-.stat-item {
-  text-align: center;
-  padding: 15px;
-  background: white;
-  border-radius: 6px;
-  border: 1px solid #e4e7ed;
-}
-
-.stat-number {
-  font-size: 24px;
-  font-weight: bold;
-  color: #409eff;
-  margin-bottom: 5px;
-}
-
-.stat-label {
-  font-size: 14px;
-  color: #666;
-}
-
-.social-timeline h3 {
-  color: #333;
-  margin-bottom: 15px;
-}
-
-.timeline-filters {
-  margin-bottom: 20px;
-}
-
-.timeline {
-  position: relative;
-  padding-left: 30px;
-}
-
-.timeline::before {
-  content: '';
-  position: absolute;
-  left: 15px;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: #e4e7ed;
-}
-
-.timeline-item {
-  position: relative;
-  margin-bottom: 25px;
-}
-
-.timeline-dot {
-  position: absolute;
-  left: -35px;
-  top: 10px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #409eff;
-  border: 2px solid white;
-  box-shadow: 0 0 0 2px #409eff;
-}
-
-.timeline-content {
-  padding: 15px;
-  background: white;
-  border-radius: 8px;
-  border: 1px solid #e4e7ed;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.activity-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.activity-type {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.activity-time {
-  color: #999;
-  font-size: 0.9rem;
-}
-
-.activity-content {
-  color: #333;
-  line-height: 1.6;
-}
-
-.activity-content :deep(.el-rate) {
-  display: inline-block;
-  margin-left: 10px;
-}
-
-.no-activities {
-  text-align: center;
-  padding: 40px 0;
-  color: #999;
-}
-
+/* 移动端适配 */
 @media (max-width: 768px) {
   .social-container {
     padding: 15px;
-    margin: 10px;
   }
   
-  .page-header {
+  .header {
     flex-direction: column;
     align-items: flex-start;
   }
   
-  .back-button {
-    align-self: flex-start;
-    margin-bottom: 15px;
+  .header h2 {
+    margin-left: 0;
+    margin-top: 10px;
   }
   
-  .timeline {
-    padding-left: 20px;
+  .el-table {
+    font-size: 12px;
   }
   
-  .timeline::before {
-    left: 8px;
-  }
-  
-  .timeline-dot {
-    left: -22px;
-  }
-  
-  .activity-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .summary-stats {
-    grid-template-columns: repeat(2, 1fr);
+  .el-table .el-table__cell {
+    padding: 6px 0;
   }
 }
 </style>
