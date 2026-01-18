@@ -42,16 +42,35 @@ export const useUserStore = defineStore('user', {
         })
         
         if (response.data.code === 200) {
-          const { token, user } = response.data.data
-          this.user = user
-          this.token = token
-          this.isAuthenticated = true
+          // 检查是否返回了token（有些实现可能在注册后自动登录，有些则需要激活）
+          const { token, user, message } = response.data.data
           
-          // 保存token到localStorage
-          localStorage.setItem('token', token)
+          // 如果有token，更新用户状态
+          if (token) {
+            this.user = user
+            this.token = token
+            this.isAuthenticated = true
+            // 保存token到localStorage
+            localStorage.setItem('token', token)
+          } else {
+            // 如果没有token，但用户信息存在，也更新用户信息（可能需要激活）
+            if (user) {
+              this.user = user
+            }
+          }
+          
+          // 返回响应数据，包括可能的额外信息
+          return {
+            ...response.data,
+            success: true,
+            message: message
+          }
         }
         
-        return response.data
+        return {
+          ...response.data,
+          success: false
+        }
       } catch (error) {
         console.error('Register error:', error)
         throw error

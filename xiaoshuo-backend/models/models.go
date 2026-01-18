@@ -27,5 +27,7 @@ func InitializeDB() {
 		&ReadingProgress{},
 		&SearchHistory{},
 		&ReviewCriteria{},
+		&Chapter{},
+		&UserActivity{},
 	)
 }

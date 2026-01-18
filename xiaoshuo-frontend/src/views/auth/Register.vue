@@ -120,11 +120,19 @@ export default {
         )
         
         if (result.success) {
-          ElMessage.success('注册成功')
-          // 跳转到首页
-          router.push('/')
+          // 检查用户是否已激活
+          if (result.user?.is_activated) {
+            ElMessage.success('注册成功')
+            // 跳转到首页
+            router.push('/')
+          } else {
+            // 如果用户未激活，显示提醒信息但不跳转
+            ElMessage.success(result.message || '注册成功，请检查邮箱完成激活')
+            // 可以选择停留在当前页面或跳转到登录页
+            // 在这里我们停留并让用户知道需要激活
+          }
         } else {
-          ElMessage.error(result.error?.message || '注册失败')
+          ElMessage.error(result.message || result.error?.message || '注册失败')
         }
       } catch (error) {
         console.error('注册错误:', error)

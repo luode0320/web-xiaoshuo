@@ -67,20 +67,44 @@ func UserRegister(c *gin.Context) {
 	// 记录用户活动日志
 	go recordUserActivity(user.ID, "user_register", c.ClientIP(), c.GetHeader("User-Agent"), "用户注册", true)
 
+	// 为新注册用户生成JWT token（对于新用户自动登录的情况）
+	token, err := utils.GenerateToken(user.ID, user.IsAdmin)
+	if err != nil {
+		// 即使token生成失败，也记录错误但继续完成注册流程
+		fmt.Printf("生成用户注册token失败: %v\n", err)
+		c.JSON(http.StatusOK, gin.H{
+			"code":    200,
+			"message": "success",
+			"data": gin.H{
+				"message": "注册成功，但生成用户注册token失败",
+				"user": gin.H{
+					"id":           user.ID,
+					"email":        user.Email,
+					"nickname":     user.Nickname,
+					"is_active":    user.IsActive,
+					"is_admin":     user.IsAdmin,
+					"is_activated": user.IsActivated,
+				},
+			},
+		})
+		return
+	}
+
 	// TODO: 发送激活邮件（这里简化为返回激活码，实际应用中应发送邮件）
 	// sendActivationEmail(user.Email, activationCode)
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
-			"message": "注册成功，请检查邮箱完成激活",
+			"message": "注册成功",
+			"token":   token,
 			"user": gin.H{
-				"id":         user.ID,
-				"email":      user.Email,
-				"nickname":   user.Nickname,
-				"is_active":  user.IsActive,
-				"is_admin":   user.IsAdmin,
+				"id":           user.ID,
+				"email":        user.Email,
+				"nickname":     user.Nickname,
+				"is_active":    user.IsActive,
+				"is_admin":     user.IsAdmin,
 				"is_activated": user.IsActivated,
 			},
 		},
@@ -158,7 +182,7 @@ func UserLogin(c *gin.Context) {
 	go utils.GlobalCacheService.InvalidateUserCache(user.ID)
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"user": gin.H{
@@ -194,7 +218,7 @@ func GetProfile(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"id":            cachedUser.ID,
@@ -242,7 +266,7 @@ func UpdateProfile(c *gin.Context) {
 	utils.GlobalCacheService.InvalidateUserCache(userModel.ID)
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"id":            userModel.ID,
@@ -267,7 +291,7 @@ func GetUserList(c *gin.Context) {
 	}
 
 	currentUserModel := currentUser.(models.User)
-	
+
 	// 检查是否为管理员
 	if !currentUserModel.IsAdmin {
 		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "权限不足，仅管理员可访问"})
@@ -310,7 +334,7 @@ func GetUserList(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"users": users,
@@ -333,7 +357,7 @@ func FreezeUser(c *gin.Context) {
 	}
 
 	currentUserModel := currentUser.(models.User)
-	
+
 	// 检查是否为管理员
 	if !currentUserModel.IsAdmin {
 		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "权限不足，仅管理员可访问"})
@@ -384,7 +408,7 @@ func FreezeUser(c *gin.Context) {
 	utils.GlobalCacheService.InvalidateUserCache(targetUser.ID)
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"message": "用户已冻结",
@@ -408,7 +432,7 @@ func UnfreezeUser(c *gin.Context) {
 	}
 
 	currentUserModel := currentUser.(models.User)
-	
+
 	// 检查是否为管理员
 	if !currentUserModel.IsAdmin {
 		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "权限不足，仅管理员可访问"})
@@ -453,7 +477,7 @@ func UnfreezeUser(c *gin.Context) {
 	utils.GlobalCacheService.InvalidateUserCache(targetUser.ID)
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"message": "用户已解冻",
@@ -470,7 +494,7 @@ func UnfreezeUser(c *gin.Context) {
 // ActivateUser 用户激活
 func ActivateUser(c *gin.Context) {
 	var input struct {
-		Email         string `json:"email" binding:"required,email"`
+		Email          string `json:"email" binding:"required,email"`
 		ActivationCode string `json:"activation_code" binding:"required"`
 	}
 
@@ -498,9 +522,9 @@ func ActivateUser(c *gin.Context) {
 
 	// 激活用户
 	if err := models.DB.Model(&user).Updates(map[string]interface{}{
-		"is_activated": true,
-		"is_active":    true, // 激活用户时同时激活账户
-		"activation_code": "", // 清空激活码
+		"is_activated":    true,
+		"is_active":       true, // 激活用户时同时激活账户
+		"activation_code": "",   // 清空激活码
 	}).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "激活失败", "data": err.Error()})
 		return
@@ -510,15 +534,15 @@ func ActivateUser(c *gin.Context) {
 	go recordUserActivity(user.ID, "user_activated", c.ClientIP(), c.GetHeader("User-Agent"), "用户完成账户激活", true)
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"message": "账户激活成功",
 			"user": gin.H{
-				"id":         user.ID,
-				"email":      user.Email,
-				"nickname":   user.Nickname,
-				"is_active":  user.IsActive,
+				"id":           user.ID,
+				"email":        user.Email,
+				"nickname":     user.Nickname,
+				"is_active":    user.IsActive,
 				"is_activated": user.IsActivated,
 			},
 		},
@@ -555,7 +579,7 @@ func ResendActivationCode(c *gin.Context) {
 
 	// 生成新激活码
 	newActivationCode := generateActivationCode()
-	
+
 	// 更新激活码
 	if err := models.DB.Model(&user).Update("activation_code", newActivationCode).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新激活码失败", "data": err.Error()})
@@ -569,7 +593,7 @@ func ResendActivationCode(c *gin.Context) {
 	go recordUserActivity(user.ID, "resend_activation", c.ClientIP(), c.GetHeader("User-Agent"), "用户请求重新发送激活码", true)
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"message": "激活码已重新发送，请检查邮箱",
@@ -628,7 +652,7 @@ func GetUserActivityLog(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"activities": activities,
@@ -681,7 +705,7 @@ func GetUserComments(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"comments": comments,
@@ -728,7 +752,7 @@ func GetUserRatings(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"ratings": ratings,
@@ -751,7 +775,7 @@ func recordUserActivity(userID uint, action, ipAddress, userAgent, details strin
 		Details:   details,
 		IsSuccess: isSuccess,
 	}
-	
+
 	// 异步保存，避免影响主流程
 	go func() {
 		if err := models.DB.Create(&activity).Error; err != nil {
@@ -809,7 +833,7 @@ func GetUserSocialStats(c *gin.Context) {
 	// 这里我们仅统计用户发布的评论被点赞的次数
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"total_comments":     totalComments,
