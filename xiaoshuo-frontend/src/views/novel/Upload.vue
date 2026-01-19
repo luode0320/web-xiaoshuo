@@ -108,9 +108,9 @@ import { Upload } from '@element-plus/icons-vue'
 import apiClient from '@/utils/api'
 
 export default {
-  name: 'Upload',
+  name: 'NovelUpload',
   components: {
-    Upload
+    UploadIcon: Upload
   },
   setup() {
     const router = useRouter()
