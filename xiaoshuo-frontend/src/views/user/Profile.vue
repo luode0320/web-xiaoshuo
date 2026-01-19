@@ -27,18 +27,18 @@
             </el-icon>
             <span>上传历史</span>
           </el-menu-item>
-          <el-menu-item index="/profile/comments" :route="true">
+          <!-- <el-menu-item index="/profile/comments" :route="true">
             <el-icon>
               <ChatLineRound />
             </el-icon>
             <span>我的评论</span>
-          </el-menu-item>
-          <el-menu-item index="/profile/ratings" :route="true">
+          </el-menu-item> -->
+          <!-- <el-menu-item index="/profile/ratings" :route="true">
             <el-icon>
               <Star />
             </el-icon>
             <span>我的评分</span>
-          </el-menu-item>
+          </el-menu-item> -->
           <el-menu-item index="/profile/social" :route="true">
             <el-icon>
               <ChatDotSquare />
