@@ -4,13 +4,7 @@
       <router-view />
     </div>
     <div class="bottom-nav">
-      <div 
-        v-for="item in navItems" 
-        :key="item.path"
-        class="nav-item"
-        :class="{ active: isActive(item.path) }"
-        @click="navigateTo(item)"
-      >
+      <div v-for="item in navItems" :key="item.path" class="nav-item" :class="{ active: isActive(item.path) }" @click="navigateTo(item)">
         <div class="nav-icon">{{ item.icon }}</div>
         <div class="nav-text">{{ item.text }}</div>
       </div>
@@ -43,18 +37,18 @@ export default {
           icon: '📚'
         },
         {
-          path: '/ranking',
-          text: '排行榜',
-          icon: '🏆'
-        },
-        {
           path: '/upload',
           text: '上传',
           icon: '📤',
           requiresAuth: true
+        },
+        {
+          path: '/ranking',
+          text: '排行榜',
+          icon: '🏆'
         }
       ];
-      
+
       // 根据用户登录状态添加用户相关导航项
       if (userStore.isAuthenticated) {
         items.push({
@@ -69,7 +63,7 @@ export default {
           icon: '🔒'
         });
       }
-      
+
       // 只显示不需要认证或用户已认证的项目
       return items.filter(item => !item.requiresAuth || userStore.isAuthenticated)
     })
@@ -83,13 +77,13 @@ export default {
 
     const navigateTo = (item) => {
       if (item.path === route.path) return
-      
+
       // 如果是需要认证的页面但用户未登录，跳转到登录页
       if (item.requiresAuth && !userStore.isAuthenticated) {
         router.push('/login')
         return
       }
-      
+
       router.push(item.path)
     }
 
@@ -112,7 +106,8 @@ export default {
 
 .main-content {
   flex: 1;
-  padding-bottom: 60px; /* 为底部导航栏留出空间 */
+  padding-bottom: 60px;
+  /* 为底部导航栏留出空间 */
 }
 
 .bottom-nav {
@@ -160,7 +155,7 @@ export default {
   .bottom-nav {
     display: none;
   }
-  
+
   .main-content {
     padding-bottom: 0;
   }
