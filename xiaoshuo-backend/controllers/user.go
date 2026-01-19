@@ -2,9 +2,11 @@ package controllers
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 	"xiaoshuo-backend/models"
 	"xiaoshuo-backend/utils"
@@ -246,6 +248,7 @@ func GetProfile(c *gin.Context) {
 			"id":            cachedUser.ID,
 			"email":         cachedUser.Email,
 			"nickname":      cachedUser.Nickname,
+			"avatar":        cachedUser.Avatar, // 添加头像字段
 			"is_active":     cachedUser.IsActive,
 			"is_admin":      cachedUser.IsAdmin,
 			"last_login_at": cachedUser.LastLoginAt,
@@ -269,7 +272,8 @@ func UpdateProfile(c *gin.Context) {
 	var input struct {
 		Nickname        string `json:"nickname" binding:"max=20"`
 		CurrentPassword string `json:"current_password"`
-		NewPassword     string `json:"new_password" binding:"min=6"`
+		NewPassword     string `json:"new_password"`
+		Avatar          string `json:"avatar"` // 添加头像字段
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -286,6 +290,27 @@ func UpdateProfile(c *gin.Context) {
 	// 更新昵称
 	if input.Nickname != "" {
 		userModel.Nickname = input.Nickname
+	}
+
+	// 更新头像
+	if input.Avatar != "" {
+		// 验证头像数据是否为base64格式
+		if !isValidBase64Image(input.Avatar) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"code":    400,
+				"message": "头像格式不正确，必须为base64编码的图片",
+			})
+			return
+		}
+		// 检查头像大小，限制为5MB（5000000字节）
+		if len(input.Avatar) > 5000000 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"code":    400,
+				"message": "头像文件过大，最大支持5MB",
+			})
+			return
+		}
+		userModel.Avatar = input.Avatar
 	}
 
 	// 检查是否需要更新密码
@@ -340,6 +365,13 @@ func UpdateProfile(c *gin.Context) {
 		}()
 	}
 
+	// 记录头像更新活动（如果更新了头像）
+	if input.Avatar != "" {
+		go func() {
+			recordUserActivitySync(userModel.ID, "avatar_updated", c.ClientIP(), c.GetHeader("User-Agent"), "用户更新了头像", true)
+		}()
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "success",
@@ -347,6 +379,7 @@ func UpdateProfile(c *gin.Context) {
 			"id":            userModel.ID,
 			"email":         userModel.Email,
 			"nickname":      userModel.Nickname,
+			"avatar":        userModel.Avatar, // 返回更新后的头像
 			"is_active":     userModel.IsActive,
 			"is_admin":      userModel.IsAdmin,
 			"last_login_at": userModel.LastLoginAt,
@@ -850,6 +883,24 @@ func recordUserActivity(userID uint, action, ipAddress, userAgent, details strin
 	go func() {
 		recordUserActivitySync(userID, action, ipAddress, userAgent, details, isSuccess)
 	}()
+}
+
+// isValidBase64Image 验证base64图片格式
+func isValidBase64Image(base64Str string) bool {
+	// 检查是否包含图片的base64前缀
+	if !strings.HasPrefix(base64Str, "data:image/") {
+		return false
+	}
+	
+	// 检查是否包含;base64, 分隔符
+	parts := strings.Split(base64Str, ";base64,")
+	if len(parts) != 2 {
+		return false
+	}
+	
+	// 验证base64编码部分是否有效
+	_, err := base64.StdEncoding.DecodeString(parts[1])
+	return err == nil
 }
 
 // recordUserActivitySync 记录用户活动（同步版本）

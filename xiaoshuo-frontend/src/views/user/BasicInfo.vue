@@ -11,6 +11,17 @@
 
     <div class="content">
       <el-card class="info-card">
+        <!-- 添加头像部分 -->
+        <div class="avatar-section">
+          <div class="avatar-preview">
+            <input type="file" ref="avatarInputRef" accept="image/*" @change="handleAvatarUpload" style="display: none;" />
+            <div @click="selectAvatarFile" class="clickable">
+              <img v-if="user?.avatar" :src="user.avatar" :alt="user.nickname" class="avatar-image clickable" />
+              <div v-else class="avatar-placeholder clickable">{{ user?.nickname?.charAt(0) || 'U' }}</div>
+            </div>
+          </div>
+        </div>
+
         <div class="info-item">
           <span class="label">昵称:</span>
           <span class="value">{{ user?.nickname || '未设置' }}</span>
@@ -110,6 +121,8 @@ export default {
     })
     const editFormRef = ref(null)
     const passwordFormRef = ref(null)
+    const avatarInputRef = ref(null)
+
 
     const user = computed(() => userStore.user)
 
@@ -152,6 +165,56 @@ export default {
     // 返回上一页
     const goBack = () => {
       router.push('/profile')
+    }
+
+    // 选择头像文件
+    const selectAvatarFile = () => {
+      if (avatarInputRef.value) {
+        avatarInputRef.value.click()
+      }
+    }
+
+    // 处理头像上传
+    const handleAvatarUpload = async (event) => {
+      const file = event.target.files[0]
+      if (!file) return
+
+      // 验证文件
+      const isImage = file.type.startsWith('image/')
+      const isLt5M = file.size / 1024 / 1024 < 5
+
+      if (!isImage) {
+        ElMessage.error('上传头像图片只能是 JPG/PNG 格式!')
+        return
+      }
+      if (!isLt5M) {
+        ElMessage.error('上传头像大小不能超过 5MB!')
+        return
+      }
+
+      // 将文件转换为base64
+      const reader = new FileReader()
+      reader.onload = async (e) => {
+        try {
+          const base64Data = e.target.result
+
+          const response = await apiClient.put('/api/v1/users/profile', {
+            avatar: base64Data
+          })
+
+          if (response.data.code === 200) {
+            ElMessage.success('头像更新成功')
+            // 更新用户信息
+            await userStore.fetchProfile()
+          } else {
+            ElMessage.error('更新头像失败: ' + response.data.message)
+          }
+        } catch (error) {
+          console.error('更新头像失败:', error)
+          ElMessage.error('更新头像失败: ' + (error.response?.data?.message || error.message))
+        }
+      }
+      reader.readAsDataURL(file)
     }
 
     // 更新昵称
@@ -259,10 +322,15 @@ export default {
       passwordForm,
       editFormRef,
       passwordFormRef,
+      avatarInputRef,
+
       nicknameRules,
       passwordRules,
       formatDate,
       goBack,
+      selectAvatarFile,
+      handleAvatarUpload,
+
       updateNickname,
       updatePassword
     }
@@ -311,6 +379,66 @@ export default {
   width: 100%;
 }
 
+.avatar-section {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.avatar-preview {
+  display: flex;
+  align-items: center;
+}
+
+.avatar-image {
+  width: 75px;
+  height: 75px;
+  /* border-radius: 50%;border: 2px solid #e4e7ed; */
+  object-fit: contain;
+  cursor: pointer;
+  transition: opacity 0.3s;
+}
+
+.avatar-image:hover {
+  opacity: 0.8;
+}
+
+.clickable {
+  cursor: pointer;
+  transition: opacity 0.3s;
+}
+
+.clickable:hover {
+  opacity: 0.8;
+}
+
+.avatar-placeholder {
+  width: 75px;
+  height: 75px;
+  border-radius: 50%;
+  background: #409eff;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.avatar-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.upload-btn {
+  margin-top: 5px;
+}
+
 .info-item {
   display: flex;
   margin-bottom: 15px;
@@ -351,6 +479,7 @@ export default {
   justify-content: flex-end;
   gap: 10px;
 }
+
 /* 移动端适配 */
 @media (max-width: 768px) {
   .basic-info-container {
@@ -365,6 +494,12 @@ export default {
   .header h2 {
     margin-left: 0;
     margin-top: 10px;
+  }
+
+  .avatar-section {
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
   }
 
   .label {

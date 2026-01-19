@@ -2,7 +2,8 @@
   <div class="profile-container">
     <div class="profile-header">
       <div class="avatar">
-        <div class="avatar-placeholder">{{ user?.nickname?.charAt(0) || 'U' }}</div>
+        <img v-if="user?.avatar" :src="user.avatar" :alt="user.nickname" class="avatar-image" />
+        <div v-else class="avatar-placeholder">{{ user?.nickname?.charAt(0) || 'U' }}</div>
       </div>
       <div class="user-info">
         <h2>{{ user?.nickname || '未登录用户' }}</h2>
@@ -171,9 +172,16 @@ export default {
   margin-right: 20px;
 }
 
+.avatar-image {
+  width: 75px;
+  height: 75px;
+  /* border-radius: 50%;border: 2px solid #e4e7ed; */
+  object-fit: contain;
+}
+
 .avatar-placeholder {
-  width: 80px;
-  height: 80px;
+  width: 75px;
+  height: 75px;
   border-radius: 50%;
   background: #409eff;
   color: white;
@@ -232,7 +240,8 @@ export default {
 @media (max-width: 768px) {
   .profile-container {
     padding: 15px;
-    min-height: calc(100vh - 60px); /* 减去底部导航栏高度 */
+    min-height: calc(100vh - 60px);
+    /* 减去底部导航栏高度 */
   }
 
   .profile-content {
