@@ -7,21 +7,14 @@ import (
 	"xiaoshuo-backend/utils"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v4"
 	"gorm.io/gorm"
 )
 
 // SaveReadingProgress 保存阅读进度
 func SaveReadingProgress(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
@@ -120,14 +113,8 @@ func SaveReadingProgress(c *gin.Context) {
 // GetReadingProgress 获取阅读进度
 func GetReadingProgress(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
@@ -180,14 +167,8 @@ func GetReadingProgress(c *gin.Context) {
 // GetReadingHistory 获取用户阅读历史
 func GetReadingHistory(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}

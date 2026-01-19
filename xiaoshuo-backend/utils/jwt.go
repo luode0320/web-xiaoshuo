@@ -1,9 +1,11 @@
 package utils
 
 import (
+	"net/http"
 	"time"
 	"xiaoshuo-backend/config"
 
+	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
 )
 
@@ -59,4 +61,21 @@ func ParseToken(tokenString string) (*JwtCustomClaims, error) {
 	}
 
 	return claims, nil
+}
+
+func GetClaims(c *gin.Context) *JwtCustomClaims {
+		// 从JWT token获取用户信息
+	claimsGet, exists := c.Get("claims")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
+		return nil
+	}
+
+	claims, ok := claimsGet.(*JwtCustomClaims)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
+		return nil
+	}
+
+	return claims
 }

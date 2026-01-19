@@ -44,6 +44,8 @@ func AuthMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+		// 将token存储到上下文中
+		c.Set("claims", claims)
 
 		// 检查用户是否存在
 		var user models.User

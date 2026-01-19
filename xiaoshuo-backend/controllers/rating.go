@@ -9,21 +9,14 @@ import (
 	"xiaoshuo-backend/utils"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v4"
 	"gorm.io/gorm"
 )
 
 // CreateRating 提交评分
 func CreateRating(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
@@ -175,14 +168,8 @@ func GetRatingsByNovel(c *gin.Context) {
 // DeleteRating 删除评分
 func DeleteRating(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
@@ -267,14 +254,8 @@ func updateNovelRatingStats(novelID uint) error {
 // LikeRating 点赞评分
 func LikeRating(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
@@ -342,14 +323,8 @@ func LikeRating(c *gin.Context) {
 // UnlikeRating 取消点赞评分
 func UnlikeRating(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
@@ -437,14 +412,12 @@ func GetRatingLikes(c *gin.Context) {
 
 	// 如果用户已登录，检查是否已点赞
 	var userLiked bool
-	token, exists := c.Get("token")
-	if exists {
-		claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-		if ok {
-			var userLike models.RatingLike
-			result := models.DB.Where("user_id = ? AND rating_id = ?", claims.UserID, ratingID).First(&userLike)
-			userLiked = result.Error == nil
-		}
+	// 从JWT token获取用户信息
+	claims := utils.GetClaims(c)
+	if claims != nil {
+		var userLike models.RatingLike
+		result := models.DB.Where("user_id = ? AND rating_id = ?", claims.UserID, ratingID).First(&userLike)
+		userLiked = result.Error == nil
 	}
 
 	c.JSON(http.StatusOK, gin.H{

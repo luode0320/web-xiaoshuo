@@ -1,100 +1,68 @@
 <template>
   <div class="upload-container">
-    <div class="upload-form">
+    <div class="upload-section">
       <h2>上传小说</h2>
       
-      <el-form 
-        :model="uploadForm" 
-        :rules="uploadRules" 
-        ref="uploadFormRef"
-        label-width="100px"
-      >
-        <el-form-item label="小说标题" prop="title">
-          <el-input 
-            v-model="uploadForm.title" 
-            placeholder="请输入小说标题"
-          />
-        </el-form-item>
-        
-        <el-form-item label="作者" prop="author">
-          <el-input 
-            v-model="uploadForm.author" 
-            placeholder="请输入作者名"
-          />
-        </el-form-item>
-        
-        <el-form-item label="主角" prop="protagonist">
-          <el-input 
-            v-model="uploadForm.protagonist" 
-            placeholder="请输入主角名"
-          />
-        </el-form-item>
-        
-        <el-form-item label="分类">
-          <el-select 
-            v-model="uploadForm.categoryIds" 
-            multiple 
-            placeholder="请选择分类"
-            style="width: 100%"
-          >
-            <el-option
-              v-for="category in categories"
-              :key="category.id"
-              :label="category.name"
-              :value="category.id"
-            />
-          </el-select>
-        </el-form-item>
-        
-        <el-form-item label="关键词">
-          <el-input 
-            v-model="uploadForm.keywords" 
-            placeholder="请输入关键词，用逗号分隔"
-          />
-        </el-form-item>
-        
-        <el-form-item label="简介" prop="description">
-          <el-input 
-            v-model="uploadForm.description" 
-            type="textarea" 
-            :rows="4"
-            placeholder="请输入小说简介"
-            maxlength="1000"
-            show-word-limit
-          />
-        </el-form-item>
-        
-        <el-form-item label="小说文件" prop="file">
-          <el-upload
-            ref="uploadRef"
-            :auto-upload="false"
-            :on-change="handleFileChange"
-            :before-upload="beforeUpload"
-            :show-file-list="true"
-            accept=".txt,.epub"
-            drag
-          >
-            <div class="upload-content">
-              <el-icon class="upload-icon"><Upload /></el-icon>
-              <div class="upload-text">
-                <div class="upload-drag-text">将文件拖到此处，或<em>点击上传</em></div>
-                <div class="upload-hint">只能上传 txt 或 epub 文件，且不超过 20MB</div>
-              </div>
+      <!-- 上传区域移到上方 -->
+      <div class="upload-area">
+        <el-upload
+          ref="uploadRef"
+          :auto-upload="false"
+          :on-change="handleFileChange"
+          :on-remove="handleFileRemove"
+          :before-upload="beforeUpload"
+          :file-list="fileList"
+          :multiple="true"
+          accept=".txt,.epub"
+          drag
+        >
+          <div class="upload-content">
+            <el-icon class="upload-icon"><Upload /></el-icon>
+            <div class="upload-text">
+              <div class="upload-drag-text">将文件拖到此处，或<em>点击上传</em></div>
+              <div class="upload-hint">只能上传 txt 或 epub 文件，且不超过 20MB</div>
             </div>
-          </el-upload>
-        </el-form-item>
-        
-        <el-form-item>
-          <el-button 
-            type="primary" 
-            @click="submitUpload" 
-            :loading="uploading"
-            :disabled="!uploadForm.file"
+          </div>
+        </el-upload>
+      </div>
+      
+      <!-- 显示已选中的文件列表 -->
+      <div class="selected-files" v-if="fileList.length > 0">
+        <h3>已选择文件 ({{ fileList.length }})</h3>
+        <div class="file-list">
+          <div 
+            v-for="(file, index) in fileList" 
+            :key="index" 
+            class="file-item"
           >
-            {{ uploading ? '上传中...' : '上传小说' }}
-          </el-button>
-        </el-form-item>
-      </el-form>
+            <div class="file-info">
+              <el-icon><Document /></el-icon>
+              <span class="file-name">{{ file.name }}</span>
+              <span class="file-size">({{ formatFileSize(file.size) }})</span>
+            </div>
+            <el-button 
+              type="danger" 
+              size="small" 
+              @click="removeFile(index)"
+            >
+              取消
+            </el-button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 批量上传按钮 -->
+      <div class="upload-actions">
+        <el-button 
+          type="primary" 
+          @click="submitUpload" 
+          :loading="uploading"
+          :disabled="fileList.length === 0"
+          size="large"
+        >
+          {{ uploading ? '上传中...' : `批量上传 (${fileList.length} 个文件)` }}
+        </el-button>
+      </div>
     </div>
   </div>
 </template>
@@ -104,67 +72,43 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Upload } from '@element-plus/icons-vue'
+import { Upload, Document } from '@element-plus/icons-vue'
 import apiClient from '@/utils/api'
 
 export default {
   name: 'NovelUpload',
   components: {
-    UploadIcon: Upload
+    Upload,
+    Document
   },
   setup() {
     const router = useRouter()
     const userStore = useUserStore()
     const uploadRef = ref(null)
-    const uploadFormRef = ref(null)
     
     const uploading = ref(false)
-    const categories = ref([])
+    const fileList = ref([]) // 存储所有选中的文件
     
-    const uploadForm = reactive({
-      title: '',
-      author: '',
-      protagonist: '',
-      categoryIds: [],
-      keywords: '',
-      description: '',
-      file: null
-    })
-    
-    const uploadRules = {
-      title: [
-        { required: true, message: '请输入小说标题', trigger: 'blur' },
-        { max: 200, message: '标题长度不能超过200个字符', trigger: 'blur' }
-      ],
-      author: [
-        { required: true, message: '请输入作者名', trigger: 'blur' },
-        { max: 100, message: '作者名长度不能超过100个字符', trigger: 'blur' }
-      ],
-      description: [
-        { max: 1000, message: '简介长度不能超过1000个字符', trigger: 'blur' }
-      ],
-      file: [
-        { required: true, message: '请选择小说文件', trigger: 'change' }
-      ]
+    // 处理文件选择变化（添加文件）
+    const handleFileChange = (file, uploadFileList) => {
+      // 提取文件名（不包含扩展名）作为小说标题
+      const fileName = file.name.replace(/\.(txt|epub)$/i, '')
+      
+      // 添加自定义属性到文件对象
+      file.novelTitle = fileName
+      
+      // 确保 fileList.value 与 Element Plus Upload 组件的文件列表保持同步
+      fileList.value = [...uploadFileList]
     }
     
-    // 获取分类列表
-    const fetchCategories = async () => {
-      try {
-        const response = await apiClient.get('/api/v1/categories')
-        categories.value = response.data.data.categories
-      } catch (error) {
-        console.error('获取分类失败:', error)
-        ElMessage.error('获取分类失败')
-      }
+    // 处理文件移除
+    const handleFileRemove = (file, uploadFileList) => {
+      fileList.value = [...uploadFileList]
     }
     
-    // 处理文件选择变化
-    const handleFileChange = (file, fileList) => {
-      if (fileList.length > 1) {
-        fileList.shift() // 只保留最后一个文件
-      }
-      uploadForm.file = file.raw
+    // 从fileList中移除指定文件
+    const removeFile = (index) => {
+      fileList.value.splice(index, 1)
     }
     
     // 上传前验证
@@ -174,88 +118,93 @@ export default {
       
       if (!isTxtOrEpub) {
         ElMessage.error('只能上传 txt 或 epub 格式的文件!')
+        return false
       }
       if (!isLt20M) {
         ElMessage.error('文件大小不能超过 20MB!')
+        return false
       }
       
-      return isTxtOrEpub && isLt20M
+      return true
     }
     
-    // 提交上传
+    // 格式化文件大小
+    const formatFileSize = (size) => {
+      if (size < 1024) {
+        return size + ' B'
+      } else if (size < 1024 * 1024) {
+        return (size / 1024).toFixed(2) + ' KB'
+      } else {
+        return (size / (1024 * 1024)).toFixed(2) + ' MB'
+      }
+    }
+    
+    // 提交批量上传
     const submitUpload = async () => {
-      if (!uploadFormRef.value) return
+      if (fileList.value.length === 0) {
+        ElMessage.error('请至少选择一个小说文件')
+        return
+      }
       
       try {
-        await uploadFormRef.value.validate()
-        
-        if (!uploadForm.file) {
-          ElMessage.error('请选择小说文件')
-          return
-        }
-        
         uploading.value = true
         
-        const formData = new FormData()
-        formData.append('file', uploadForm.file)
-        formData.append('title', uploadForm.title)
-        formData.append('author', uploadForm.author)
-        formData.append('protagonist', uploadForm.protagonist)
-        formData.append('description', uploadForm.description)
+        let successCount = 0
+        let failCount = 0
         
-        // 添加分类ID（如果有选择）
-        if (uploadForm.categoryIds.length > 0) {
-          uploadForm.categoryIds.forEach(id => {
-            formData.append('category_ids', id)
-          })
-        }
-        
-        // 添加关键词（如果有输入）
-        if (uploadForm.keywords.trim()) {
-          const keywords = uploadForm.keywords.split(',').map(k => k.trim()).filter(k => k)
-          keywords.forEach(keyword => {
-            formData.append('keywords', keyword)
-          })
-        }
-        
-        const response = await apiClient.post('/api/v1/novels/upload', formData, {
-          headers: {
-            'Authorization': `Bearer ${userStore.token}`,
-            'Content-Type': 'multipart/form-data'
+        // 逐个上传文件
+        for (const file of fileList.value) {
+          try {
+            const formData = new FormData()
+            // 使用 file.raw 而不是 file，因为 file.raw 才是实际的文件对象
+            formData.append('file', file.raw || file)
+            // 使用文件名（去掉扩展名）作为标题
+            const fileName = file.name ? file.name.replace(/\.(txt|epub)$/i, '') : (file.raw ? file.raw.name.replace(/\.(txt|epub)$/i, '') : '未知小说')
+            formData.append('title', fileName)
+            // 使用空的作者、主角等信息，后端会自动提取
+            formData.append('author', '')
+            formData.append('protagonist', '')
+            formData.append('description', '')
+            
+            await apiClient.post('/api/v1/novels/upload', formData, {
+              headers: {
+                'Authorization': `Bearer ${userStore.token}`,
+                'Content-Type': 'multipart/form-data'
+              },
+              timeout: 120000 // 设置120秒超时，因为文件上传可能需要较长时间
+            })
+            
+            successCount++
+          } catch (error) {
+            console.error('上传失败:', error)
+            const errorMessage = error.response?.data?.message || error.message || '上传失败'
+            const fileName = file.name || (file.raw ? file.raw.name : '未知文件')
+            ElMessage.error(`文件 "${fileName}" 上传失败: ${errorMessage}`)
+            failCount++
           }
-        })
+        }
         
-        ElMessage.success('小说上传成功！等待管理员审核。')
+        if (failCount === 0) {
+          ElMessage.success(`成功上传 ${successCount} 本小说！等待管理员审核。`)
+        } else if (successCount === 0) {
+          ElMessage.error(`全部 ${failCount} 个文件上传失败。`)
+        } else {
+          ElMessage.warning(`成功上传 ${successCount} 本小说，${failCount} 个文件上传失败。`)
+        }
         
-        // 重置表单
-        resetForm()
+        // 重置文件列表
+        fileList.value = []
+        if (uploadRef.value) {
+          uploadRef.value.clearFiles()
+        }
         
         // 跳转到用户个人页面查看上传历史
         router.push('/profile')
       } catch (error) {
-        console.error('上传失败:', error)
-        if (error.response?.data?.message) {
-          ElMessage.error(error.response.data.message)
-        } else {
-          ElMessage.error('上传失败')
-        }
+        console.error('批量上传失败:', error)
+        ElMessage.error('批量上传失败')
       } finally {
         uploading.value = false
-      }
-    }
-    
-    // 重置表单
-    const resetForm = () => {
-      uploadForm.title = ''
-      uploadForm.author = ''
-      uploadForm.protagonist = ''
-      uploadForm.categoryIds = []
-      uploadForm.keywords = ''
-      uploadForm.description = ''
-      uploadForm.file = null
-      
-      if (uploadRef.value) {
-        uploadRef.value.clearFiles()
       }
     }
     
@@ -264,18 +213,15 @@ export default {
       router.push('/login')
     }
     
-    // 初始化时获取分类
-    fetchCategories()
-    
     return {
       uploadRef,
-      uploadFormRef,
       uploading,
-      categories,
-      uploadForm,
-      uploadRules,
+      fileList,
       handleFileChange,
+      handleFileRemove,
       beforeUpload,
+      removeFile,
+      formatFileSize,
       submitUpload
     }
   }
@@ -292,10 +238,14 @@ export default {
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
 }
 
-.upload-form h2 {
+.upload-section h2 {
   text-align: center;
   margin-bottom: 30px;
   color: #333;
+}
+
+.upload-area {
+  margin-bottom: 30px;
 }
 
 .upload-content {
@@ -335,5 +285,60 @@ export default {
 :deep(.el-upload-dragger) {
   width: 100%;
   height: 200px;
+}
+
+.selected-files {
+  margin-bottom: 30px;
+}
+
+.selected-files h3 {
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.file-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  padding: 10px;
+}
+
+.file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.file-item:last-child {
+  border-bottom: none;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.file-info .el-icon {
+  margin-right: 8px;
+}
+
+.file-name {
+  flex: 1;
+  word-break: break-all;
+  margin-right: 10px;
+}
+
+.file-size {
+  color: #909399;
+  font-size: 12px;
+}
+
+.upload-actions {
+  text-align: center;
+  margin-top: 20px;
 }
 </style>

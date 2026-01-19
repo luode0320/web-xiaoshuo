@@ -12,21 +12,14 @@ import (
 	"xiaoshuo-backend/utils"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v4"
 	"gorm.io/gorm"
 )
 
 // UploadNovel 上传小说
 func UploadNovel(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
@@ -298,14 +291,8 @@ func GetNovels(c *gin.Context) {
 // GetNovel 获取小说详情（使用缓存）
 func GetNovel(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
@@ -365,14 +352,8 @@ func GetNovel(c *gin.Context) {
 // DeleteNovel 删除小说
 func DeleteNovel(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
@@ -420,14 +401,8 @@ func DeleteNovel(c *gin.Context) {
 // GetNovelContent 获取小说内容（使用缓存）
 func GetNovelContent(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
@@ -524,14 +499,8 @@ func RecordNovelClick(c *gin.Context) {
 // GetNovelContentStream 小说内容流式加载接口
 func GetNovelContentStream(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
@@ -647,14 +616,8 @@ func GetNovelContentStream(c *gin.Context) {
 // GetNovelChapters 获取小说章节列表
 func GetNovelChapters(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
@@ -709,14 +672,8 @@ func GetNovelChapters(c *gin.Context) {
 // GetChapterContent 获取章节内容
 func GetChapterContent(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
@@ -809,14 +766,8 @@ func checkUploadFrequencyLimit(userID uint) error {
 // GetNovelStatus 获取小说状态信息
 func GetNovelStatus(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
@@ -884,14 +835,8 @@ func GetNovelStatus(c *gin.Context) {
 // GetUploadFrequency 获取上传频率信息
 func GetUploadFrequency(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
@@ -925,17 +870,12 @@ func GetUploadFrequency(c *gin.Context) {
 // GetNovelActivityHistory 获取小说操作历史
 func GetNovelActivityHistory(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
+	
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -1029,14 +969,8 @@ func recordUpload(userID uint) {
 // SetNovelClassification 设置小说的分类和关键词
 func SetNovelClassification(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}

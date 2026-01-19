@@ -10,21 +10,14 @@ import (
 	"xiaoshuo-backend/utils"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v4"
 	"gorm.io/gorm"
 )
 
 // CreateComment 创建评论
 func CreateComment(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
@@ -201,14 +194,8 @@ func GetComments(c *gin.Context) {
 // DeleteComment 删除评论
 func DeleteComment(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
@@ -253,14 +240,8 @@ func DeleteComment(c *gin.Context) {
 // LikeComment 点赞评论
 func LikeComment(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
@@ -328,14 +309,8 @@ func LikeComment(c *gin.Context) {
 // UnlikeComment 取消点赞评论
 func UnlikeComment(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
@@ -423,14 +398,12 @@ func GetCommentLikes(c *gin.Context) {
 
 	// 如果用户已登录，检查是否已点赞
 	var userLiked bool
-	token, exists := c.Get("token")
-	if exists {
-		claims, ok := token.(*jwt.Token).Claims.(*utils.JwtCustomClaims)
-		if ok {
-			var userLike models.CommentLike
-			result := models.DB.Where("user_id = ? AND comment_id = ?", claims.UserID, commentID).First(&userLike)
-			userLiked = result.Error == nil
-		}
+	// 从JWT token获取用户信息
+	claims := utils.GetClaims(c)
+	if claims != nil {
+		var userLike models.CommentLike
+		result := models.DB.Where("user_id = ? AND comment_id = ?", claims.UserID, commentID).First(&userLike)
+		userLiked = result.Error == nil
 	}
 
 	c.JSON(http.StatusOK, gin.H{

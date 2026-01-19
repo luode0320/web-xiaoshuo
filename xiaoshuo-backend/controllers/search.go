@@ -593,32 +593,31 @@ func SearchSuggestions(c *gin.Context) {
 
 	// 1. 获取用户搜索历史作为建议（仅对已认证用户）
 	var userSearchHistory []models.SearchHistory
-	token, exists := c.Get("token")
-	if exists {
-		if claims, ok := token.(*utils.JwtCustomClaims); ok {
-			// 获取用户最近的搜索历史
-			models.DB.Where("user_id = ?", claims.UserID).
-				Order("updated_at DESC").
-				Limit(5).
-				Find(&userSearchHistory)
-			
-			for _, history := range userSearchHistory {
-				if strings.Contains(strings.ToLower(history.Keyword), strings.ToLower(keyword)) {
-					// 避免重复
-					isDuplicate := false
-					for _, existingSug := range allSuggestions {
-						if existingSug["text"] == history.Keyword {
-							isDuplicate = true
-							break
-						}
+	// 从JWT token获取用户信息
+	claims := utils.GetClaims(c)
+	if claims != nil {
+		// 获取用户最近的搜索历史
+		models.DB.Where("user_id = ?", claims.UserID).
+			Order("updated_at DESC").
+			Limit(5).
+			Find(&userSearchHistory)
+		
+		for _, history := range userSearchHistory {
+			if strings.Contains(strings.ToLower(history.Keyword), strings.ToLower(keyword)) {
+				// 避免重复
+				isDuplicate := false
+				for _, existingSug := range allSuggestions {
+					if existingSug["text"] == history.Keyword {
+						isDuplicate = true
+						break
 					}
-					if !isDuplicate {
-						allSuggestions = append(allSuggestions, gin.H{
-							"text":  history.Keyword,
-							"count": history.Count,
-							"type":  "history",
-						})
-					}
+				}
+				if !isDuplicate {
+					allSuggestions = append(allSuggestions, gin.H{
+						"text":  history.Keyword,
+						"count": history.Count,
+						"type":  "history",
+					})
 				}
 			}
 		}
@@ -749,11 +748,10 @@ func recordSearchHistory(c *gin.Context, keyword string) {
 
 	// 从JWT token获取用户信息（如果已认证）
 	var userID *uint
-	token, exists := c.Get("token")
-	if exists {
-		if claims, ok := token.(*utils.JwtCustomClaims); ok {
-			userID = &claims.UserID
-		}
+	// 从JWT token获取用户信息
+	claims := utils.GetClaims(c)
+	if claims != nil {
+		userID = &claims.UserID
 	}
 
 	// 获取客户端IP地址
@@ -788,14 +786,8 @@ func recordSearchHistory(c *gin.Context, keyword string) {
 // GetUserSearchHistory 获取用户搜索历史
 func GetUserSearchHistory(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
@@ -838,14 +830,8 @@ func GetUserSearchHistory(c *gin.Context) {
 // ClearUserSearchHistory 清空用户搜索历史
 func ClearUserSearchHistory(c *gin.Context) {
 	// 从JWT token获取用户信息
-	token, exists := c.Get("token")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "未授权访问"})
-		return
-	}
-
-	claims, ok := token.(*utils.JwtCustomClaims)
-	if !ok {
+	claims := utils.GetClaims(c)
+	if claims == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
