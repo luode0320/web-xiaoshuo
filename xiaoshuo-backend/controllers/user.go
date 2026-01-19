@@ -259,16 +259,25 @@ func GetProfile(c *gin.Context) {
 func UpdateProfile(c *gin.Context) {
 	user, exists := c.Get("user")
 	if !exists {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "获取用户信息失败",
+		})
 		return
 	}
 
 	var input struct {
-		Nickname string `json:"nickname" binding:"max=20"`
+		Nickname        string `json:"nickname" binding:"max=20"`
+		CurrentPassword string `json:"current_password"`
+		NewPassword     string `json:"new_password" binding:"min=6"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求参数错误", "data": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "请求参数错误",
+			"data":    err.Error(),
+		})
 		return
 	}
 
@@ -279,13 +288,57 @@ func UpdateProfile(c *gin.Context) {
 		userModel.Nickname = input.Nickname
 	}
 
+	// 检查是否需要更新密码
+	if input.CurrentPassword != "" && input.NewPassword != "" {
+		// 验证当前密码是否正确
+		if err := bcrypt.CompareHashAndPassword([]byte(userModel.Password), []byte(input.CurrentPassword)); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"code":    400,
+				"message": "当前密码错误",
+			})
+			return
+		}
+
+		// 检查新密码是否与当前密码相同
+		if input.CurrentPassword == input.NewPassword {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"code":    400,
+				"message": "新密码不能与当前密码相同",
+			})
+			return
+		}
+
+		// 加密新密码
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.NewPassword), bcrypt.DefaultCost)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": "密码加密失败",
+			})
+			return
+		}
+
+		// 更新密码
+		userModel.Password = string(hashedPassword)
+	}
+
 	if err := models.DB.Save(&userModel).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新用户信息失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "更新用户信息失败",
+		})
 		return
 	}
 
 	// 使用户缓存失效
 	utils.GlobalCacheService.InvalidateUserCache(userModel.ID)
+
+	// 记录密码更新活动（如果更新了密码）
+	if input.CurrentPassword != "" && input.NewPassword != "" {
+		go func() {
+			recordUserActivitySync(userModel.ID, "password_updated", c.ClientIP(), c.GetHeader("User-Agent"), "用户更新了密码", true)
+		}()
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
@@ -805,7 +858,7 @@ func recordUserActivitySync(userID uint, action, ipAddress, userAgent, details s
 	if userID == 0 {
 		return
 	}
-	
+
 	activity := models.UserActivity{
 		UserID:    userID,
 		Action:    action,
@@ -928,7 +981,7 @@ func GetUserSystemMessages(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"messages": messages,

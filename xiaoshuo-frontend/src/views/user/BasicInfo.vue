@@ -24,10 +24,6 @@
           <span class="value">{{ formatDate(user?.created_at) }}</span>
         </div>
         <div class="info-item">
-          <span class="label">激活状态:</span>
-          <span class="value">{{ user?.is_activated ? '已激活' : '未激活' }}</span>
-        </div>
-        <div class="info-item">
           <span class="label">账户状态:</span>
           <span class="value">{{ user?.is_active ? '正常' : '已冻结' }}</span>
         </div>
@@ -37,22 +33,48 @@
         </div>
       </el-card>
 
-      <el-button type="primary" @click="showEditDialog = true" class="edit-button">
-        编辑信息
-      </el-button>
+      <div class="button-container">
+        <el-button type="primary" @click="showEditDialog = true" class="edit-button">
+          编辑昵称
+        </el-button>
+        <el-button type="primary" @click="showPasswordDialog = true" class="password-button">
+          重置密码
+        </el-button>
+      </div>
     </div>
 
-    <!-- 编辑信息对话框 -->
-    <el-dialog v-model="showEditDialog" title="编辑信息" width="400px">
-      <el-form :model="editForm" label-width="80px">
-        <el-form-item label="昵称">
+    <!-- 编辑昵称对话框 -->
+    <el-dialog v-model="showEditDialog" title="编辑昵称" width="400px">
+      <el-form :model="editForm" :rules="nicknameRules" ref="editFormRef" label-width="80px">
+        <el-form-item label="昵称" prop="nickname">
           <el-input v-model="editForm.nickname" placeholder="请输入昵称" />
         </el-form-item>
       </el-form>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="showEditDialog = false">取消</el-button>
-          <el-button type="primary" @click="updateUserInfo">确定</el-button>
+          <el-button type="primary" @click="updateNickname">确定</el-button>
+        </span>
+      </template>
+    </el-dialog>
+
+    <!-- 重置密码对话框 -->
+    <el-dialog v-model="showPasswordDialog" title="重置密码" width="400px">
+      <el-form :model="passwordForm" :rules="passwordRules" ref="passwordFormRef" label-width="100px">
+        <el-form-item label="当前密码" prop="currentPassword">
+          <el-input v-model="passwordForm.currentPassword" type="password" placeholder="请输入当前密码" />
+        </el-form-item>
+        <el-form-item label="新密码" prop="newPassword">
+          <el-input v-model="passwordForm.newPassword" type="password" placeholder="请输入新密码" />
+        </el-form-item>
+        <el-form-item label="确认新密码" prop="confirmPassword">
+          <el-input v-model="passwordForm.confirmPassword" type="password" placeholder="请再次输入新密码" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showPasswordDialog = false">取消</el-button>
+          <el-button type="primary" @click="updatePassword">确定</el-button>
         </span>
       </template>
     </el-dialog>
@@ -63,7 +85,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import apiClient from '@/utils/api'
 import dayjs from 'dayjs'
@@ -77,11 +99,50 @@ export default {
     const router = useRouter()
     const userStore = useUserStore()
     const showEditDialog = ref(false)
+    const showPasswordDialog = ref(false)
     const editForm = ref({
       nickname: ''
     })
+    const passwordForm = ref({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    })
+    const editFormRef = ref(null)
+    const passwordFormRef = ref(null)
 
     const user = computed(() => userStore.user)
+
+    // 昵称表单验证规则
+    const nicknameRules = {
+      nickname: [
+        { required: true, message: '请输入昵称', trigger: 'blur' },
+        { min: 1, max: 20, message: '昵称长度在1到20个字符之间', trigger: 'blur' }
+      ]
+    }
+
+    // 密码表单验证规则
+    const validatePassword = (rule, value, callback) => {
+      if (value && passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
+        callback(new Error('两次输入的密码不一致'))
+      } else {
+        callback()
+      }
+    }
+
+    const passwordRules = {
+      currentPassword: [
+        { required: true, message: '请输入当前密码', trigger: 'blur' }
+      ],
+      newPassword: [
+        { required: true, message: '请输入新密码', trigger: 'blur' },
+        { min: 6, max: 20, message: '密码长度在6到20个字符之间', trigger: 'blur' }
+      ],
+      confirmPassword: [
+        { required: true, message: '请确认新密码', trigger: 'blur' },
+        { validator: validatePassword, trigger: 'blur' }
+      ]
+    }
 
     // 格式化日期
     const formatDate = (date) => {
@@ -93,23 +154,93 @@ export default {
       router.push('/profile')
     }
 
-    // 编辑用户信息
-    const updateUserInfo = async () => {
+    // 更新昵称
+    const updateNickname = async () => {
       try {
-        const response = await apiClient.put('/api/v1/users/profile', {
+        // 验证表单
+        if (!editForm.value.nickname.trim()) {
+          ElMessage.error('请输入昵称')
+          return
+        }
+
+        if (editForm.value.nickname.length < 1 || editForm.value.nickname.length > 20) {
+          ElMessage.error('昵称长度必须在1到20个字符之间')
+          return
+        }
+
+        // 检查昵称是否发生变化
+        if (editForm.value.nickname === user.value?.nickname) {
+          ElMessage.info('昵称未发生变化')
+          showEditDialog.value = false
+          return
+        }
+
+        const updateData = {
           nickname: editForm.value.nickname
-        })
+        }
+
+        const response = await apiClient.put('/api/v1/users/profile', updateData)
 
         if (response.data.code === 200) {
-          ElMessage.success('信息更新成功')
-          await userStore.fetchUserInfo()
+          ElMessage.success('昵称更新成功')
+          await userStore.fetchProfile()
           showEditDialog.value = false
         } else {
           ElMessage.error('更新失败: ' + response.data.message)
         }
       } catch (error) {
-        console.error('更新用户信息失败:', error)
-        ElMessage.error('更新失败: ' + error.message)
+        console.error('更新昵称失败:', error)
+        ElMessage.error('更新失败: ' + (error.response?.data?.message || error.message))
+      }
+    }
+
+    // 更新密码
+    const updatePassword = async () => {
+      try {
+        // 验证表单
+        if (!passwordForm.value.currentPassword) {
+          ElMessage.error('请输入当前密码')
+          return
+        }
+        if (!passwordForm.value.newPassword) {
+          ElMessage.error('请输入新密码')
+          return
+        }
+        if (!passwordForm.value.confirmPassword) {
+          ElMessage.error('请确认新密码')
+          return
+        }
+        if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
+          ElMessage.error('两次输入的密码不一致')
+          return
+        }
+        if (passwordForm.value.newPassword.length < 6) {
+          ElMessage.error('密码长度至少为6位')
+          return
+        }
+
+        const response = await apiClient.put('/api/v1/users/profile', {
+          current_password: passwordForm.value.currentPassword,
+          new_password: passwordForm.value.newPassword
+        })
+
+        if (response.data.code === 200) {
+          ElMessage.success('密码更新成功，请使用新密码重新登录')
+          showPasswordDialog.value = false
+          passwordForm.value = {
+            currentPassword: '',
+            newPassword: '',
+            confirmPassword: ''
+          }
+          // 由于密码已更改，用户需要重新登录
+          userStore.logout()
+          router.push('/login')
+        } else {
+          ElMessage.error('密码更新失败: ' + response.data.message)
+        }
+      } catch (error) {
+        console.error('更新密码失败:', error)
+        ElMessage.error('密码更新失败: ' + (error.response?.data?.message || error.message))
       }
     }
 
@@ -123,10 +254,17 @@ export default {
       user,
       userStore,
       showEditDialog,
+      showPasswordDialog,
       editForm,
+      passwordForm,
+      editFormRef,
+      passwordFormRef,
+      nicknameRules,
+      passwordRules,
       formatDate,
       goBack,
-      updateUserInfo
+      updateNickname,
+      updatePassword
     }
   }
 }
@@ -201,12 +339,18 @@ export default {
   align-self: flex-start;
 }
 
+.button-container {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 20px;
+}
+
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
 }
-
 /* 移动端适配 */
 @media (max-width: 768px) {
   .basic-info-container {
