@@ -8,16 +8,16 @@ import (
 // User 用户模型
 type User struct {
 	gorm.Model
-	Email            string `gorm:"uniqueIndex;size:255;not null" json:"email" validate:"required,email"`
-	Password         string `gorm:"not null" json:"password" validate:"required,min=6"`
-	Nickname         string `gorm:"default:null" json:"nickname"`
-	Avatar           string `gorm:"type:text" json:"avatar"` // 用户头像，存储base64格式图片
-	IsActive         bool   `gorm:"default:true" json:"is_active"`
-	IsAdmin          bool   `gorm:"default:false" json:"is_admin"`
-	IsActivated      bool   `gorm:"default:false" json:"is_activated"` // 用户是否已激活
-	ActivationCode   string `gorm:"size:255" json:"-"` // 激活码
-	LastLoginAt      *gorm.DeletedAt `json:"last_login_at"`
-	LastReadNovelID  *uint  `json:"last_read_novel_id"` // 最后阅读的小说ID
+	Email           string          `gorm:"uniqueIndex;size:255;not null;comment:用户邮箱，唯一索引，用于登录" json:"email" validate:"required,email"` // 用户邮箱，唯一索引，用于登录
+	Password        string          `gorm:"not null;comment:用户密码，加密后存储" json:"password" validate:"required,min=6"`                       // 用户密码，加密后存储
+	Nickname        string          `gorm:"default:null;comment:用户昵称，可为空" json:"nickname"`                                               // 用户昵称，可为空
+	Avatar          string          `gorm:"type:text;comment:用户头像，存储base64格式图片" json:"avatar"`                                           // 用户头像，存储base64格式图片
+	IsActive        bool            `gorm:"default:true;comment:账户是否激活状态" json:"is_active"`                                              // 账户是否激活状态
+	IsAdmin         bool            `gorm:"default:false;comment:是否为管理员" json:"is_admin"`                                                // 是否为管理员
+	IsActivated     bool            `gorm:"default:false;comment:用户是否已激活" json:"is_activated"`                                           // 用户是否已激活
+	ActivationCode  string          `gorm:"size:255;comment:激活码" json:"-"`                                                               // 激活码
+	LastLoginAt     *gorm.DeletedAt `json:"last_login_at"`                                                                               // 最后登录时间
+	LastReadNovelID *uint           `gorm:"comment:最后阅读的小说ID" json:"last_read_novel_id"`                                                 // 最后阅读的小说ID
 }
 
 // TableName 指定表名

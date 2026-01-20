@@ -7,16 +7,16 @@ import (
 // ReadingProgress 阅读进度模型
 type ReadingProgress struct {
 	gorm.Model
-	UserID      uint   `json:"user_id"`
-	User        User   `json:"user"`
-	NovelID     uint   `json:"novel_id"`
-	Novel       Novel  `json:"novel"`
-	ChapterID   uint   `json:"chapter_id"`
-	ChapterName string `json:"chapter_name"`
-	Position    int    `json:"position"` // 当前阅读位置
-	Progress    int    `json:"progress"` // 阅读进度百分比
-	ReadingTime int    `json:"reading_time"` // 阅读时长（秒）
-	LastReadAt  *gorm.DeletedAt `json:"last_read_at"`
+	UserID      uint            `gorm:"comment:用户ID" json:"user_id"`             // 用户ID
+	User        User            `json:"user"`                                    // 用户信息
+	NovelID     uint            `gorm:"comment:小说ID" json:"novel_id"`            // 小说ID
+	Novel       Novel           `json:"novel"`                                   // 小说信息
+	ChapterID   uint            `gorm:"comment:当前阅读章节ID" json:"chapter_id"`      // 当前阅读章节ID
+	ChapterName string          `gorm:"comment:当前阅读章节名称" json:"chapter_name"`    // 当前阅读章节名称
+	Position    int             `gorm:"comment:当前阅读位置（字符位置或页数）" json:"position"` // 当前阅读位置（字符位置或页数）
+	Progress    int             `gorm:"comment:阅读进度百分比" json:"progress"`         // 阅读进度百分比
+	ReadingTime int             `gorm:"comment:阅读时长（秒）" json:"reading_time"`     // 阅读时长（秒）
+	LastReadAt  *gorm.DeletedAt `json:"last_read_at"`                            // 最后阅读时间
 }
 
 // TableName 指定表名
