@@ -8,7 +8,7 @@
       <div class="user-info">
         <h2>{{ user?.nickname || '未登录用户' }}</h2>
         <!-- <p>{{ user?.email }}</p> -->
-        <p>注册时间: {{ formatDate(user?.created_at) }}</p>
+        <!-- <p>注册时间: {{ formatDate(user?.created_at) }}</p> -->
       </div>
     </div>
 
@@ -87,7 +87,6 @@ export default {
   name: 'Profile',
   components: {
     User,
-    Upload,
     ChatLineRound,
     Star,
     Message,

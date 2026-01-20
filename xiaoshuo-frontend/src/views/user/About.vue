@@ -13,7 +13,6 @@
         <h2>联系我们</h2>
         <ul>
           <li>邮箱: support@example.com</li>
-          <li>GitHub: <a href="https://github.com/your-repo" target="_blank">项目地址</a></li>
         </ul>
       </div>
     </div>
