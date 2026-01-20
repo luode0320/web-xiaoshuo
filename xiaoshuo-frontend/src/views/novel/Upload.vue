@@ -238,7 +238,7 @@ export default {
         }
 
         if (failCount === 0) {
-          ElMessage.success(`成功上传 ${successCount} 本小说！等待管理员审核。`)
+          ElMessage.success(`成功上传 ${successCount} 本小说！`)
         } else if (successCount === 0) {
           ElMessage.error(`全部 ${failCount} 个文件上传失败。`)
         } else {
