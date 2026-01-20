@@ -43,7 +43,7 @@ type CacheService struct{}
 func (s *CacheService) GetUserInfoWithCache(userID uint) (*models.User, error) {
 	var user models.User
 	cacheKey := CacheKeys.UserInfo(userID)
-	
+
 	err := GlobalCache.GetOrSet(cacheKey, &user, 10*time.Minute, func() (interface{}, error) {
 		var dbUser models.User
 		result := models.DB.First(&dbUser, userID)
@@ -52,11 +52,11 @@ func (s *CacheService) GetUserInfoWithCache(userID uint) (*models.User, error) {
 		}
 		return dbUser, nil
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &user, nil
 }
 
@@ -70,7 +70,7 @@ func (s *CacheService) SetUserInfoCache(userID uint, user *models.User) error {
 func (s *CacheService) GetNovelInfoWithCache(novelID uint) (*models.Novel, error) {
 	var novel models.Novel
 	cacheKey := CacheKeys.NovelInfo(novelID)
-	
+
 	err := GlobalCache.GetOrSet(cacheKey, &novel, 30*time.Minute, func() (interface{}, error) {
 		var dbNovel models.Novel
 		result := models.DB.Preload("UploadUser").Preload("Categories").Preload("Keywords").First(&dbNovel, novelID)
@@ -79,11 +79,11 @@ func (s *CacheService) GetNovelInfoWithCache(novelID uint) (*models.Novel, error
 		}
 		return dbNovel, nil
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &novel, nil
 }
 
@@ -97,7 +97,7 @@ func (s *CacheService) SetNovelInfoCache(novelID uint, novel *models.Novel) erro
 func (s *CacheService) GetNovelContentWithCache(novelID uint) (string, error) {
 	var content string
 	cacheKey := CacheKeys.NovelContent(novelID)
-	
+
 	err := GlobalCache.GetOrSet(cacheKey, &content, 1*time.Hour, func() (interface{}, error) {
 		// 从数据库获取小说信息
 		var novel models.Novel
@@ -105,86 +105,31 @@ func (s *CacheService) GetNovelContentWithCache(novelID uint) (string, error) {
 		if result.Error != nil {
 			return "", result.Error
 		}
-		
+
 		// 读取文件内容
 		fileContent, err := ReadFileContent(novel.Filepath)
 		if err != nil {
 			return "", err
 		}
-		
+
 		return fileContent, nil
 	})
-	
+
 	if err != nil {
 		return "", err
 	}
-	
-	return content, nil
-}
 
-// GetNovelListWithCache 从缓存获取小说列表
-func (s *CacheService) GetNovelListWithCache(page, limit int, query map[string]interface{}) ([]models.Novel, int64, error) {
-	cacheKey := CacheKeys.NovelList(page, limit, query)
-	
-	// 创建一个结构体来存储小说列表和总数
-	type NovelListResult struct {
-		Novels []models.Novel
-		Count  int64
-	}
-	
-	var result NovelListResult
-	err := GlobalCache.GetOrSet(cacheKey, &result, 5*time.Minute, func() (interface{}, error) {
-		var dbNovels []models.Novel
-		var dbCount int64
-		
-		// 构建查询
-		dbQuery := models.DB.Model(&models.Novel{}).Where("status = ?", "approved")
-		
-		// 添加查询条件
-		for key, value := range query {
-			if key == "title" {
-				dbQuery = dbQuery.Where("title LIKE ?", "%"+value.(string)+"%")
-			} else if key == "author" {
-				dbQuery = dbQuery.Where("author LIKE ?", "%"+value.(string)+"%")
-			} else if key == "category_id" {
-				dbQuery = dbQuery.Joins("JOIN novel_categories ON novels.id = novel_categories.novel_id").
-					Where("novel_categories.category_id = ?", value.(uint))
-			}
-		}
-		
-		// 获取总数
-		dbQuery.Count(&dbCount)
-		
-		// 分页查询
-		offset := (page - 1) * limit
-		queryResult := dbQuery.Offset(offset).Limit(limit).
-			Preload("UploadUser").
-			Preload("Categories").
-			Order("created_at DESC").
-			Find(&dbNovels)
-		
-		if queryResult.Error != nil {
-			return nil, queryResult.Error
-		}
-		
-		return NovelListResult{dbNovels, dbCount}, nil
-	})
-	
-	if err != nil {
-		return nil, 0, err
-	}
-	
-	return result.Novels, result.Count, nil
+	return content, nil
 }
 
 // InvalidateNovelCache 失效小说相关缓存
 func (s *CacheService) InvalidateNovelCache(novelID uint) error {
 	// 删除小说信息缓存
 	GlobalCache.Delete(CacheKeys.NovelInfo(novelID))
-	
+
 	// 删除小说内容缓存
 	GlobalCache.Delete(CacheKeys.NovelContent(novelID))
-	
+
 	return nil
 }
 
@@ -197,7 +142,7 @@ func (s *CacheService) InvalidateUserCache(userID uint) error {
 // GetCategoryListWithCache 从缓存获取分类列表
 func (s *CacheService) GetCategoryListWithCache() ([]models.Category, error) {
 	var categories []models.Category
-	
+
 	err := GlobalCache.GetOrSet(CacheKeys.CategoryList, &categories, 1*time.Hour, func() (interface{}, error) {
 		var dbCategories []models.Category
 		result := models.DB.Find(&dbCategories)
@@ -206,11 +151,11 @@ func (s *CacheService) GetCategoryListWithCache() ([]models.Category, error) {
 		}
 		return dbCategories, nil
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return categories, nil
 }
 

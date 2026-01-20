@@ -28,7 +28,7 @@ func UploadNovel(c *gin.Context) {
 	if !claims.IsAdmin { // 管理员不受上传频率限制
 		if err := checkUploadFrequencyLimit(claims.UserID); err != nil {
 			c.JSON(http.StatusTooManyRequests, gin.H{
-				"code": 429,
+				"code":    429,
 				"message": "今日上传次数已达上限，请明天再试",
 			})
 			return
@@ -93,7 +93,7 @@ func UploadNovel(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "读取文件内容失败", "data": err.Error()})
 		return
 	}
-	
+
 	wordCount := calculateWordCount(content)
 
 	// 创建小说记录
@@ -124,7 +124,7 @@ func UploadNovel(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	// 获取关键词列表（可选）
 	keywordsStr := c.PostForm("keywords")
 	var keywords []models.Keyword
@@ -182,7 +182,7 @@ func UploadNovel(c *gin.Context) {
 		// 解析TXT文件的章节
 		chapters, err = utils.ParseChapterFromTXT(filePath)
 	}
-	
+
 	if err != nil {
 		// 如果章节解析失败，记录错误但不终止整个上传流程
 		fmt.Printf("章节解析失败: %v\n", err)
@@ -205,10 +205,10 @@ func UploadNovel(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
-			"novel": novel,
+			"novel":          novel,
 			"chapters_count": len(chapters),
 		},
 	})
@@ -225,11 +225,19 @@ func GetNovels(c *gin.Context) {
 	title := c.Query("title")
 	author := c.Query("author")
 	categoryIDStr := c.Query("category_id")
-	
+	uploadUserIDStr := c.Query("upload_user_id")
+
 	var categoryID uint
 	if categoryIDStr != "" {
 		if id, err := strconv.ParseUint(categoryIDStr, 10, 32); err == nil {
 			categoryID = uint(id)
+		}
+	}
+
+	var uploadUserID uint
+	if uploadUserIDStr != "" {
+		if id, err := strconv.ParseUint(uploadUserIDStr, 10, 32); err == nil {
+			uploadUserID = uint(id)
 		}
 	}
 
@@ -244,38 +252,44 @@ func GetNovels(c *gin.Context) {
 	if categoryID != 0 {
 		query["category_id"] = categoryID
 	}
+	if uploadUserID != 0 {
+		query["upload_user_id"] = uploadUserID
+	}
 
-	// 使用缓存服务获取小说列表
-	var err error
-	novels, count, err = utils.GlobalCacheService.GetNovelListWithCache(page, limit, query)
-	if err != nil {
-		// 如果缓存获取失败，回退到数据库查询
-		dbQuery := models.DB.Where("status = ?", "approved")
-		
-		if title != "" {
-			dbQuery = dbQuery.Where("title LIKE ?", "%"+title+"%")
-		}
-		if author != "" {
-			dbQuery = dbQuery.Where("author LIKE ?", "%"+author+"%")
-		}
-		if categoryID != 0 {
-			dbQuery = dbQuery.Joins("JOIN novel_categories ON novels.id = novel_categories.novel_id").
-				Where("novel_categories.category_id = ?", categoryID)
-		}
+	// 到数据库查询
+	dbQuery := models.DB
 
-		// 获取总数
-		dbQuery.Model(&models.Novel{}).Count(&count)
+	// 如果指定了upload_user_id，返回该用户上传的所有小说（不限制状态）
+	// 否则只返回approved状态的小说
+	if uploadUserID == 0 {
+		dbQuery = dbQuery.Where("status = ?", "approved")
+	} else {
+		dbQuery = dbQuery.Where("upload_user_id = ?", uploadUserID)
+	}
 
-		// 分页查询
-		offset := (page - 1) * limit
-		if err := dbQuery.Offset(offset).Limit(limit).Preload("UploadUser").Preload("Categories").Find(&novels).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取小说列表失败", "data": err.Error()})
-			return
-		}
+	if title != "" {
+		dbQuery = dbQuery.Where("title LIKE ?", "%"+title+"%")
+	}
+	if author != "" {
+		dbQuery = dbQuery.Where("author LIKE ?", "%"+author+"%")
+	}
+	if categoryID != 0 {
+		dbQuery = dbQuery.Joins("JOIN novel_categories ON novels.id = novel_categories.novel_id").
+			Where("novel_categories.category_id = ?", categoryID)
+	}
+
+	// 获取总数
+	dbQuery.Model(&models.Novel{}).Count(&count)
+
+	// 分页查询
+	offset := (page - 1) * limit
+	if err := dbQuery.Offset(offset).Limit(limit).Preload("UploadUser").Preload("Categories").Find(&novels).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取小说列表失败", "data": err.Error()})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"novels": novels,
@@ -333,19 +347,19 @@ func GetNovel(c *gin.Context) {
 
 	// 更新点击量
 	models.DB.Model(novel).UpdateColumns(map[string]interface{}{
-		"click_count":    gorm.Expr("click_count + ?", 1),
-		"today_clicks":   gorm.Expr("today_clicks + ?", 1),
-		"week_clicks":    gorm.Expr("week_clicks + ?", 1),
-		"month_clicks":   gorm.Expr("month_clicks + ?", 1),
+		"click_count":  gorm.Expr("click_count + ?", 1),
+		"today_clicks": gorm.Expr("today_clicks + ?", 1),
+		"week_clicks":  gorm.Expr("week_clicks + ?", 1),
+		"month_clicks": gorm.Expr("month_clicks + ?", 1),
 	})
 
 	// 使缓存失效以更新点击量
 	go utils.GlobalCacheService.InvalidateNovelCache(uint(id))
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
-		"data": novel,
+		"data":    novel,
 	})
 }
 
@@ -390,7 +404,7 @@ func DeleteNovel(c *gin.Context) {
 	utils.GlobalCacheService.InvalidateNovelCache(uint(id))
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"message": "小说删除成功",
@@ -447,7 +461,7 @@ func GetNovelContent(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"content": content,
@@ -475,10 +489,10 @@ func RecordNovelClick(c *gin.Context) {
 
 	// 更新点击量
 	if err := models.DB.Model(&novel).UpdateColumns(map[string]interface{}{
-		"click_count":    gorm.Expr("click_count + ?", 1),
-		"today_clicks":   gorm.Expr("today_clicks + ?", 1),
-		"week_clicks":    gorm.Expr("week_clicks + ?", 1),
-		"month_clicks":   gorm.Expr("month_clicks + ?", 1),
+		"click_count":  gorm.Expr("click_count + ?", 1),
+		"today_clicks": gorm.Expr("today_clicks + ?", 1),
+		"week_clicks":  gorm.Expr("week_clicks + ?", 1),
+		"month_clicks": gorm.Expr("month_clicks + ?", 1),
 	}).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新点击量失败", "data": err.Error()})
 		return
@@ -488,7 +502,7 @@ func RecordNovelClick(c *gin.Context) {
 	utils.GlobalCacheService.InvalidateNovelCache(uint(id))
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"message": "点击量已记录",
@@ -535,16 +549,16 @@ func GetNovelContentStream(c *gin.Context) {
 
 	// 获取Range请求头
 	rangeHeader := c.GetHeader("Range")
-	
+
 	// 读取整个文件内容以确定总大小
 	content, err := utils.ReadFileContent(novel.Filepath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "读取小说内容失败", "data": err.Error()})
 		return
 	}
-	
+
 	totalSize := int64(len(content))
-	
+
 	// 解析Range请求
 	var start, end int64
 	if rangeHeader != "" {
@@ -568,7 +582,7 @@ func GetNovelContentStream(c *gin.Context) {
 		// 如果没有Range头，使用查询参数
 		startStr := c.Query("start")
 		endStr := c.Query("end")
-		
+
 		if startStr != "" {
 			start, err = strconv.ParseInt(startStr, 10, 64)
 			if err != nil {
@@ -577,7 +591,7 @@ func GetNovelContentStream(c *gin.Context) {
 		} else {
 			start = 0
 		}
-		
+
 		if endStr != "" {
 			end, err = strconv.ParseInt(endStr, 10, 64)
 			if err != nil {
@@ -602,13 +616,13 @@ func GetNovelContentStream(c *gin.Context) {
 
 	// 提取指定范围的内容
 	chunk := content[start : end+1]
-	
+
 	// 设置响应头
 	c.Header("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, totalSize))
 	c.Header("Accept-Ranges", "bytes")
 	c.Header("Content-Length", strconv.FormatInt(int64(len(chunk)), 10))
 	c.Header("Content-Type", "application/octet-stream")
-	
+
 	// 返回部分内容，状态码206
 	c.Data(http.StatusPartialContent, "application/octet-stream", []byte(chunk))
 }
@@ -658,12 +672,12 @@ func GetNovelChapters(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
-			"novel_id": novel.ID,
-			"title": novel.Title,
-			"chapters": chapters,
+			"novel_id":       novel.ID,
+			"title":          novel.Title,
+			"chapters":       chapters,
 			"total_chapters": len(chapters),
 		},
 	})
@@ -684,7 +698,7 @@ func GetChapterContent(c *gin.Context) {
 		return
 	}
 
-	chapterID, err := strconv.ParseUint(c.Param("id"), 10, 64)  // 使用新的参数名 'id'
+	chapterID, err := strconv.ParseUint(c.Param("id"), 10, 64) // 使用新的参数名 'id'
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的章节ID"})
 		return
@@ -707,7 +721,7 @@ func GetChapterContent(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"chapter": chapter,
@@ -747,19 +761,19 @@ func calculateWordCount(content string) int {
 func checkUploadFrequencyLimit(userID uint) error {
 	// 使用Redis记录用户每日上传次数
 	key := fmt.Sprintf("upload_count:%d:%s", userID, time.Now().Format("2006-01-02"))
-	
+
 	// 获取当前已上传次数
 	countVal := utils.GlobalCache.GetWithDefault(key, 0)
 	count, ok := countVal.(int)
 	if !ok {
 		count = 0
 	}
-	
+
 	// 检查是否超过限制（每日最多10本）
 	if count >= 10 {
 		return fmt.Errorf("今日上传次数已达上限")
 	}
-	
+
 	return nil
 }
 
@@ -791,7 +805,7 @@ func GetNovelStatus(c *gin.Context) {
 	// 检查权限：上传者或管理员可以查看完整状态
 	isOwner := novel.UploadUserID == claims.UserID
 	isAdmin := claims.IsAdmin
-	
+
 	if !isOwner && !isAdmin && novel.Status != "approved" {
 		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "没有权限查看此小说状态"})
 		return
@@ -799,18 +813,18 @@ func GetNovelStatus(c *gin.Context) {
 
 	// 获取小说状态详情
 	statusInfo := gin.H{
-		"id":          novel.ID,
-		"title":       novel.Title,
-		"status":      novel.Status, // pending, approved, rejected
-		"is_owner":    isOwner,
-		"is_admin":    isAdmin,
-		"upload_time": novel.CreatedAt,
-		"update_time": novel.UpdatedAt,
-		"click_count": novel.ClickCount,
+		"id":           novel.ID,
+		"title":        novel.Title,
+		"status":       novel.Status, // pending, approved, rejected
+		"is_owner":     isOwner,
+		"is_admin":     isAdmin,
+		"upload_time":  novel.CreatedAt,
+		"update_time":  novel.UpdatedAt,
+		"click_count":  novel.ClickCount,
 		"today_clicks": novel.TodayClicks,
-		"week_clicks": novel.WeekClicks,
+		"week_clicks":  novel.WeekClicks,
 		"month_clicks": novel.MonthClicks,
-		"avg_rating":  novel.AverageRating,
+		"avg_rating":   novel.AverageRating,
 		"rating_count": novel.RatingCount,
 	}
 
@@ -824,7 +838,7 @@ func GetNovelStatus(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"status": statusInfo,
@@ -856,13 +870,13 @@ func GetUploadFrequency(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"today_upload_count": count,
-			"daily_limit": 10,
-			"remaining_count": remaining,
-			"reset_time": time.Now().Add(24*time.Hour).Format("2006-01-02 15:04:05"),
+			"daily_limit":        10,
+			"remaining_count":    remaining,
+			"reset_time":         time.Now().Add(24 * time.Hour).Format("2006-01-02 15:04:05"),
 		},
 	})
 }
@@ -875,7 +889,6 @@ func GetNovelActivityHistory(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
-	
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -896,7 +909,7 @@ func GetNovelActivityHistory(c *gin.Context) {
 	// 检查权限：上传者或管理员可以查看操作历史
 	isOwner := novel.UploadUserID == claims.UserID
 	isAdmin := claims.IsAdmin
-	
+
 	if !isOwner && !isAdmin {
 		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "没有权限查看此小说操作历史"})
 		return
@@ -938,7 +951,7 @@ func GetNovelActivityHistory(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": 200,
+		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"activity_history": history,
@@ -954,14 +967,14 @@ func GetNovelActivityHistory(c *gin.Context) {
 // recordUpload 记录上传次数
 func recordUpload(userID uint) {
 	key := fmt.Sprintf("upload_count:%d:%s", userID, time.Now().Format("2006-01-02"))
-	
+
 	// 获取当前已上传次数
 	countVal := utils.GlobalCache.GetWithDefault(key, 0)
 	count, ok := countVal.(int)
 	if !ok {
 		count = 0
 	}
-	
+
 	// 增加计数并设置24小时过期
 	utils.GlobalCache.Set(key, count+1, 24*time.Hour)
 }
@@ -1009,7 +1022,7 @@ func SetNovelClassification(c *gin.Context) {
 
 	// 开始事务
 	tx := models.DB.Begin()
-	
+
 	// 如果提供了分类ID，更新小说分类
 	if input.CategoryID != 0 {
 		var category models.Category
