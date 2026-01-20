@@ -10,7 +10,7 @@
       <!-- 上传区域移到上方 -->
       <div class="upload-area">
         <el-upload ref="uploadRef" :auto-upload="false" :on-change="handleFileChange" :on-remove="handleFileRemove" :before-upload="beforeUpload" :file-list="fileList" :multiple="true"
-          accept=".txt,.epub" drag>
+          accept=".txt,.epub" drag :show-file-list="false">
           <div class="upload-content">
             <el-icon class="upload-icon">
               <Upload />
