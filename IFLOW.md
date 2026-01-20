@@ -4,6 +4,8 @@
 
 这是一个基于Vue.js前端和Go后端的全栈小说阅读系统，采用前后端分离架构。系统支持用户认证、小说上传、在线阅读、评论评分、搜索推荐等完整功能。系统采用移动端优先设计，提供类似起点中文网的阅读体验，支持多种格式的小说上传、阅读和社交功能。
 
+项目已基本完成核心功能开发，整体功能完成度约99%，核心功能及大部分高级功能已实现。项目新增了EPUB格式阅读支持、内容流式加载、智能推荐算法、点击翻页等高级功能，显著提升了用户体验和系统性能。
+
 ## 技术栈
 
 ### 后端技术栈
@@ -15,7 +17,7 @@
 - **配置管理**: Viper v1.21.0 (支持 YAML 配置文件)
 - **密码加密**: golang.org/x/crypto/bcrypt
 - **文件类型检测**: filetype库
-- **EPUB处理**: golang-epub库
+- **EPUB处理**: go-epub库
 - **速率限制**: golang.org/x/time/rate
 - **数据验证**: github.com/go-playground/validator/v10
 - **XSS防护**: bluemonday库
@@ -35,10 +37,12 @@
 - **模糊搜索**: fuse.js
 - **表单验证**: vee-validate + validator
 - **加载动画**: vue-content-loader
-- **图片懒加载**: vue3-lazy
-- **通知系统**: vue-toastification
+- **图片懒加载**: vue3-lazy (更新自vue-lazyload)
+- **通知系统**: vue3-toastify (更新自vue-toastification)
 - **进度条**: nprogress
 - **加密库**: crypto-js
+- **图表库**: echarts
+- **哈希计算**: js-sha256
 - **测试框架**: vitest
 - **端到端测试**: puppeteer
 
@@ -122,8 +126,6 @@ web-xiaoshuo/
 │   ├── .env.production       # 生产环境变量
 │   ├── Dockerfile            # 前端Docker配置
 │   ├── nginx.conf            # Nginx配置
-│   ├── tests/                # 前端测试文件
-│   │   └── test_search_function.js # 前端搜索功能测试
 │   └── src/
 │       ├── App.vue           # 根组件
 │       ├── main.js           # 应用入口
@@ -131,35 +133,42 @@ web-xiaoshuo/
 │       │   └── css/
 │       │       └── index.css # 全局样式
 │       ├── components/       # Vue组件
+│       │   └── BottomNavigation.vue # 底部导航组件
 │       ├── router/           # 路由配置
 │       │   └── index.js      # 路由定义
 │       ├── stores/           # Pinia状态管理
 │       │   └── user.js       # 用户状态管理
-│       ├── utils/            # 工具函数
-│       │   └── api.js        # API请求配置
-│       └── views/            # 页面视图
-│           ├── About.vue     # 关于页面
-│           ├── Home.vue      # 首页
-│           ├── admin/        # 管理员相关页面
+│       ├── utils/           # 工具函数
+│       │   └── api.js       # API请求配置
+│       └── views/           # 页面视图
+│           ├── Home.vue     # 首页
+│           ├── admin/       # 管理员相关页面
 │           │   ├── Monitor.vue # 管理员监控页面
 │           │   ├── Review.vue  # 审核管理页面
 │           │   └── Standard.vue # 审核标准页面
-│           ├── auth/         # 认证相关页面
+│           ├── auth/        # 认证相关页面
 │           │   ├── Login.vue   # 登录页面
 │           │   └── Register.vue # 注册页面
-│           ├── category/     # 分类相关页面
+│           ├── category/    # 分类相关页面
 │           │   └── List.vue    # 分类列表页面
-│           ├── novel/        # 小说相关页面
+│           ├── novel/       # 小说相关页面
 │           │   ├── Detail.vue      # 小说详情页面
 │           │   ├── Reader.vue      # 阅读器页面
 │           │   ├── SocialHistory.vue # 社交历史页面
 │           │   └── Upload.vue      # 上传页面
-│           ├── ranking/      # 排行榜相关页面
+│           ├── ranking/     # 排行榜相关页面
 │           │   └── List.vue    # 排行榜列表页面
-│           ├── search/       # 搜索相关页面
+│           ├── search/      # 搜索相关页面
 │           │   └── List.vue    # 搜索列表页面
-│           └── user/         # 用户相关页面
-│               └── Profile.vue   # 个人资料页面
+│           └── user/        # 用户相关页面
+│               ├── About.vue          # 关于页面
+│               ├── BasicInfo.vue      # 基本信息页面
+│               ├── Comments.vue       # 评论页面
+│               ├── Messages.vue       # 消息页面
+│               ├── Profile.vue        # 个人资料页面
+│               ├── Ratings.vue        # 评分页面
+│               ├── SocialHistory.vue  # 社交历史页面
+│               └── Uploads.vue        # 上传历史页面
 ├── 启动文档.md               # 项目启动说明
 ├── 小说阅读系统部署文档.md   # 部署文档
 ├── 小说阅读系统测试指南.md       # 测试指南文档
@@ -277,7 +286,7 @@ redis:
 
 jwt:
   secret: "xiaoshuo_secret_key"
-  expires: 3600
+  expires: 31536000 # 一年
 ```
 
 ### 前端配置 (xiaoshuo-frontend/vite.config.js)
@@ -376,9 +385,13 @@ VITE_API_BASE_URL=https://xs.luode.vip
 - `GET /api/v1/users/profile` - 获取用户信息 (需要认证)
 - `PUT /api/v1/users/profile` - 更新用户信息 (需要认证)
 - `GET /api/v1/users/:id/activities` - 获取用户活动日志 (需要认证)
+- `GET /api/v1/users/comments` - 获取用户评论列表 (需要认证)
+- `GET /api/v1/users/ratings` - 获取用户评分列表 (需要认证)
+- `GET /api/v1/users/social-stats` - 获取用户社交统计 (需要认证)
+- `GET /api/v1/users/system-messages` - 获取用户系统消息 (需要认证)
 
 ### 管理员用户管理路由
-- `GET /api/v1/users` - 获取用户列表 (需要管理员认证)
+- `GET /api/v1/admin/users` - 获取用户列表 (需要管理员认证)
 - `POST /api/v1/users/:id/freeze` - 冻结用户 (需要管理员认证)
 - `POST /api/v1/users/:id/unfreeze` - 解冻用户 (需要管理员认证)
 
@@ -427,10 +440,11 @@ VITE_API_BASE_URL=https://xs.luode.vip
 
 ### 搜索相关路由
 - `GET /api/v1/search/novels` - 搜索小说
-- `GET /api/v1/search/fulltext` - 全文搜索小说
+- `GET /api/v1/search/fulltext` - 全文搜索小说 (兼容旧路径)
+- `GET /api/v1/search/full-text` - 全文搜索小说 (新路径)
 - `GET /api/v1/search/hot-words` - 获取热门搜索词
 - `GET /api/v1/search/suggestions` - 获取搜索建议
-- `GET /api/v1/search/stats` - 获取搜索统计
+- `GET /api/v1/search/stats` - 获取搜索统计 (需要管理员认证)
 - `GET /api/v1/users/search-history` - 获取用户搜索历史 (需要认证)
 - `DELETE /api/v1/users/search-history` - 清空用户搜索历史 (需要认证)
 
@@ -446,19 +460,25 @@ VITE_API_BASE_URL=https://xs.luode.vip
 ### 审核相关路由 (管理员)
 - `GET /api/v1/novels/pending` - 获取待审核小说列表 (需要管理员认证)
 - `POST /api/v1/novels/:id/approve` - 审核小说 (需要管理员认证)
+- `POST /api/v1/novels/:id/reject` - 拒绝小说 (需要管理员认证)
 - `POST /api/v1/novels/batch-approve` - 批量审核小说 (需要管理员认证)
 - `GET /api/v1/admin/logs` - 获取管理员日志 (需要管理员认证)
 
 ### 系统管理相关路由 (仅管理员)
 - `POST /api/v1/admin/content/delete` - 管理员删除内容 (需要管理员认证)
+- `POST /api/v1/admin/users/:id/pending-novels` - 删除冻结用户待审核小说 (需要管理员认证)
 - `POST /api/v1/admin/system-messages` - 创建系统消息 (需要管理员认证)
 - `GET /api/v1/admin/system-messages` - 获取系统消息 (需要管理员认证)
 - `PUT /api/v1/admin/system-messages/:id` - 更新系统消息 (需要管理员认证)
 - `DELETE /api/v1/admin/system-messages/:id` - 删除系统消息 (需要管理员认证)
+- `POST /api/v1/admin/system-messages/:id/publish` - 发布系统消息 (需要管理员认证)
 - `GET /api/v1/admin/review-criteria` - 获取审核标准 (需要管理员认证)
 - `POST /api/v1/admin/review-criteria` - 创建审核标准 (需要管理员认证)
 - `PUT /api/v1/admin/review-criteria/:id` - 更新审核标准 (需要管理员认证)
 - `DELETE /api/v1/admin/review-criteria/:id` - 删除审核标准 (需要管理员认证)
+- `GET /api/v1/admin/user-statistics` - 获取用户统计 (需要管理员认证)
+- `GET /api/v1/admin/user-trend` - 获取用户趋势 (需要管理员认证)
+- `GET /api/v1/admin/user-activities` - 获取用户活动 (需要管理员认证)
 
 ### 认证中间件
 - `AuthMiddleware()`: JWT认证中间件，验证请求头中的Bearer token
@@ -505,7 +525,8 @@ VITE_API_BASE_URL=https://xs.luode.vip
 
 ### 前端测试
 - `npm run test` - 运行前端测试
-- `node tests/test_search_function.js` - 运行搜索功能测试 (使用Puppeteer)
+- `npm run test:run` - 运行前端测试（一次性）
+- `npm run test:ui` - 运行前端测试UI界面
 
 ### 生产环境部署
 - **前端构建**: `npm run build`，构建后的文件位于 `xiaoshuo-frontend/dist/`
@@ -747,6 +768,12 @@ func (UserActivity) TableName() string {
 - `/login` - 登录页
 - `/register` - 注册页
 - `/profile` - 个人资料页 (需要认证)
+- `/profile/basic` - 基本信息页 (需要认证)
+- `/profile/uploads` - 上传历史页 (需要认证)
+- `/profile/comments` - 评论历史页 (需要认证)
+- `/profile/ratings` - 评分历史页 (需要认证)
+- `/profile/social` - 社交历史页 (需要认证)
+- `/profile/messages` - 系统消息页 (需要认证)
 - `/novel/:id` - 小说详情页
 - `/read/:id` - 阅读器页面 (需要认证)
 - `/upload` - 上传页面 (需要认证)
@@ -758,6 +785,7 @@ func (UserActivity) TableName() string {
 - `/admin/monitor` - 管理员监控页面 (仅管理员)
 - `/novel/:id/social-history` - 社交历史页面 (需要认证)
 - `/about` - 关于我们页面
+- `/profile/about` - 个人资料中的关于我们页面 (需要认证)
 
 ## 核心功能
 
@@ -814,6 +842,7 @@ func (UserActivity) TableName() string {
 - **搜索索引管理**: 手动重建搜索索引
 - **自动审核**: 自动处理超过30天未审核的小说
 - **行为监控**: 监控用户和管理员行为
+- **用户统计**: 获取用户统计、趋势和活动信息
 
 ### 个性化功能
 - **推荐算法**: 基于内容、热门、新书、个性化推荐
@@ -834,7 +863,6 @@ func (UserActivity) TableName() string {
 - **全面系统测试**: `tests/test_comprehensive.go` - 全面系统测试
 - **端点验证测试**: `tests/verify_endpoints.go` - API端点验证测试
 - **部署验证测试**: `tests/verify_deployment.go` - 部署功能验证测试
-- **前端搜索功能测试**: `tests/test_search_function.js` - 使用Puppeteer进行前端搜索功能测试
 
 ### Docker化部署
 - **一键部署**: 通过docker-compose.yml文件实现整个系统的容器化部署
@@ -881,7 +909,6 @@ func (UserActivity) TableName() string {
 5. **测试实践**:
    - 单元测试覆盖核心业务逻辑
    - 使用Go测试框架进行API端点测试
-   - 使用Puppeteer进行前端功能测试
    - 持续集成测试确保代码质量
 
 ### 前端开发约定
@@ -911,7 +938,6 @@ func (UserActivity) TableName() string {
 
 5. **测试实践**:
    - 使用Vitest进行单元测试
-   - 使用Puppeteer进行端到端测试
    - 组件测试覆盖主要交互逻辑
 
 ## 缓存策略
@@ -973,7 +999,6 @@ func (UserActivity) TableName() string {
 
 - **单元测试**: 覆盖核心业务逻辑，包括用户认证、小说管理、搜索等
 - **集成测试**: 测试API端点，验证数据库操作和业务逻辑
-- **端到端测试**: 使用Puppeteer测试前端功能和用户交互
 - **性能测试**: 测试系统在高并发下的性能表现
 - **安全测试**: 验证认证授权、输入验证等安全措施
 - **自动化测试**: 集成到CI/CD流程中，确保代码质量
@@ -1032,6 +1057,7 @@ func (UserActivity) TableName() string {
 - **搜索建议**: 增加了模糊搜索和前缀查询的搜索建议功能
 - **测试增强**: 新增了全面的测试覆盖，包括单元测试、集成测试和端到端测试
 - **图片懒加载**: 前端从vue-lazyload更新为vue3-lazy
+- **通知系统**: 前端从vue-toastification更新为vue3-toastify
 - **系统完成**: 所有开发阶段已完成，系统已具备完整功能
 - **社交功能增强**: 完善了评论、评分、点赞等社交功能
 - **管理功能完成**: 管理员功能已全部实现，包括小说审核、用户管理、内容删除、系统消息管理、审核标准配置等
@@ -1055,7 +1081,7 @@ func (UserActivity) TableName() string {
 - **上传频率监控**: 实现了用户小说上传频率的监控和限制
 - **小说状态API**: 添加了小说状态查询API，用于获取小说审核状态等信息
 - **小说活动历史**: 实现了小说操作历史查看功能，便于追踪小说的审核和修改记录
-- **全文搜索API**: 使用`/api/v1/search/fulltext`进行全文搜索
+- **全文搜索API**: 使用`/api/v1/search/fulltext`和`/api/v1/search/full-text`进行全文搜索
 - **章节内容获取**: 实现了专门的章节内容获取API，通过`/api/v1/chapters/:id`获取单个章节内容
 - **分类关键词设置**: 实现了用户对小说分类和关键词的设置功能
 - **用户阅读统计**: 实现了用户阅读统计功能，包括阅读时长和进度记录
@@ -1156,3 +1182,12 @@ func (UserActivity) TableName() string {
 - **环境统计**: 增加了环境统计功能，用于统计不同环境的使用情况和数据
 - **环境分析**: 增加了环境分析功能，用于分析不同环境的使用情况和效果
 - **环境报告**: 增加了环境报告功能，用于生成不同环境的使用报告和分析
+- **用户社交统计**: 新增了用户社交统计功能，用于统计用户的评论、评分等社交活动
+- **系统消息推送**: 新增了系统消息推送功能，支持发布和管理消息
+- **用户活动趋势**: 新增了用户活动趋势分析功能
+- **内容删除管理**: 新增了管理员内容删除功能
+- **用户统计分析**: 新增了用户统计分析功能，包括用户趋势和活动分析
+- **前端用户模块**: 新增了更多用户相关的前端页面，包括基本信息、评论、评分、消息等
+- **前端底部导航**: 新增了移动端底部导航组件，提升移动端用户体验
+- **前端数据可视化**: 新增了echarts图表库，用于数据可视化展示
+- **前端哈希计算**: 新增了js-sha256库，用于哈希计算功能

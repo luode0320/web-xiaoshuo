@@ -21,12 +21,7 @@
             </el-icon>
             <span>基本信息</span>
           </el-menu-item>
-          <el-menu-item index="/profile/uploads" :route="true">
-            <el-icon>
-              <Upload />
-            </el-icon>
-            <span>上传历史</span>
-          </el-menu-item>
+
           <!-- <el-menu-item index="/profile/comments" :route="true">
             <el-icon>
               <ChatLineRound />
@@ -80,7 +75,6 @@ import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
 import {
   User,
-  Upload,
   ChatLineRound,
   Star,
   Message,

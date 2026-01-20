@@ -29,12 +29,7 @@ const routes = [
     component: () => import('@/views/user/BasicInfo.vue'),
     meta: { requiresAuth: true }
   },
-  {
-    path: '/profile/uploads',
-    name: 'Uploads',
-    component: () => import('@/views/user/Uploads.vue'),
-    meta: { requiresAuth: true }
-  },
+
   {
     path: '/profile/comments',
     name: 'Comments',
