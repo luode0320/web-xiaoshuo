@@ -52,7 +52,16 @@
 
     <!-- 上传历史视图 -->
     <div v-else class="history-section" ref="contentRef">
-      <el-table :data="uploads" style="width: 100%" v-loading="loading">
+      <!-- 批量操作工具栏 -->
+      <div v-if="selectedIds.length > 0" class="batch-actions">
+        <el-button type="danger" size="small" @click="batchDelete" :loading="batchDeleting">
+          批量删除 ({{ selectedIds.length }})
+        </el-button>
+        <span class="selected-count">已选 {{ selectedIds.length }} 项</span>
+      </div>
+
+      <el-table :data="uploads" style="width: 100%" v-loading="loading" @selection-change="handleSelectionChange">
+        <el-table-column type="selection" width="55" />
         <el-table-column prop="title" label="小说标题" />
         <el-table-column prop="author" label="作者" width="120" />
         <el-table-column prop="word_count" label="字数" width="100" />
@@ -69,10 +78,13 @@
             {{ formatDate(row.created_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="150">
+        <el-table-column label="操作" width="200">
           <template #default="{ row }">
             <el-button size="small" @click="viewNovel(row.id)" type="primary">
               查看
+            </el-button>
+            <el-button size="small" @click="deleteNovel(row.id, row.title)" type="danger">
+              删除
             </el-button>
           </template>
         </el-table-column>
@@ -364,6 +376,126 @@ export default {
       router.push('/login')
     }
 
+    // 选中的小说ID列表
+    const selectedIds = ref([])
+    
+    // 批量删除状态
+    const batchDeleting = ref(false)
+
+    // 处理表格选择变化
+    const handleSelectionChange = (selection) => {
+      console.log('Selection changed:', selection) // 调试日志
+      console.log('First item in selection:', selection.length > 0 ? selection[0] : 'No items') // 调试日志
+      selectedIds.value = selection
+        .map(item => {
+          // 尝试多个可能的ID字段名
+          return item.id || item.ID || item.Id || item._id
+        })
+        .filter(id => id !== null && id !== undefined && id > 0)
+      console.log('Selected IDs:', selectedIds.value) // 调试日志
+    }
+
+    // 删除单个小说
+    const deleteNovel = async (id, title) => {
+      // 验证ID是否有效
+      if (!id || id <= 0) {
+        ElMessage.error('无效的小说ID')
+        return
+      }
+
+      try {
+        await ElMessageBox.confirm(
+          `确定要删除小说《${title}》吗？此操作不可撤销。`,
+          '删除确认',
+          {
+            confirmButtonText: '确定删除',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }
+        )
+
+        const response = await apiClient.delete('/api/v1/novels', {
+          headers: {
+            'Authorization': `Bearer ${userStore.token}`,
+            'Content-Type': 'application/json'
+          },
+          data: {
+            novel_ids: [id]
+          }
+        })
+
+        if (response.data.code === 200) {
+          ElMessage.success('小说删除成功')
+          // 从本地列表中移除已删除的小说
+          uploads.value = uploads.value.filter(item => {
+            const itemId = item.id || item.ID || item.Id || item._id
+            return itemId !== id
+          })
+        } else {
+          ElMessage.error('删除失败: ' + response.data.message)
+        }
+      } catch (error) {
+        if (error !== 'cancel') {
+          console.error('删除小说失败:', error)
+          ElMessage.error('删除失败: ' + (error.response?.data?.message || error.message))
+        }
+      }
+    }
+
+    // 批量删除小说
+    const batchDelete = async () => {
+      // 过滤掉无效的ID
+      const validIds = selectedIds.value.filter(id => id !== null && id !== undefined && id > 0)
+      
+      if (validIds.length === 0) {
+        ElMessage.warning('请至少选择一本小说')
+        return
+      }
+
+      try {
+        await ElMessageBox.confirm(
+          `确定要删除选中的 ${validIds.length} 本小说吗？此操作不可撤销。`,
+          '批量删除确认',
+          {
+            confirmButtonText: '确定删除',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }
+        )
+
+        batchDeleting.value = true
+
+        const response = await apiClient.delete('/api/v1/novels', {
+          headers: {
+            'Authorization': `Bearer ${userStore.token}`,
+            'Content-Type': 'application/json'
+          },
+          data: {
+            novel_ids: validIds
+          }
+        })
+
+        if (response.data.code === 200) {
+          ElMessage.success(`成功删除 ${response.data.data.deleted_count || validIds.length} 本小说`)
+          // 从本地列表中移除已删除的小说
+          uploads.value = uploads.value.filter(item => {
+            const itemId = item.id || item.ID || item.Id || item._id
+            return !validIds.includes(itemId)
+          })
+          selectedIds.value = [] // 清空选中列表
+        } else {
+          ElMessage.error('批量删除失败: ' + response.data.message)
+        }
+      } catch (error) {
+        if (error !== 'cancel') {
+          console.error('批量删除小说失败:', error)
+          ElMessage.error('删除失败: ' + (error.response?.data?.message || error.message))
+        }
+      } finally {
+        batchDeleting.value = false
+      }
+    }
+
     onMounted(async () => {
       // 初始加载上传历史数据（因为默认显示历史）
       await fetchUploads()
@@ -404,7 +536,13 @@ export default {
       formatDate,
       getStatusType,
       getStatusText,
-      viewNovel
+      viewNovel,
+      // 删除功能相关
+      selectedIds,
+      batchDeleting,
+      handleSelectionChange,
+      deleteNovel,
+      batchDelete
     }
   }
 }
@@ -557,6 +695,21 @@ export default {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+}
+
+.batch-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.selected-count {
+  color: #606266;
+  font-size: 14px;
 }
 
 .loading-more {

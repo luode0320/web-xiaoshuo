@@ -71,7 +71,8 @@ web-xiaoshuo/
 │   │   ├── search.go         # 搜索相关控制器
 │   │   └── user.go           # 用户相关控制器
 │   ├── middleware/           # 中间件 (如认证)
-│   │   └── auth.go           # 认证中间件
+│   │   ├── auth.go           # 认证中间件
+│   │   └── cors.go           # CORS中间件
 │   ├── models/               # 数据模型 (ORM实体)
 │   │   ├── admin_log.go      # 管理日志模型
 │   │   ├── category.go       # 分类模型
@@ -90,7 +91,18 @@ web-xiaoshuo/
 │   │   ├── user_activity.go  # 用户活动模型
 │   │   └── user.go           # 用户模型
 │   ├── routes/               # 路由配置
-│   │   └── routes.go         # 路由定义
+│   │   ├── admin_routes.go   # 管理员路由
+│   │   ├── category_routes.go # 分类路由
+│   │   ├── chapter_routes.go # 章节路由
+│   │   ├── comment_routes.go # 评论路由
+│   │   ├── novel_routes.go   # 小说路由
+│   │   ├── ranking_routes.go # 排行榜路由
+│   │   ├── rating_routes.go  # 评分路由
+│   │   ├── reading_progress_routes.go # 阅读进度路由
+│   │   ├── recommendation_routes.go # 推荐路由
+│   │   ├── routes.go         # 路由定义
+│   │   ├── search_routes.go  # 搜索路由
+│   │   └── user_routes.go    # 用户路由
 │   ├── search_index/         # 搜索索引存储
 │   │   └── store/            # 搜索索引存储目录
 │   ├── services/             # 业务逻辑服务
@@ -118,7 +130,7 @@ web-xiaoshuo/
 │   │   ├── search.go         # 搜索工具
 │   │   └── upload.go         # 上传工具
 │   ├── Dockerfile            # 后端Docker配置
-│   └── migrations/           # 数据库迁移
+│   └── uploads/              # 小说上传文件存储
 ├── xiaoshuo-frontend/                 # Vue.js前端项目
 │   ├── package.json          # 前端依赖和脚本配置
 │   ├── vite.config.js        # Vite构建配置
@@ -483,6 +495,7 @@ VITE_API_BASE_URL=https://xs.luode.vip
 ### 认证中间件
 - `AuthMiddleware()`: JWT认证中间件，验证请求头中的Bearer token
 - `AdminAuthMiddleware()`: 管理员认证中间件，在AuthMiddleware基础上验证用户是否为管理员
+- `CORSMiddleware()`: CORS中间件，处理跨域请求
 
 ## 构建与运行
 
@@ -1191,3 +1204,7 @@ func (UserActivity) TableName() string {
 - **前端底部导航**: 新增了移动端底部导航组件，提升移动端用户体验
 - **前端数据可视化**: 新增了echarts图表库，用于数据可视化展示
 - **前端哈希计算**: 新增了js-sha256库，用于哈希计算功能
+- **CORS中间件**: 新增了CORS中间件，用于处理跨域请求
+- **上传文件存储**: 新增了uploads目录，用于存储上传的小说文件
+- **路由模块化**: 新增了路由模块化设计，将路由按功能拆分到不同文件
+- **搜索统计API**: 新增了搜索统计API，需要管理员权限访问

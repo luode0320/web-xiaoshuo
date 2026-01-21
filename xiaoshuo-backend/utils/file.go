@@ -140,3 +140,13 @@ func ReadFileContent(filepath string) (string, error) {
 	}
 	return string(content), nil
 }
+
+// DeleteFile 删除指定路径的文件
+func DeleteFile(filepath string) error {
+	if _, err := os.Stat(filepath); os.IsNotExist(err) {
+		// 文件不存在，无需删除
+		return nil
+	}
+	
+	return os.Remove(filepath)
+}

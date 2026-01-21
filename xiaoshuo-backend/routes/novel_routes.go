@@ -18,6 +18,9 @@ func InitNovelRoutes(apiV1 *gin.RouterGroup) {
 	apiV1.POST("/novels/:id/click", controllers.RecordNovelClick)
 	apiV1.DELETE("/novels/:id", middleware.AuthMiddleware(), controllers.DeleteNovel)
 
+	// 批量删除小说路由
+	apiV1.DELETE("/novels", middleware.AuthMiddleware(), controllers.BatchDeleteNovels)
+
 	// 小说分类和关键词设置路由
 	apiV1.POST("/novels/:id/classify", middleware.AuthMiddleware(), controllers.SetNovelClassification)
 

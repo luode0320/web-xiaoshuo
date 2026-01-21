@@ -394,9 +394,116 @@ func DeleteNovel(c *gin.Context) {
 		return
 	}
 
-	// 删除小说
-	if err := models.DB.Delete(&novel).Error; err != nil {
+	// 使用事务确保数据一致性
+	tx := models.DB.Begin()
+
+	// 物理删除小说的章节
+	if err := tx.Unscoped().Where("novel_id = ?", novel.ID).Delete(&models.Chapter{}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "删除章节失败", "data": err.Error()})
+		return
+	}
+
+	// 删除小说的评论（包括评论的子评论）
+	var commentIDs []uint
+	var comments []models.Comment
+	if err := tx.Unscoped().Where("novel_id = ?", novel.ID).Find(&comments).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "查询评论失败", "data": err.Error()})
+		return
+	}
+
+	for _, comment := range comments {
+		commentIDs = append(commentIDs, comment.ID)
+	}
+
+	// 物理删除评论的点赞记录
+	if len(commentIDs) > 0 {
+		if err := tx.Unscoped().Where("comment_id IN ?", commentIDs).Delete(&models.CommentLike{}).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "删除评论点赞失败", "data": err.Error()})
+			return
+		}
+
+		// 物理删除评论的子评论
+		if err := tx.Unscoped().Where("parent_id IN ?", commentIDs).Delete(&models.Comment{}).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "删除子评论失败", "data": err.Error()})
+			return
+		}
+	}
+
+	// 物理删除小说的评论
+	if err := tx.Unscoped().Where("novel_id = ?", novel.ID).Delete(&models.Comment{}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "删除评论失败", "data": err.Error()})
+		return
+	}
+
+	// 删除小说的评分
+	var ratingIDs []uint
+	var ratings []models.Rating
+	if err := tx.Unscoped().Where("novel_id = ?", novel.ID).Find(&ratings).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "查询评分失败", "data": err.Error()})
+		return
+	}
+
+	for _, rating := range ratings {
+		ratingIDs = append(ratingIDs, rating.ID)
+	}
+
+	// 物理删除评分的点赞记录
+	if len(ratingIDs) > 0 {
+		if err := tx.Unscoped().Where("rating_id IN ?", ratingIDs).Delete(&models.RatingLike{}).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "删除评分点赞失败", "data": err.Error()})
+			return
+		}
+	}
+
+	// 物理删除小说的评分
+	if err := tx.Unscoped().Where("novel_id = ?", novel.ID).Delete(&models.Rating{}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "删除评分失败", "data": err.Error()})
+		return
+	}
+
+	// 物理删除小说的阅读进度记录
+	if err := tx.Unscoped().Where("novel_id = ?", novel.ID).Delete(&models.ReadingProgress{}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "删除阅读进度失败", "data": err.Error()})
+		return
+	}
+
+	// 删除小说与分类的关联（通过中间表）
+	if err := tx.Model(&novel).Association("Categories").Clear(); err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "清除小说分类关联失败", "data": err.Error()})
+		return
+	}
+
+	// 删除小说与关键词的关联（通过中间表）
+	if err := tx.Model(&novel).Association("Keywords").Clear(); err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "清除小说关键词关联失败", "data": err.Error()})
+		return
+	}
+
+	// 物理删除小说本身（使用Unscoped()进行硬删除）
+	if err := tx.Unscoped().Delete(&novel).Error; err != nil {
+		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "删除小说失败", "data": err.Error()})
+		return
+	}
+
+	// 删除小说文件
+	if novel.Filepath != "" {
+		utils.DeleteFile(novel.Filepath)
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "提交事务失败", "data": err.Error()})
 		return
 	}
 
@@ -960,6 +1067,204 @@ func GetNovelActivityHistory(c *gin.Context) {
 				"rating_count":    len(ratings),
 				"comment_count":   len(comments),
 			},
+		},
+	})
+}
+
+// BatchDeleteNovels 批量删除小说
+func BatchDeleteNovels(c *gin.Context) {
+	// 从JWT token获取用户信息
+	claims := utils.GetClaims(c)
+	if claims == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
+		return
+	}
+
+	var input struct {
+		NovelIDs []uint `json:"novel_ids" binding:"required,min=1,max=100"` // 限制每次最多删除100本小说
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求参数错误", "data": err.Error()})
+		return
+	}
+
+	if len(input.NovelIDs) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "小说ID列表不能为空"})
+		return
+	}
+
+	// 查询要删除的小说，确保它们属于当前用户或当前用户是管理员
+	var novels []models.Novel
+	query := models.DB.Where("id IN ?", input.NovelIDs)
+
+	// 如果不是管理员，只允许删除自己的小说
+	if !claims.IsAdmin {
+		query = query.Where("upload_user_id = ?", claims.UserID)
+	}
+
+	if err := query.Find(&novels).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "查询小说失败", "data": err.Error()})
+		return
+	}
+
+	// 检查权限：非管理员只能删除自己的小说
+	if !claims.IsAdmin {
+		for _, novel := range novels {
+			if novel.UploadUserID != claims.UserID {
+				c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "没有权限删除非自己上传的小说"})
+				return
+			}
+		}
+	}
+
+	// 如果请求删除的小说数量与实际找到的数量不同，说明有些小说不存在或没有权限删除
+	if len(novels) != len(input.NovelIDs) {
+		foundIDs := make(map[uint]bool)
+		for _, novel := range novels {
+			foundIDs[novel.ID] = true
+		}
+
+		var unauthorizedIDs []uint
+		for _, id := range input.NovelIDs {
+			if !foundIDs[id] {
+				unauthorizedIDs = append(unauthorizedIDs, id)
+			}
+		}
+
+		if len(unauthorizedIDs) > 0 {
+			c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "没有权限删除某些小说", "data": gin.H{"unauthorized_ids": unauthorizedIDs}})
+			return
+		}
+	}
+
+	// 开始事务
+	tx := models.DB.Begin()
+
+	// 删除小说相关的所有数据
+	for _, novel := range novels {
+		// 物理删除小说的章节
+		if err := tx.Unscoped().Where("novel_id = ?", novel.ID).Delete(&models.Chapter{}).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "删除章节失败", "data": err.Error()})
+			return
+		}
+
+		// 删除小说的评论（包括评论的子评论）
+		var commentIDs []uint
+		var comments []models.Comment
+		if err := tx.Unscoped().Where("novel_id = ?", novel.ID).Find(&comments).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "查询评论失败", "data": err.Error()})
+			return
+		}
+
+		for _, comment := range comments {
+			commentIDs = append(commentIDs, comment.ID)
+		}
+
+		// 物理删除评论的点赞记录
+		if len(commentIDs) > 0 {
+			if err := tx.Unscoped().Where("comment_id IN ?", commentIDs).Delete(&models.CommentLike{}).Error; err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "删除评论点赞失败", "data": err.Error()})
+				return
+			}
+
+			// 物理删除评论的子评论
+			if err := tx.Unscoped().Where("parent_id IN ?", commentIDs).Delete(&models.Comment{}).Error; err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "删除子评论失败", "data": err.Error()})
+				return
+			}
+		}
+
+		// 物理删除小说的评论
+		if err := tx.Unscoped().Where("novel_id = ?", novel.ID).Delete(&models.Comment{}).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "删除评论失败", "data": err.Error()})
+			return
+		}
+
+		// 删除小说的评分
+		var ratingIDs []uint
+		var ratings []models.Rating
+		if err := tx.Unscoped().Where("novel_id = ?", novel.ID).Find(&ratings).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "查询评分失败", "data": err.Error()})
+			return
+		}
+
+		for _, rating := range ratings {
+			ratingIDs = append(ratingIDs, rating.ID)
+		}
+
+		// 物理删除评分的点赞记录
+		if len(ratingIDs) > 0 {
+			if err := tx.Unscoped().Where("rating_id IN ?", ratingIDs).Delete(&models.RatingLike{}).Error; err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "删除评分点赞失败", "data": err.Error()})
+				return
+			}
+		}
+
+		// 物理删除小说的评分
+		if err := tx.Unscoped().Where("novel_id = ?", novel.ID).Delete(&models.Rating{}).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "删除评分失败", "data": err.Error()})
+			return
+		}
+
+		// 物理删除小说的阅读进度记录
+		if err := tx.Unscoped().Where("novel_id = ?", novel.ID).Delete(&models.ReadingProgress{}).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "删除阅读进度失败", "data": err.Error()})
+			return
+		}
+
+		// 删除小说与分类的关联（通过中间表）
+		if err := tx.Model(&novel).Association("Categories").Clear(); err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "清除小说分类关联失败", "data": err.Error()})
+			return
+		}
+
+		// 删除小说与关键词的关联（通过中间表）
+		if err := tx.Model(&novel).Association("Keywords").Clear(); err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "清除小说关键词关联失败", "data": err.Error()})
+			return
+		}
+
+		// 物理删除小说本身（使用Unscoped()进行硬删除）
+		if err := tx.Unscoped().Delete(&novel).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "删除小说失败", "data": err.Error()})
+			return
+		}
+
+		// 删除小说文件
+		if novel.Filepath != "" {
+			utils.DeleteFile(novel.Filepath)
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "提交事务失败", "data": err.Error()})
+		return
+	}
+
+	// 使相关缓存失效
+	for _, novel := range novels {
+		utils.GlobalCacheService.InvalidateNovelCache(novel.ID)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "success",
+		"data": gin.H{
+			"deleted_count": len(novels),
+			"deleted_novels": novels,
 		},
 	})
 }
