@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -16,16 +17,6 @@ func ParseChapterFromTXT(filepath string) ([]models.Chapter, error) {
 	}
 	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
-	var lines []string
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-
 	// 定义章节标题的正则表达式
 	// 支持中文数字和阿拉伯数字的章节格式
 	chapterRegex := regexp.MustCompile(`^(第[一二三四五六七八九十百千万零\d]+[章节回部卷].*|Chapter\s+\d+|Prologue|Epilogue|引子|序|尾声|后记|\d+\..*|.*卷.*|\d+)$`)
@@ -34,8 +25,11 @@ func ParseChapterFromTXT(filepath string) ([]models.Chapter, error) {
 	var currentChapter *models.Chapter
 	chapterIndex := 1
 
-	for _, line := range lines {
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
 		trimmedLine := strings.TrimSpace(line)
+
 		// 检查是否是章节标题（长度不能太长，一般章节标题不会超过50个字符）
 		if chapterRegex.MatchString(trimmedLine) && len(trimmedLine) < 50 {
 			// 如果已经有当前章节，先保存它
@@ -60,6 +54,10 @@ func ParseChapterFromTXT(filepath string) ([]models.Chapter, error) {
 				currentChapter.Content += line
 			}
 		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
 	}
 
 	// 保存最后一个章节
@@ -134,6 +132,18 @@ func IsEPUBFile(filepath string) bool {
 
 // ReadFileContent 读取文件内容
 func ReadFileContent(filepath string) (string, error) {
+	// 先检查文件大小，防止过大的文件导致内存问题
+	fileInfo, err := os.Stat(filepath)
+	if err != nil {
+		return "", err
+	}
+
+	// 限制文件大小为50MB（可以根据需要调整）
+	const maxFileSize = 50 * 1024 * 1024
+	if fileInfo.Size() > maxFileSize {
+		return "", fmt.Errorf("文件过大，超过50MB限制")
+	}
+
 	content, err := os.ReadFile(filepath)
 	if err != nil {
 		return "", err
@@ -147,6 +157,6 @@ func DeleteFile(filepath string) error {
 		// 文件不存在，无需删除
 		return nil
 	}
-	
+
 	return os.Remove(filepath)
 }

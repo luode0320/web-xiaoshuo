@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -14,6 +16,30 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
+
+// 控制章节解析的并发数，防止内存占用过高
+var chapterParseSem = make(chan struct{}, getParseConcurrencyLimit())
+
+// 根据系统资源动态计算合适的并发解析数量
+func getParseConcurrencyLimit() int {
+	// 获取CPU核心数作为基础
+	numCores := runtime.NumCPU()
+
+	// 根据可用内存计算限制
+	// 每个解析任务大约需要20MB内存（最大文件大小）
+	// 保守估计，限制并发数不超过CPU核心数和4的最小值
+	limit := numCores
+	if limit > 4 {
+		limit = 4
+	}
+
+	// 最小并发数为1
+	if limit < 1 {
+		limit = 1
+	}
+
+	return limit
+}
 
 // UploadNovel 上传小说
 func UploadNovel(c *gin.Context) {
@@ -87,14 +113,15 @@ func UploadNovel(c *gin.Context) {
 		return
 	}
 
-	// 读取文件内容以计算字数和解析章节
-	content, err := utils.ReadFileContent(filePath)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "读取文件内容失败", "data": err.Error()})
-		return
+	// 估算字数（避免一次性读取大文件）
+	var wordCount int
+	if utils.IsEPUBFile(filePath) {
+		// 对于EPUB文件，通过读取部分内容估算字数
+		wordCount = estimateWordCountFromEPUB(filePath)
+	} else {
+		// 对于TXT文件，通过读取部分内容估算字数
+		wordCount = estimateWordCountFromTXT(filePath)
 	}
-
-	wordCount := calculateWordCount(content)
 
 	// 创建小说记录
 	novel := models.Novel{
@@ -152,6 +179,8 @@ func UploadNovel(c *gin.Context) {
 	if err := tx.Create(&novel).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "小说上传失败", "data": err.Error()})
+		// 清理已保存的文件
+		utils.DeleteFile(filePath)
 		return
 	}
 
@@ -160,6 +189,8 @@ func UploadNovel(c *gin.Context) {
 		if err := tx.Model(&novel).Association("Categories").Append(&categories); err != nil {
 			tx.Rollback()
 			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "关联分类失败", "data": err.Error()})
+			// 清理已保存的文件
+			utils.DeleteFile(filePath)
 			return
 		}
 	}
@@ -169,33 +200,59 @@ func UploadNovel(c *gin.Context) {
 		if err := tx.Model(&novel).Association("Keywords").Append(&keywords); err != nil {
 			tx.Rollback()
 			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "关联关键词失败", "data": err.Error()})
+			// 清理已保存的文件
+			utils.DeleteFile(filePath)
 			return
 		}
 	}
 
-	// 解析章节
-	var chapters []models.Chapter
-	if utils.IsEPUBFile(filePath) {
-		// 解析EPUB文件的章节
-		chapters, err = utils.ParseChapterFromEPUB(filePath)
-	} else {
-		// 解析TXT文件的章节
-		chapters, err = utils.ParseChapterFromTXT(filePath)
-	}
+	// 异步解析章节（避免阻塞上传响应）
+	go func(novelID uint, filePath string) {
+		// 获取信号量，控制并发数量
+		chapterParseSem <- struct{}{}
 
-	if err != nil {
-		// 如果章节解析失败，记录错误但不终止整个上传流程
-		fmt.Printf("章节解析失败: %v\n", err)
-	} else {
-		// 保存章节信息
-		for i := range chapters {
-			chapters[i].NovelID = novel.ID
+		// 确保信号量总是被释放
+		defer func() {
+			// 释放信号量
+			<-chapterParseSem
+		}()
+
+		// 添加panic恢复机制
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Printf("章节解析协程发生panic (novel ID: %d): %v\n", novelID, r)
+			}
+		}()
+
+		// 解析章节
+		var chapters []models.Chapter
+		var err error
+		if utils.IsEPUBFile(filePath) {
+			// 解析EPUB文件的章节
+			chapters, err = utils.ParseChapterFromEPUB(filePath)
+		} else {
+			// 解析TXT文件的章节
+			chapters, err = utils.ParseChapterFromTXT(filePath)
 		}
-		if err := tx.Create(&chapters).Error; err != nil {
-			// 如果章节保存失败，可以记录日志但不终止整个流程
-			fmt.Printf("章节保存失败: %v\n", err)
+
+		if err != nil {
+			// 如果章节解析失败，记录错误但不终止整个上传流程
+			fmt.Printf("章节解析失败 (novel ID: %d): %v\n", novelID, err)
+		} else if len(chapters) > 0 {
+			// 保存章节信息
+			tx := models.DB.Begin()
+			for i := range chapters {
+				chapters[i].NovelID = novelID
+			}
+			if err := tx.Create(&chapters).Error; err != nil {
+				// 如果章节保存失败，记录错误
+				fmt.Printf("章节保存失败 (novel ID: %d): %v\n", novelID, err)
+				tx.Rollback()
+			} else {
+				tx.Commit()
+			}
 		}
-	}
+	}(novel.ID, filePath)
 
 	tx.Commit()
 
@@ -209,9 +266,35 @@ func UploadNovel(c *gin.Context) {
 		"message": "success",
 		"data": gin.H{
 			"novel":          novel,
-			"chapters_count": len(chapters),
+			"chapters_count": 0, // 章节正在异步解析，所以暂时返回0
 		},
 	})
+}
+
+// estimateWordCountFromTXT 估算TXT文件的字数（根据文件大小，按3个字节一个中文字符估算）
+func estimateWordCountFromTXT(filePath string) int {
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		return 0
+	}
+
+	// 按3个字节一个中文字符估算字数
+	// 对于包含大量英文字符的文本，这个估算会偏小，但对中文文本比较准确
+	return int(fileInfo.Size() / 3)
+}
+
+// estimateWordCountFromEPUB 估算EPUB文件的字数
+func estimateWordCountFromEPUB(filePath string) int {
+	// EPUB文件是压缩格式，需要特殊处理
+	// 简单估算：读取文件大小来估算字数
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		return 0
+	}
+
+	// 假设EPUB文件中约20%是实际文本内容
+	// 这是一个很粗略的估算，实际实现中可能需要更精确的方法
+	return int(fileInfo.Size() * 2 / 10) // 估算为文件大小的1/5
 }
 
 // GetNovels 获取小说列表（使用缓存）
@@ -354,7 +437,14 @@ func GetNovel(c *gin.Context) {
 	})
 
 	// 使缓存失效以更新点击量
-	go utils.GlobalCacheService.InvalidateNovelCache(uint(id))
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Printf("缓存失效协程发生panic (novel ID: %d): %v\n", uint(id), r)
+			}
+		}()
+		utils.GlobalCacheService.InvalidateNovelCache(uint(id))
+	}()
 
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
@@ -1263,7 +1353,7 @@ func BatchDeleteNovels(c *gin.Context) {
 		"code":    200,
 		"message": "success",
 		"data": gin.H{
-			"deleted_count": len(novels),
+			"deleted_count":  len(novels),
 			"deleted_novels": novels,
 		},
 	})
