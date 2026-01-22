@@ -25,6 +25,13 @@
 - **全文搜索**: bleve库 v2.5.7
 - **HTML解析**: antchfx/htmlquery库
 
+### Python解析器技术栈
+- **主要语言**: Python 3.11+
+- **EPUB处理**: ebooklib库
+- **HTML解析**: beautifulsoup4库
+- **文本编码检测**: chardet库
+- **文件类型检测**: python-magic库
+
 ### 前端技术栈
 - **框架**: Vue.js 3 (3.4.0+)
 - **路由**: Vue Router 4.2.5
@@ -181,6 +188,13 @@ web-xiaoshuo/
 │               ├── Ratings.vue        # 评分页面
 │               ├── SocialHistory.vue  # 社交历史页面
 │               └── Uploads.vue        # 上传历史页面
+├── xiaoshuo-python/                 # Python小说解析工具项目
+│   ├── novel_parser.py        # 小说文件解析器主脚本
+│   ├── api_parser.py          # 与Go后端集成的API接口脚本
+│   ├── requirements.txt       # Python依赖包列表
+│   ├── config.json            # 配置文件
+│   ├── __init__.py            # Python包初始化文件
+│   └── README.md              # Python解析器说明文档
 ├── 启动文档.md               # 项目启动说明
 ├── 小说阅读系统部署文档.md   # 部署文档
 ├── 小说阅读系统测试指南.md       # 测试指南文档
@@ -877,6 +891,12 @@ func (UserActivity) TableName() string {
 - **端点验证测试**: `tests/verify_endpoints.go` - API端点验证测试
 - **部署验证测试**: `tests/verify_deployment.go` - 部署功能验证测试
 
+### 服务架构与集成
+- **Go后端服务**: 负责业务逻辑、API接口、用户认证、数据库操作等核心功能
+- **Python解析器**: 专门处理小说文件的解析任务，利用Python在文本处理方面的优势，提供更准确的章节识别和内容提取
+- **服务通信**: Go后端通过执行Python脚本并解析其JSON输出来获取解析结果
+- **模块化设计**: 将复杂的文本解析任务从Go后端分离到Python解析器，提高系统的可维护性和准确性
+
 ### Docker化部署
 - **一键部署**: 通过docker-compose.yml文件实现整个系统的容器化部署
 - **服务编排**: 自动管理MySQL、Redis、后端和前端服务的依赖关系
@@ -912,17 +932,37 @@ func (UserActivity) TableName() string {
    - 标准HTTP状态码使用
    - API版本控制 (v1)
 
-4. **安全考虑**:
+4. **服务集成**:
+   - 对于复杂的文本解析任务（如小说章节识别），通过调用Python解析器实现
+   - Go后端负责协调和集成Python解析器的输出结果
+
+5. **安全考虑**:
    - 防止SQL注入 (使用GORM参数化查询)
    - 防止XSS攻击 (使用bluemonday过滤内容)
    - 密码加密存储 (使用bcrypt)
    - JWT token安全配置
    - 文件类型验证和大小限制
 
-5. **测试实践**:
+6. **测试实践**:
    - 单元测试覆盖核心业务逻辑
    - 使用Go测试框架进行API端点测试
    - 持续集成测试确保代码质量
+
+### Python解析器开发约定
+1. **架构模式**:
+   - 负责处理复杂的小说文件解析任务
+   - 提供结构化的JSON输出供Go后端集成
+   - 利用Python在文本处理方面的优势
+
+2. **代码组织**:
+   - 解析器模块化设计，支持EPUB和TXT格式
+   - 提供API接口脚本供Go后端调用
+   - 包含章节识别、内容提取和结构化输出功能
+
+3. **集成约定**:
+   - 通过标准输入输出或文件系统与Go后端通信
+   - 返回统一的JSON格式数据结构
+   - 包含错误处理和状态返回
 
 ### 前端开发约定
 1. **框架使用**:
@@ -1208,3 +1248,4 @@ func (UserActivity) TableName() string {
 - **上传文件存储**: 新增了uploads目录，用于存储上传的小说文件
 - **路由模块化**: 新增了路由模块化设计，将路由按功能拆分到不同文件
 - **搜索统计API**: 新增了搜索统计API，需要管理员权限访问
+- **Python解析器**: 新增了xiaoshuo-python目录，使用Python处理小说文件解析任务，利用其在文本处理方面的优势，提高了章节识别和内容提取的准确性
