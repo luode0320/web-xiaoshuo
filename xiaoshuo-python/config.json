@@ -1,8 +1,0 @@
-{
-  "python_path": "python",
-  "parser_script": "novel_parser.py",
-  "timeout": 300,
-  "supported_formats": [".epub", ".txt"],
-  "max_file_size": 20971520,
-  "temp_dir": "./temp"
-}
