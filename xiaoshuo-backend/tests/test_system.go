@@ -20,7 +20,6 @@ import (
 	"xiaoshuo-backend/utils"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // TestUser 用于存储测试用户信息
@@ -81,7 +80,7 @@ func main() {
 	config.InitConfig()
 	
 	// 初始化数据库
-	models.InitDB()
+	models.InitializeDB()
 	
 	// 初始化缓存
 	utils.InitCache()
@@ -633,7 +632,6 @@ func testAdminRegister(r *gin.Engine) APITestResult {
 	
 	// 如果注册成功，将用户设置为管理员
 	if result.Success {
-		var response map[string]interface{}
 		if data, ok := result.Data.(map[string]interface{}); ok {
 			if userData, ok := data["data"].(map[string]interface{}); ok {
 				if user, ok := userData["user"].(map[string]interface{}); ok {

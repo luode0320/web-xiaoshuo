@@ -119,6 +119,8 @@ web-xiaoshuo/
 │   │   ├── run_all_tests.go  # 运行所有测试脚本
 │   │   ├── test_admin_features.go # 管理员功能测试
 │   │   ├── test_backend_unit.go # 后端单元测试
+│   │   ├── test_chapter_features.go # 章节功能测试
+│   │   ├── test_chapter_integration.go # 章节集成测试
 │   │   ├── test_comprehensive.go # 全面系统测试
 │   │   ├── test_novel_function.go # 小说功能测试
 │   │   ├── test_reading_features.go # 阅读功能测试
@@ -197,6 +199,8 @@ web-xiaoshuo/
 │   ├── __init__.py            # Python包初始化文件
 │   └── README.md              # Python解析器说明文档
 ├── 启动文档.md               # 项目启动说明
+├── 小说数据存储架构改进方案.md # 数据存储架构改进方案
+├── 小说数据存储架构改进开发任务周期.md # 数据存储架构改进开发任务周期
 ├── 小说阅读系统部署文档.md   # 部署文档
 ├── 小说阅读系统测试指南.md       # 测试指南文档
 ├── 小说阅读系统功能设计文档.md   # 功能设计文档
@@ -430,6 +434,8 @@ VITE_API_BASE_URL=https://xs.luode.vip
 - `GET /api/v1/novels/:id/content-stream` - 流式获取小说内容（支持Range请求）
 - `GET /api/v1/novels/:id/chapters` - 获取小说章节列表 (需要认证)
 - `GET /api/v1/chapters/:id` - 获取章节内容 (需要认证)
+- `GET /api/v1/novels/:id/chapter-status` - 获取章节解析状态 (需要认证)
+- `GET /api/v1/novels/:id/export` - 导出小说为TXT格式 (需要认证)
 - `POST /api/v1/novels/:id/click` - 记录小说点击量
 - `DELETE /api/v1/novels/:id` - 删除小说 (需要认证，上传者或管理员)
 - `GET /api/v1/novels/:id/status` - 获取小说状态 (需要认证)
@@ -550,6 +556,8 @@ VITE_API_BASE_URL=https://xs.luode.vip
 - `go run tests/test_backend_unit.go` - 运行后端单元测试
 - `go run tests/test_comprehensive.go` - 运行全面系统测试
 - `go run tests/verify_deployment.go` - 运行部署验证测试
+- `go run tests/test_chapter_features.go` - 运行章节功能测试
+- `go run tests/test_chapter_integration.go` - 运行章节集成测试
 
 ### 前端测试
 - `npm run test` - 运行前端测试
@@ -638,6 +646,7 @@ type Novel struct {
 	Keywords      []Keyword `gorm:"many2many:novel_keywords;" json:"keywords"`
 	AverageRating float64   `gorm:"default:0" json:"average_rating"` // 平均评分
 	RatingCount   int       `gorm:"default:0" json:"rating_count"`   // 评分数量
+	ChapterStatus string    `gorm:"default:'pending';comment:章节解析状态：pending(待解析), processing(解析中), completed(已完成), failed(解析失败)" json:"chapter_status"` // 章节解析状态：pending(待解析), processing(解析中), completed(已完成), failed(解析失败)
 	Chapters      []Chapter `json:"chapters"`                        // 小说章节
 }
 
@@ -790,6 +799,30 @@ func (UserActivity) TableName() string {
 }
 ```
 
+### Comment 模型 (xiaoshuo-backend/models/comment.go)
+```go
+// Comment 评论模型
+type Comment struct {
+	gorm.Model
+	Content   string `gorm:"not null" json:"content" validate:"required,min=1,max=1000"`
+	UserID    uint   `json:"user_id"`
+	User      User   `json:"user"`
+	NovelID   uint   `json:"novel_id"`
+	Novel     Novel  `json:"novel"`
+	ChapterID *uint  `gorm:"comment:章节ID，可选，用于章节评论" json:"chapter_id"` // 章节ID，可选，用于章节评论
+	ParentID  *uint  `json:"parent_id"` // 回复评论ID，可选，用于评论回复功能
+	ReplyToID *uint  `json:"reply_to_id"` // 回复用户ID，可选，用于指定回复用户
+	IsApproved bool  `gorm:"default:true" json:"is_approved"` // 评论是否已审核通过
+	IsDeleted  bool  `gorm:"default:false" json:"is_deleted"` // 评论是否已删除（软删除）
+	LikeCount int    `gorm:"default:0" json:"like_count"`     // 点赞数
+}
+
+// TableName 指定表名
+func (Comment) TableName() string {
+	return "comments"
+}
+```
+
 ## 前端页面路由
 
 - `/` - 首页（推荐小说展示）
@@ -843,6 +876,8 @@ func (UserActivity) TableName() string {
 - **流式加载**: 支持小说内容流式加载，无需下载全文即可阅读
 - **章节导航**: 支持按章节浏览和阅读进度跳转
 - **Range请求支持**: 实现了HTTP Range请求以支持部分内容加载和断点续传
+- **章节解析**: 自动解析上传的EPUB和TXT文件为章节结构
+- **导出功能**: 支持将小说导出为TXT格式
 - **阅读限制检查**: 检查用户激活状态和账户冻结状态
 
 ### 社交功能
@@ -891,6 +926,8 @@ func (UserActivity) TableName() string {
 - **全面系统测试**: `tests/test_comprehensive.go` - 全面系统测试
 - **端点验证测试**: `tests/verify_endpoints.go` - API端点验证测试
 - **部署验证测试**: `tests/verify_deployment.go` - 部署功能验证测试
+- **章节功能测试**: `tests/test_chapter_features.go` - 章节相关功能测试
+- **章节集成测试**: `tests/test_chapter_integration.go` - 章节功能集成测试
 
 ### 服务架构与集成
 - **Go后端服务**: 负责业务逻辑、API接口、用户认证、数据库操作等核心功能
@@ -909,6 +946,7 @@ func (UserActivity) TableName() string {
 - **缓存预热机制**: 实现GetOrSet方法，当缓存不存在时自动加载数据并设置缓存
 - **搜索建议优化**: 增强了模糊搜索和前缀查询的搜索建议功能，使用fuzzyQuery和prefixQuery
 - **全文搜索优化**: 使用bleve库实现高性能全文搜索引擎，支持元数据和内容搜索
+- **章节缓存**: 为章节内容和章节列表实现缓存，提高章节访问性能
 - **推荐系统优化**: 基于内容相似度、热门度、新书、个性化等多维度推荐算法
 
 ## 开发约定
@@ -1004,6 +1042,7 @@ func (UserActivity) TableName() string {
 - **缓存穿透防护**: 使用GetOrSet方法防止缓存穿透
 - **缓存预热**: 实现GetOrSet方法，当缓存不存在时自动加载数据并设置缓存
 - **缓存失效管理**: 提供InvalidateNovelCache、InvalidateUserCache等方法用于失效特定缓存
+- **章节缓存**: 为章节内容和章节列表实现专门的缓存机制
 
 ### 全文搜索实现
 - **索引存储**: 使用bleve库实现全文搜索引擎
@@ -1143,6 +1182,10 @@ func (UserActivity) TableName() string {
 - **上传频率API**: 添加了`/api/v1/novels/upload-frequency` API，用于查询用户上传频率限制
 - **小说状态API**: 添加了`/api/v1/novels/:id/status` API，用于获取小说状态详情
 - **小说活动历史API**: 添加了`/api/v1/novels/:id/history` API，用于获取小说操作历史
+- **章节解析状态API**: 添加了`/api/v1/novels/:id/chapter-status` API，用于获取小说章节解析状态
+- **小说导出API**: 添加了`/api/v1/novels/:id/export` API，用于导出小说为TXT格式
+- **章节缓存**: 为章节内容和章节列表实现了缓存机制
+- **章节评论**: 支持针对特定章节的评论功能
 - **测试指南文档**: 新增了`小说阅读系统测试指南.md`文档，详细说明测试流程和方法
 - **Docker化部署**: 实现了完整的Docker容器化部署支持，包括docker-compose.yml配置文件
 - **启动脚本**: 新增了`start_system.bat`启动脚本，支持Docker和传统方式启动
@@ -1250,3 +1293,10 @@ func (UserActivity) TableName() string {
 - **路由模块化**: 新增了路由模块化设计，将路由按功能拆分到不同文件
 - **搜索统计API**: 新增了搜索统计API，需要管理员权限访问
 - **Python解析器**: 新增了xiaoshuo-python目录，使用Python处理小说文件解析任务，利用其在文本处理方面的优势，提高了章节识别和内容提取的准确性
+- **章节功能测试**: 新增了`test_chapter_features.go`章节功能测试脚本
+- **章节集成测试**: 新增了`test_chapter_integration.go`章节集成测试脚本
+- **章节缓存**: 为章节内容和章节列表实现了专门的缓存功能
+- **章节解析状态**: 实现了章节解析状态跟踪功能，包括解析中、已完成、失败等状态
+- **小说导出功能**: 实现了将小说导出为TXT格式的功能
+- **章节评论**: 支持针对特定章节的评论功能
+- **改进开发文档**: 新增了数据存储架构改进方案和开发任务周期文档

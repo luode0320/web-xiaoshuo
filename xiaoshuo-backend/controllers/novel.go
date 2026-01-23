@@ -677,7 +677,7 @@ func GetNovelContent(c *gin.Context) {
 
 	// 使用缓存存储拼接后的内容
 	cacheKey := fmt.Sprintf("novel:content:%d", uint(id))
-	utils.GlobalCache.SetWithExpiration(cacheKey, content, time.Hour*24) // 缓存24小时
+	utils.GlobalCache.Set(cacheKey, content, time.Hour*24) // 缓存24小时
 
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
