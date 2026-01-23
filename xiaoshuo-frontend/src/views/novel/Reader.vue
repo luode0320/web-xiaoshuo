@@ -11,6 +11,7 @@
           <span class="novel-title">{{ novel?.title }}</span>
         </div>
         <div class="header-right">
+          <el-button @click="exportNovel" icon="Download" plain>导出</el-button>
           <el-button @click="showSettings = true" icon="Setting" plain>设置</el-button>
         </div>
       </div>
@@ -169,6 +170,13 @@ export default {
       return '第一章'
     })
     
+    const currentChapterTitle = computed(() => {
+      if (chapters.value[currentChapterIndex.value]) {
+        return chapters.value[currentChapterIndex.value].title || `第${currentChapterIndex.value + 1}章`
+      }
+      return '第一章'
+    })
+    
     const processedContent = computed(() => {
       if (chapters.value[currentChapterIndex.value]) {
         return chapters.value[currentChapterIndex.value].content || ''
@@ -218,12 +226,42 @@ export default {
           // 加载EPUB格式
           await loadEpubContent()
         } else {
-          // 加载文本内容
-          const response = await apiClient.get(`/api/v1/novels/${route.params.id}/content`)
-          content.value = response.data.data.content
-          
-          // 简单解析章节（实际应用中可能需要更复杂的解析）
-          parseChapters(content.value)
+          // 优先使用章节API获取数据
+          try {
+            const chaptersResponse = await apiClient.get(`/api/v1/novels/${route.params.id}/chapters`, {
+              headers: {
+                'Authorization': `Bearer ${userStore.token}`
+              }
+            })
+            
+            chapters.value = chaptersResponse.data.data.chapters || []
+            
+            if (chapters.value.length > 0) {
+              // 如果有章节数据，使用章节数据
+              isEpub.value = false
+              console.log(`成功加载 ${chapters.value.length} 个章节`)
+            } else {
+              // 如果没有章节数据，回退到原始内容API
+              console.log('未找到章节数据，回退到内容API')
+              const contentResponse = await apiClient.get(`/api/v1/novels/${route.params.id}/content`, {
+                headers: {
+                  'Authorization': `Bearer ${userStore.token}`
+                }
+              })
+              content.value = contentResponse.data.data.content
+              parseChapters(content.value) // 使用简单的解析作为回退
+            }
+          } catch (chapterErr) {
+            // 如果章节API失败，回退到原始内容API
+            console.error('获取章节列表失败，回退到内容API:', chapterErr)
+            const contentResponse = await apiClient.get(`/api/v1/novels/${route.params.id}/content`, {
+              headers: {
+                'Authorization': `Bearer ${userStore.token}`
+              }
+            })
+            content.value = contentResponse.data.data.content
+            parseChapters(content.value) // 使用简单的解析作为回退
+          }
         }
       } catch (error) {
         console.error('获取小说内容失败:', error)
@@ -333,23 +371,29 @@ export default {
       chapters.value = parsedChapters
     }
     
-    const updateChapterContent = () => {
-      // 在章节变化时更新阅读进度
-      saveReadingProgress()
+    const updateChapterContent = async () => {
+      if (chapters.value[currentChapterIndex.value]) {
+        // 如果有章节数据，使用章节数据
+        console.log(`切换到章节: ${chapters.value[currentChapterIndex.value].title}`)
+      }
+      // 更新阅读进度
+      await saveReadingProgress()
     }
     
     const saveReadingProgress = async () => {
       if (!userStore.isAuthenticated) return
       
       try {
+        const progressData = {
+          chapter_id: chapters.value[currentChapterIndex.value]?.id || currentChapterIndex.value + 1,
+          chapter_name: currentChapterTitle.value,
+          position: 0, // 实际应用中可以记录阅读位置
+          progress: Math.round(((currentChapterIndex.value + 1) / totalChapters.value) * 100)
+        }
+        
         await apiClient.post(
           `/api/v1/novels/${route.params.id}/progress`, 
-          {
-            chapter_id: currentChapterIndex.value + 1,
-            chapter_name: currentChapter.value,
-            position: 0, // 实际应用中可以记录阅读位置
-            progress: Math.round(((currentChapterIndex.value + 1) / totalChapters.value) * 100)
-          },
+          progressData,
           {
             headers: {
               'Authorization': `Bearer ${userStore.token}`
@@ -373,7 +417,19 @@ export default {
         
         const progress = response.data.data
         if (progress.chapter_id) {
-          currentChapterIndex.value = Math.max(0, progress.chapter_id - 1)
+          // 根据章节ID查找章节索引
+          const chapterIndex = chapters.value.findIndex(chapter => chapter.id === progress.chapter_id)
+          if (chapterIndex !== -1) {
+            currentChapterIndex.value = chapterIndex
+          } else {
+            // 如果找不到对应章节，尝试使用progress值（如果是章节序号）
+            const chapterIndexByProgress = Math.max(0, progress.chapter_id - 1)
+            if (chapterIndexByProgress < totalChapters.value) {
+              currentChapterIndex.value = chapterIndexByProgress
+            } else {
+              currentChapterIndex.value = 0
+            }
+          }
         }
       } catch (error) {
         // 如果获取阅读进度失败，使用默认第一章
@@ -495,6 +551,22 @@ export default {
     
     const saveSettings = () => {
       localStorage.setItem('readerSettings', JSON.stringify(settings))
+    }
+    
+    const exportNovel = async () => {
+      try {
+        // 创建一个隐藏的链接元素来触发下载
+        const link = document.createElement('a')
+        link.href = `/api/v1/novels/${route.params.id}/export`
+        link.download = `${novel.value?.title || 'novel'}.txt`
+        link.target = '_blank'  // 在新窗口中打开，避免离开阅读器页面
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      } catch (error) {
+        console.error('导出小说失败:', error)
+        ElMessage.error('导出小说失败')
+      }
     }
     
     const goBack = () => {
