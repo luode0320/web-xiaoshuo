@@ -21,6 +21,7 @@ type Novel struct {
 	UploadTime    *gorm.DeletedAt `json:"upload_time"`                                                                             // 上传时间
 	LastReadTime  *gorm.DeletedAt `json:"last_read_time"`                                                                          // 最后阅读时间
 	Status        string          `gorm:"default:'pending';comment:小说状态：pending(待审核), approved(已通过), rejected(已拒绝)" json:"status"` // 小说状态：pending(待审核), approved(已通过), rejected(已拒绝)
+	ChapterStatus string          `gorm:"default:'pending';comment:章节解析状态：pending(待解析), processing(解析中), completed(已完成), failed(解析失败)" json:"chapter_status"` // 章节解析状态：pending(待解析), processing(解析中), completed(已完成), failed(解析失败)
 	FileHash      string          `gorm:"uniqueIndex;size:255;comment:小说文件哈希值，用于去重" json:"file_hash"`                              // 小说文件哈希值，用于去重
 	UploadUserID  uint            `gorm:"comment:上传用户ID" json:"upload_user_id"`                                                    // 上传用户ID
 	UploadUser    User            `json:"upload_user"`                                                                             // 上传用户信息

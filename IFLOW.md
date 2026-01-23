@@ -4,7 +4,7 @@
 
 这是一个基于Vue.js前端和Go后端的全栈小说阅读系统，采用前后端分离架构。系统支持用户认证、小说上传、在线阅读、评论评分、搜索推荐等完整功能。系统采用移动端优先设计，提供类似起点中文网的阅读体验，支持多种格式的小说上传、阅读和社交功能。
 
-项目已基本完成核心功能开发，整体功能完成度约99%，核心功能及大部分高级功能已实现。项目新增了EPUB格式阅读支持、内容流式加载、智能推荐算法、点击翻页等高级功能，显著提升了用户体验和系统性能。
+项目已完成整体开发，整体功能完成度约99%，核心功能及大部分高级功能已实现。项目新增了EPUB格式阅读支持、内容流式加载、智能推荐算法、点击翻页等高级功能，显著提升了用户体验和系统性能。
 
 ## 技术栈
 
@@ -15,15 +15,14 @@
 - **缓存**: Redis (使用 go-redis/redis/v8 v8.11.5)
 - **认证**: JWT (golang-jwt/jwt/v4 v4.5.2)
 - **配置管理**: Viper v1.21.0 (支持 YAML 配置文件)
-- **密码加密**: golang.org/x/crypto/bcrypt
-- **文件类型检测**: filetype库
-- **EPUB处理**: go-epub库
-- **速率限制**: golang.org/x/time/rate
-- **数据验证**: github.com/go-playground/validator/v10
-- **XSS防护**: bluemonday库
-- **定时任务**: gocron库
-- **全文搜索**: bleve库 v2.5.7
-- **HTML解析**: antchfx/htmlquery库
+- **密码加密**: golang.org/x/crypto v0.46.0/bcrypt
+- **文件类型检测**: github.com/gabriel-vasile/mimetype库
+- **EPUB处理**: github.com/bmaupin/go-epub v1.1.0库
+- **速率限制**: golang.org/x/time/rate (通过Gin扩展)
+- **数据验证**: github.com/go-playground/validator/v10 v10.27.0
+- **XSS防护**: github.com/microcosm-cc/bluemonday (间接依赖)
+- **全文搜索**: github.com/blevesearch/bleve/v2 v2.5.7
+- **HTML解析**: github.com/antchfx/htmlquery v1.3.5
 
 ### Python解析器技术栈
 - **主要语言**: Python 3.11+
@@ -35,23 +34,24 @@
 ### 前端技术栈
 - **框架**: Vue.js 3 (3.4.0+)
 - **路由**: Vue Router 4.2.5
-- **状态管理**: Pinia 2.1.7 (带持久化插件)
+- **状态管理**: Pinia 2.1.7 (带持久化插件 pinia-plugin-persistedstate)
 - **UI库**: Element Plus 2.4.2
 - **构建工具**: Vite 4.5.0
-- **HTTP客户端**: Axios
-- **EPUB阅读器**: epubjs
-- **虚拟滚动**: vue-virtual-scroll-list
-- **模糊搜索**: fuse.js
-- **表单验证**: vee-validate + validator
-- **加载动画**: vue-content-loader
-- **图片懒加载**: vue3-lazy (更新自vue-lazyload)
-- **通知系统**: vue3-toastify (更新自vue-toastification)
-- **进度条**: nprogress
-- **加密库**: crypto-js
-- **图表库**: echarts
-- **哈希计算**: js-sha256
-- **测试框架**: vitest
-- **端到端测试**: puppeteer
+- **HTTP客户端**: Axios 1.6.0
+- **EPUB阅读器**: epubjs 0.3.93
+- **虚拟滚动**: vue-virtual-scroll-list 2.3.5
+- **模糊搜索**: fuse.js 7.0.0
+- **表单验证**: vee-validate 4.12.5 + validator 13.11.0
+- **加载动画**: vue-content-loader 2.0.1
+- **图片懒加载**: vue3-lazy 1.0.0-alpha.1 (更新自vue-lazyload)
+- **通知系统**: vue3-toastify 0.2.8 (更新自vue-toastification)
+- **进度条**: nprogress 0.2.0
+- **加密库**: crypto-js 4.2.0
+- **图表库**: echarts 6.0.0
+- **哈希计算**: js-sha256 0.11.0
+- **日期处理**: dayjs 1.11.10
+- **测试框架**: vitest 1.0.0
+- **端到端测试**: @vitest/ui 1.0.0
 
 ## 项目结构
 
@@ -137,6 +137,7 @@ web-xiaoshuo/
 │   │   ├── search.go         # 搜索工具
 │   │   └── upload.go         # 上传工具
 │   ├── Dockerfile            # 后端Docker配置
+│   ├── migrations/           # 数据库迁移文件
 │   └── uploads/              # 小说上传文件存储
 ├── xiaoshuo-frontend/                 # Vue.js前端项目
 │   ├── package.json          # 前端依赖和脚本配置

@@ -125,16 +125,17 @@ func UploadNovel(c *gin.Context) {
 
 	// 创建小说记录
 	novel := models.Novel{
-		Title:        c.PostForm("title"),
-		Author:       c.PostForm("author"),
-		Protagonist:  c.PostForm("protagonist"),
-		Description:  c.PostForm("description"),
-		Filepath:     filePath,
-		FileSize:     file.Size,
-		WordCount:    wordCount,
-		FileHash:     fileHash,
-		UploadUserID: claims.UserID,
-		Status:       "pending", // 默认为待审核状态
+		Title:         c.PostForm("title"),
+		Author:        c.PostForm("author"),
+		Protagonist:   c.PostForm("protagonist"),
+		Description:   c.PostForm("description"),
+		Filepath:      filePath,
+		FileSize:      file.Size,
+		WordCount:     wordCount,
+		FileHash:      fileHash,
+		UploadUserID:  claims.UserID,
+		Status:        "pending",        // 默认为待审核状态
+		ChapterStatus: "processing",     // 新增：章节解析状态
 	}
 
 	// 获取分类ID列表（可选）
@@ -206,53 +207,44 @@ func UploadNovel(c *gin.Context) {
 		}
 	}
 
-	// 异步解析章节（避免阻塞上传响应）
-	go func(novelID uint, filePath string) {
-		// 获取信号量，控制并发数量
-		chapterParseSem <- struct{}{}
+	// 同步解析章节（同步处理以确保上传后立即可用）
+	var chapters []models.Chapter
+	var chapterErr error
 
-		// 确保信号量总是被释放
-		defer func() {
-			// 释放信号量
-			<-chapterParseSem
-		}()
+	// 使用信号量控制并发，避免内存占用过高
+	chapterParseSem <- struct{}{}
+	defer func() { <-chapterParseSem }()
 
-		// 添加panic恢复机制
-		defer func() {
-			if r := recover(); r != nil {
-				fmt.Printf("章节解析协程发生panic (novel ID: %d): %v\n", novelID, r)
-			}
-		}()
+	if utils.IsEPUBFile(filePath) {
+		// 解析EPUB文件的章节
+		chapters, chapterErr = utils.ParseChapterFromEPUB(filePath)
+	} else {
+		// 解析TXT文件的章节
+		chapters, chapterErr = utils.ParseChapterFromTXT(filePath)
+	}
 
-		// 解析章节
-		var chapters []models.Chapter
-		var err error
-		if utils.IsEPUBFile(filePath) {
-			// 解析EPUB文件的章节
-			chapters, err = utils.ParseChapterFromEPUB(filePath)
+	if chapterErr == nil && len(chapters) > 0 {
+		// 保存章节信息
+		for i := range chapters {
+			chapters[i].NovelID = novel.ID
+		}
+		if err := tx.Create(&chapters).Error; err != nil {
+			// 如果章节保存失败，记录错误但继续
+			fmt.Printf("章节保存失败 (novel ID: %d): %v\n", novel.ID, err)
 		} else {
-			// 解析TXT文件的章节
-			chapters, err = utils.ParseChapterFromTXT(filePath)
+			// 更新小说的章节统计和状态
+			models.DB.Model(&novel).Updates(map[string]interface{}{
+				"chapter_status": "completed", // 更新为完成状态
+			})
 		}
-
-		if err != nil {
-			// 如果章节解析失败，记录错误但不终止整个上传流程
-			fmt.Printf("章节解析失败 (novel ID: %d): %v\n", novelID, err)
-		} else if len(chapters) > 0 {
-			// 保存章节信息
-			tx := models.DB.Begin()
-			for i := range chapters {
-				chapters[i].NovelID = novelID
-			}
-			if err := tx.Create(&chapters).Error; err != nil {
-				// 如果章节保存失败，记录错误
-				fmt.Printf("章节保存失败 (novel ID: %d): %v\n", novelID, err)
-				tx.Rollback()
-			} else {
-				tx.Commit()
-			}
-		}
-	}(novel.ID, filePath)
+	} else if chapterErr != nil {
+		// 如果章节解析失败，记录错误但继续，并更新状态
+		fmt.Printf("章节解析失败 (novel ID: %d): %v\n", novel.ID, chapterErr)
+		models.DB.Model(&novel).Update("chapter_status", "failed")
+	} else {
+		// 如果没有解析到章节，更新状态但不报错
+		models.DB.Model(&novel).Update("chapter_status", "completed")
+	}
 
 	tx.Commit()
 
@@ -261,12 +253,15 @@ func UploadNovel(c *gin.Context) {
 		recordUpload(claims.UserID)
 	}
 
+	// 使相关缓存失效
+	utils.GlobalCacheService.InvalidateNovelCache(novel.ID)
+
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "success",
 		"data": gin.H{
 			"novel":          novel,
-			"chapters_count": 0, // 章节正在异步解析，所以暂时返回0
+			"chapters_count": len(chapters), // 返回实际解析的章节数
 		},
 	})
 }
@@ -648,14 +643,41 @@ func GetNovelContent(c *gin.Context) {
 
 	// 使用缓存获取小说内容
 	content, err := utils.GlobalCacheService.GetNovelContentWithCache(uint(id))
-	if err != nil {
-		// 如果缓存获取失败，回退到直接读取文件
-		content, err = utils.ReadFileContent(novel.Filepath)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "读取小说内容失败", "data": err.Error()})
-			return
+	if err == nil && content != "" {
+		// 如果缓存中存在内容，直接返回
+		c.JSON(http.StatusOK, gin.H{
+			"code":    200,
+			"message": "success",
+			"data": gin.H{
+				"content": content,
+			},
+		})
+		return
+	}
+
+	// 从数据库获取章节内容并拼接
+	var chapters []models.Chapter
+	if err := models.DB.Where("novel_id = ?", novel.ID).Order("position ASC").Find(&chapters).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取章节内容失败", "data": err.Error()})
+		return
+	}
+
+	// 拼接所有章节内容
+	var contentBuilder strings.Builder
+	for i, chapter := range chapters {
+		contentBuilder.WriteString(chapter.Title)
+		contentBuilder.WriteString("\n\n")
+		contentBuilder.WriteString(chapter.Content)
+		if i < len(chapters)-1 {
+			contentBuilder.WriteString("\n\n")
 		}
 	}
+
+	content = contentBuilder.String()
+
+	// 使用缓存存储拼接后的内容
+	cacheKey := fmt.Sprintf("novel:content:%d", uint(id))
+	utils.GlobalCache.SetWithExpiration(cacheKey, content, time.Hour*24) // 缓存24小时
 
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
@@ -744,23 +766,34 @@ func GetNovelContentStream(c *gin.Context) {
 		return
 	}
 
-	// 获取Range请求头
-	rangeHeader := c.GetHeader("Range")
-
-	// 读取整个文件内容以确定总大小
-	content, err := utils.ReadFileContent(novel.Filepath)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "读取小说内容失败", "data": err.Error()})
+	// 从数据库获取所有章节内容并拼接
+	var chapters []models.Chapter
+	if err := models.DB.Where("novel_id = ?", novel.ID).Order("position ASC").Find(&chapters).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取章节内容失败", "data": err.Error()})
 		return
 	}
 
+	// 拼接所有章节内容
+	var contentBuilder strings.Builder
+	for i, chapter := range chapters {
+		contentBuilder.WriteString(chapter.Title)
+		contentBuilder.WriteString("\n\n")
+		contentBuilder.WriteString(chapter.Content)
+		if i < len(chapters)-1 {
+			contentBuilder.WriteString("\n\n")
+		}
+	}
+
+	content := contentBuilder.String()
 	totalSize := int64(len(content))
+
+	// 获取Range请求头
+	rangeHeader := c.GetHeader("Range")
 
 	// 解析Range请求
 	var start, end int64
 	if rangeHeader != "" {
 		// 解析Range头: "bytes=start-end"
-		// 例如: "bytes=0-1023"
 		var parsedStart, parsedEnd int64
 		n, _ := fmt.Sscanf(rangeHeader, "bytes=%d-%d", &parsedStart, &parsedEnd)
 		if n == 2 {
@@ -771,7 +804,7 @@ func GetNovelContentStream(c *gin.Context) {
 			start = parsedStart
 			end = totalSize - 1
 		} else {
-			// 无效的Range头，返回整个文件
+			// 无效的Range头，返回整个内容
 			start = 0
 			end = totalSize - 1
 		}
@@ -807,7 +840,7 @@ func GetNovelContentStream(c *gin.Context) {
 		end = totalSize - 1
 	}
 	if start > end {
-		c.JSON(http.StatusRequestedRangeNotSatisfiable, gin.H{"code": 416, "message": "请求的范围超出文件大小"})
+		c.JSON(http.StatusRequestedRangeNotSatisfiable, gin.H{"code": 416, "message": "请求的范围超出内容大小"})
 		return
 	}
 
@@ -846,7 +879,7 @@ func GetNovelChapters(c *gin.Context) {
 	}
 
 	var novel models.Novel
-	if err := models.DB.Preload("Chapters").First(&novel, id).Error; err != nil {
+	if err := models.DB.First(&novel, id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "小说不存在"})
 			return
@@ -861,11 +894,14 @@ func GetNovelChapters(c *gin.Context) {
 		return
 	}
 
-	// 按Position排序章节
-	var chapters []models.Chapter
-	if err := models.DB.Where("novel_id = ?", novel.ID).Order("position ASC").Find(&chapters).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取章节列表失败", "data": err.Error()})
-		return
+	// 使用缓存获取章节列表
+	chapters, err := utils.GlobalCacheService.GetNovelChaptersWithCache(uint(id))
+	if err != nil {
+		// 如果缓存获取失败，回退到数据库查询
+		if err := models.DB.Where("novel_id = ?", novel.ID).Order("position ASC").Find(&chapters).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取章节列表失败", "data": err.Error()})
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -901,14 +937,18 @@ func GetChapterContent(c *gin.Context) {
 		return
 	}
 
-	var chapter models.Chapter
-	if err := models.DB.Preload("Novel").First(&chapter, chapterID).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "章节不存在"})
+	// 使用缓存获取章节内容
+	chapter, err := utils.GlobalCacheService.GetChapterWithCache(uint(chapterID))
+	if err != nil {
+		// 如果缓存获取失败，回退到数据库查询
+		if err := models.DB.Preload("Novel").First(&chapter, chapterID).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "章节不存在"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取章节内容失败", "data": err.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取章节内容失败", "data": err.Error()})
-		return
 	}
 
 	// 检查小说是否已审核
@@ -1159,6 +1199,141 @@ func GetNovelActivityHistory(c *gin.Context) {
 			},
 		},
 	})
+}
+
+// GetChapterStatus 获取章节解析状态
+func GetChapterStatus(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的小说ID"})
+		return
+	}
+
+	var novel models.Novel
+	if err := models.DB.First(&novel, id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "小说不存在"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取小说信息失败", "data": err.Error()})
+		return
+	}
+
+	// 从JWT token获取用户信息
+	claims := utils.GetClaims(c)
+	if claims == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
+		return
+	}
+
+	// 检查权限：上传者或管理员可以查看状态
+	if novel.UploadUserID != claims.UserID && !claims.IsAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "没有权限查看此小说章节状态"})
+		return
+	}
+
+	// 获取章节统计信息
+	var chapterCount int64
+	models.DB.Model(&models.Chapter{}).Where("novel_id = ?", novel.ID).Count(&chapterCount)
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "success",
+		"data": gin.H{
+			"novel_id":       novel.ID,
+			"chapter_status": novel.ChapterStatus,
+			"chapter_count":  chapterCount,
+			"upload_time":    novel.CreatedAt,
+			"update_time":    novel.UpdatedAt,
+		},
+	})
+}
+
+// ExportNovel 导出小说为TXT格式
+func ExportNovel(c *gin.Context) {
+	// 从JWT token获取用户信息
+	claims := utils.GetClaims(c)
+	if claims == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
+		return
+	}
+
+	// 检查用户阅读限制
+	if err := utils.CheckReadingRestrictions(claims.UserID); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": err.Error()})
+		return
+	}
+
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的小说ID"})
+		return
+	}
+
+	var novel models.Novel
+	if err := models.DB.First(&novel, id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "小说不存在"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取小说信息失败", "data": err.Error()})
+		return
+	}
+
+	// 检查小说是否已审核
+	if novel.Status != "approved" {
+		c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "小说尚未通过审核"})
+		return
+	}
+
+	// 从数据库获取所有章节内容并拼接
+	var chapters []models.Chapter
+	if err := models.DB.Where("novel_id = ?", novel.ID).Order("position ASC").Find(&chapters).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取章节内容失败", "data": err.Error()})
+		return
+	}
+
+	// 拼接所有章节内容，生成TXT格式
+	var contentBuilder strings.Builder
+	// 添加小说标题
+	contentBuilder.WriteString(novel.Title)
+	contentBuilder.WriteString("\n")
+	contentBuilder.WriteString(strings.Repeat("=", len([]rune(novel.Title))))
+	contentBuilder.WriteString("\n\n")
+	
+	// 添加作者信息
+	contentBuilder.WriteString("作者: ")
+	contentBuilder.WriteString(novel.Author)
+	contentBuilder.WriteString("\n\n")
+	
+	// 添加简介（如果存在）
+	if novel.Description != "" {
+		contentBuilder.WriteString("简介: ")
+		contentBuilder.WriteString(novel.Description)
+		contentBuilder.WriteString("\n\n")
+	}
+	
+	// 添加章节内容
+	for i, chapter := range chapters {
+		contentBuilder.WriteString(chapter.Title)
+		contentBuilder.WriteString("\n")
+		contentBuilder.WriteString(strings.Repeat("-", len([]rune(chapter.Title))))
+		contentBuilder.WriteString("\n")
+		contentBuilder.WriteString(chapter.Content)
+		if i < len(chapters)-1 {
+			contentBuilder.WriteString("\n\n")
+		}
+	}
+
+	content := contentBuilder.String()
+
+	// 设置响应头
+	filename := fmt.Sprintf("%s.txt", novel.Title)
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	c.Header("Content-Type", "text/plain; charset=utf-8")
+
+	// 返回内容
+	c.String(http.StatusOK, content)
 }
 
 // BatchDeleteNovels 批量删除小说

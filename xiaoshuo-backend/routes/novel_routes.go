@@ -28,4 +28,10 @@ func InitNovelRoutes(apiV1 *gin.RouterGroup) {
 	apiV1.GET("/novels/:id/status", middleware.AuthMiddleware(), controllers.GetNovelStatus)
 	apiV1.GET("/novels/:id/history", middleware.AuthMiddleware(), controllers.GetNovelActivityHistory)
 	apiV1.GET("/novels/upload-frequency", middleware.AuthMiddleware(), controllers.GetUploadFrequency)
+
+	// 章节相关路由
+	apiV1.GET("/novels/:id/chapters", middleware.AuthMiddleware(), controllers.GetNovelChapters)
+	apiV1.GET("/chapters/:id", middleware.AuthMiddleware(), controllers.GetChapterContent)
+	apiV1.GET("/novels/:id/chapter-status", middleware.AuthMiddleware(), controllers.GetChapterStatus)
+	apiV1.GET("/novels/:id/export", middleware.AuthMiddleware(), controllers.ExportNovel)
 }

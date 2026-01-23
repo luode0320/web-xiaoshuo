@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"xiaoshuo-backend/models"
@@ -12,6 +13,7 @@ var CacheKeys = struct {
 	UserInfo      func(uint) string
 	NovelInfo     func(uint) string
 	NovelContent  func(uint) string
+	NovelChapters func(uint) string
 	NovelList     func(int, int, map[string]interface{}) string
 	CategoryList  string
 	RankingList   func(string) string
@@ -25,6 +27,9 @@ var CacheKeys = struct {
 	},
 	NovelContent: func(id uint) string {
 		return fmt.Sprintf("novel:content:%d", id)
+	},
+	NovelChapters: func(id uint) string {
+		return fmt.Sprintf("novel:chapters:%d", id)
 	},
 	NovelList: func(page, limit int, query map[string]interface{}) string {
 		return fmt.Sprintf("novel:list:page:%d:limit:%d:query:%v", page, limit, query)
@@ -93,26 +98,31 @@ func (s *CacheService) SetNovelInfoCache(novelID uint, novel *models.Novel) erro
 	return GlobalCache.Set(cacheKey, novel, 30*time.Minute)
 }
 
-// GetNovelContentWithCache 从缓存获取小说内容，如果缓存不存在则从文件读取
+// GetNovelContentWithCache 从缓存获取小说内容，如果缓存不存在则从数据库章节获取
 func (s *CacheService) GetNovelContentWithCache(novelID uint) (string, error) {
 	var content string
 	cacheKey := CacheKeys.NovelContent(novelID)
 
 	err := GlobalCache.GetOrSet(cacheKey, &content, 1*time.Hour, func() (interface{}, error) {
-		// 从数据库获取小说信息
-		var novel models.Novel
-		result := models.DB.First(&novel, novelID)
+		// 从数据库获取章节内容并拼接
+		var chapters []models.Chapter
+		result := models.DB.Where("novel_id = ?", novelID).Order("position ASC").Find(&chapters)
 		if result.Error != nil {
 			return "", result.Error
 		}
 
-		// 读取文件内容
-		fileContent, err := ReadFileContent(novel.Filepath)
-		if err != nil {
-			return "", err
+		// 拼接所有章节内容
+		var contentBuilder strings.Builder
+		for i, chapter := range chapters {
+			contentBuilder.WriteString(chapter.Title)
+			contentBuilder.WriteString("\n\n")
+			contentBuilder.WriteString(chapter.Content)
+			if i < len(chapters)-1 {
+				contentBuilder.WriteString("\n\n")
+			}
 		}
 
-		return fileContent, nil
+		return contentBuilder.String(), nil
 	})
 
 	if err != nil {
@@ -122,6 +132,44 @@ func (s *CacheService) GetNovelContentWithCache(novelID uint) (string, error) {
 	return content, nil
 }
 
+// GetChapterWithCache 从缓存获取章节内容，如果缓存不存在则从数据库获取
+func (s *CacheService) GetChapterWithCache(chapterID uint) (models.Chapter, error) {
+	var chapter models.Chapter
+	cacheKey := fmt.Sprintf("chapter:info:%d", chapterID)
+
+	err := GlobalCache.GetOrSet(cacheKey, &chapter, 1*time.Hour, func() (interface{}, error) {
+		var dbChapter models.Chapter
+		result := models.DB.Preload("Novel").First(&dbChapter, chapterID)
+		if result.Error != nil {
+			return models.Chapter{}, result.Error
+		}
+		return dbChapter, nil
+	})
+
+	return chapter, err
+}
+
+// GetNovelChaptersWithCache 从缓存获取小说章节列表，如果缓存不存在则从数据库获取
+func (s *CacheService) GetNovelChaptersWithCache(novelID uint) ([]models.Chapter, error) {
+	var chapters []models.Chapter
+	cacheKey := CacheKeys.NovelChapters(novelID)
+
+	err := GlobalCache.GetOrSet(cacheKey, &chapters, 1*time.Hour, func() (interface{}, error) {
+		var dbChapters []models.Chapter
+		result := models.DB.Where("novel_id = ?", novelID).Order("position ASC").Find(&dbChapters)
+		if result.Error != nil {
+			return []models.Chapter{}, result.Error
+		}
+		return dbChapters, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return chapters, nil
+}
+
 // InvalidateNovelCache 失效小说相关缓存
 func (s *CacheService) InvalidateNovelCache(novelID uint) error {
 	// 删除小说信息缓存
@@ -129,6 +177,9 @@ func (s *CacheService) InvalidateNovelCache(novelID uint) error {
 
 	// 删除小说内容缓存
 	GlobalCache.Delete(CacheKeys.NovelContent(novelID))
+
+	// 删除小说章节列表缓存
+	GlobalCache.Delete(CacheKeys.NovelChapters(novelID))
 
 	return nil
 }
